@@ -1,0 +1,63 @@
+{
+  // ======================================================
+  //  SKILLIFY — Enterprise Workspace Settings (Optimized)
+  // ======================================================
+
+  // ---------- Editor Behavior ----------
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "always",
+    "source.fixAll.eslint": "always"
+  },
+  "files.eol": "\n",
+
+  // ---------- ESLint Integration ----------
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+
+  // ---------- Prettier ----------
+  "prettier.useEditorConfig": false,
+
+  // ---------- Tailwind IntelliSense ----------
+  "tailwindCSS.experimental.classRegex": [
+    ["clsx\\((.*)\\)", "(?:'|\"|`)(.*?)(?:'|\"|`)"],
+    ["cva\\((.*)\\)", "(?:'|\"|`)(.*?)(?:'|\"|`)"]
+  ],
+  "tailwindCSS.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+
+  // ---------- TypeScript ----------
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "relative",
+
+  // ---------- Watcher Exclusions (Performance Boost) ----------
+  "files.watcherExclude": {
+    "**/.git/**": true,
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/dist/**": true
+  },
+
+  // ---------- Disable Java Errors (Fix VSCode JDK Popups) ----------
+  "java.server.launchMode": "Standard",
+  "java.jdt.ls.java.home": null,
+  "java.errors.incompleteClasspath.severity": "ignore",
+  "java.home": null,
+
+  // VS Code sometimes activates Java on .ts/.tsx. Remove noise.
+  "files.associations": {
+    "*.java": "ignore"
+  },
+
+  // ---------- Git ----------
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false
+}

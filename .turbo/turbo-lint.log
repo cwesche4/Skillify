@@ -1,0 +1,109 @@
+
+
+> nextjs_skillify@1.0.0 lint
+> eslint .
+
+=============
+
+WARNING: You are currently running a version of TypeScript which is not officially supported by @typescript-eslint/typescript-estree.
+
+You may find that it works just fine, or you may not.
+
+SUPPORTED TYPESCRIPT VERSIONS: >=4.7.4 <5.6.0
+
+YOUR TYPESCRIPT VERSION: 5.6.3
+
+Please only submit bug reports when using the officially supported version.
+
+=============
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/lib/db.ts[24m[0m
+[0m   [2m3:46[22m  [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m   [2m4:46[22m  [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m   [2m5:20[22m  [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m   [2m7:37[22m  [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m   [2m9:52[22m  [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m  [2m14:3[22m   [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m  [2m17:35[22m  [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m  [2m20:35[22m  [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m  [2m21:2[22m   [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m  [2m27:9[22m   [33mwarning[39m  Replace `⏎······process.env.NODE_ENV·===·"development"⏎········?·["query",·"error",·"warn"]⏎·······` with `·process.env.NODE_ENV·===·"development"·?·["query",·"error",·"warn"]`  [2mprettier/prettier[22m[0m
+[0m  [2m31:5[22m   [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m  [2m34:34[22m  [33mwarning[39m  Delete `;`                                                                                                                                                                        [2mprettier/prettier[22m[0m
+[0m  [2m37:31[22m  [33mwarning[39m  Replace `;` with `⏎`                                                                                                                                                              [2mprettier/prettier[22m[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/scripts/build.mjs[24m[0m
+[0m  [2m3:1[22m  [31merror[39m  'console' is not defined  [2mno-undef[22m[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/scripts/lint.mjs[24m[0m
+[0m  [2m3:1[22m  [31merror[39m  'console' is not defined  [2mno-undef[22m[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/scripts/type-check.mjs[24m[0m
+[0m  [2m3:1[22m  [31merror[39m  'console' is not defined  [2mno-undef[22m[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/test/setup.ts[24m[0m
+[0m  [2m1:35[22m  [33mwarning[39m  Delete `;`  [2mprettier/prettier[22m[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/tests/app/dashboard-page.test.tsx[24m[0m
+[0m  [2m0:0[22m  [31merror[39m  Parsing error: ESLint was configured to run on `<tsconfigRootDir>/tests/app/dashboard-page.test.tsx` using `parserOptions.project`: <tsconfigRootDir>/tsconfig.json[0m
+[0mHowever, that TSConfig does not include this file. Either:[0m
+[0m- Change ESLint's list of included files to not include this file[0m
+[0m- Change that TSConfig to include this file[0m
+[0m- Create a new TSConfig that includes this file and include it in your parserOptions.project[0m
+[0mSee the typescript-eslint docs for more info: https://typescript-eslint.io/troubleshooting/typed-linting#i-get-errors-telling-me-eslint-was-configured-to-run--however-that-tsconfig-does-not--none-of-those-tsconfigs-include-this-file[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/tests/components/basic-react-dom.test.tsx[24m[0m
+[0m  [2m0:0[22m  [31merror[39m  Parsing error: ESLint was configured to run on `<tsconfigRootDir>/tests/components/basic-react-dom.test.tsx` using `parserOptions.project`: <tsconfigRootDir>/tsconfig.json[0m
+[0mHowever, that TSConfig does not include this file. Either:[0m
+[0m- Change ESLint's list of included files to not include this file[0m
+[0m- Change that TSConfig to include this file[0m
+[0m- Create a new TSConfig that includes this file and include it in your parserOptions.project[0m
+[0mSee the typescript-eslint docs for more info: https://typescript-eslint.io/troubleshooting/typed-linting#i-get-errors-telling-me-eslint-was-configured-to-run--however-that-tsconfig-does-not--none-of-those-tsconfigs-include-this-file[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/tests/example.test.ts[24m[0m
+[0m  [2m0:0[22m  [31merror[39m  Parsing error: ESLint was configured to run on `<tsconfigRootDir>/tests/example.test.ts` using `parserOptions.project`: <tsconfigRootDir>/tsconfig.json[0m
+[0mHowever, that TSConfig does not include this file. Either:[0m
+[0m- Change ESLint's list of included files to not include this file[0m
+[0m- Change that TSConfig to include this file[0m
+[0m- Create a new TSConfig that includes this file and include it in your parserOptions.project[0m
+[0mSee the typescript-eslint docs for more info: https://typescript-eslint.io/troubleshooting/typed-linting#i-get-errors-telling-me-eslint-was-configured-to-run--however-that-tsconfig-does-not--none-of-those-tsconfigs-include-this-file[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/tests/lib/example-util.test.ts[24m[0m
+[0m  [2m0:0[22m  [31merror[39m  Parsing error: ESLint was configured to run on `<tsconfigRootDir>/tests/lib/example-util.test.ts` using `parserOptions.project`: <tsconfigRootDir>/tsconfig.json[0m
+[0mHowever, that TSConfig does not include this file. Either:[0m
+[0m- Change ESLint's list of included files to not include this file[0m
+[0m- Change that TSConfig to include this file[0m
+[0m- Create a new TSConfig that includes this file and include it in your parserOptions.project[0m
+[0mSee the typescript-eslint docs for more info: https://typescript-eslint.io/troubleshooting/typed-linting#i-get-errors-telling-me-eslint-was-configured-to-run--however-that-tsconfig-does-not--none-of-those-tsconfigs-include-this-file[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/tests/setup.ts[24m[0m
+[0m  [2m0:0[22m  [31merror[39m  Parsing error: ESLint was configured to run on `<tsconfigRootDir>/tests/setup.ts` using `parserOptions.project`: <tsconfigRootDir>/tsconfig.json[0m
+[0mHowever, that TSConfig does not include this file. Either:[0m
+[0m- Change ESLint's list of included files to not include this file[0m
+[0m- Change that TSConfig to include this file[0m
+[0m- Create a new TSConfig that includes this file and include it in your parserOptions.project[0m
+[0mSee the typescript-eslint docs for more info: https://typescript-eslint.io/troubleshooting/typed-linting#i-get-errors-telling-me-eslint-was-configured-to-run--however-that-tsconfig-does-not--none-of-those-tsconfigs-include-this-file[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/tests/setup/test-env.ts[24m[0m
+[0m  [2m0:0[22m  [31merror[39m  Parsing error: ESLint was configured to run on `<tsconfigRootDir>/tests/setup/test-env.ts` using `parserOptions.project`: <tsconfigRootDir>/tsconfig.json[0m
+[0mHowever, that TSConfig does not include this file. Either:[0m
+[0m- Change ESLint's list of included files to not include this file[0m
+[0m- Change that TSConfig to include this file[0m
+[0m- Create a new TSConfig that includes this file and include it in your parserOptions.project[0m
+[0mSee the typescript-eslint docs for more info: https://typescript-eslint.io/troubleshooting/typed-linting#i-get-errors-telling-me-eslint-was-configured-to-run--however-that-tsconfig-does-not--none-of-those-tsconfigs-include-this-file[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/tests/smoke/sanity.test.ts[24m[0m
+[0m  [2m0:0[22m  [31merror[39m  Parsing error: ESLint was configured to run on `<tsconfigRootDir>/tests/smoke/sanity.test.ts` using `parserOptions.project`: <tsconfigRootDir>/tsconfig.json[0m
+[0mHowever, that TSConfig does not include this file. Either:[0m
+[0m- Change ESLint's list of included files to not include this file[0m
+[0m- Change that TSConfig to include this file[0m
+[0m- Create a new TSConfig that includes this file and include it in your parserOptions.project[0m
+[0mSee the typescript-eslint docs for more info: https://typescript-eslint.io/troubleshooting/typed-linting#i-get-errors-telling-me-eslint-was-configured-to-run--however-that-tsconfig-does-not--none-of-those-tsconfigs-include-this-file[0m
+[0m[0m
+[0m[4m/Users/c/nextjs_skillify/vitest.setup.ts[24m[0m
+[0m  [2m1:35[22m  [33mwarning[39m  Delete `;`  [2mprettier/prettier[22m[0m
+[0m[0m
+[0m[31m[1m✖ 25 problems (10 errors, 15 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  0 errors and 15 warnings potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m
+⠙[1G[0K

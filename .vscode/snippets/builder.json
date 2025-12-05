@@ -1,0 +1,10 @@
+{
+  "New ReactFlow Node": {
+    "prefix": "node",
+    "body": [
+      "export const ${1:NodeName}Node = ({ data }) => {",
+      "  return <div className=\"p-4 rounded bg-neutral-card-light dark:bg-neutral-card-dark\">$2</div>",
+      "};"
+    ]
+  }
+}

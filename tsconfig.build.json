@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.shared.json",
+    "compilerOptions": {
+        "noEmit": true
+    },
+    "include": [
+        "app/**/*",
+        "components/**/*",
+        "lib/**/*"
+    ],
+    "exclude": [
+        "tests/**",
+        "scripts/**",
+        "prisma/**"
+    ]
+}

@@ -1,0 +1,239 @@
+/* ------------------------------------------------------------
+   1. THEME TOKENS (CSS Variables)
+------------------------------------------------------------ */
+@layer base {
+  :root {
+    --brand-primary: #2563eb;
+    --brand-indigo: #6366f1;
+    --brand-teal: #0ea5e9;
+
+    --neutral-light: #f5f7fa;
+    --neutral-dark: #0d0f12;
+
+    --neutral-card-light: #ffffff;
+    --neutral-card-dark: #111315;
+
+    --neutral-border: #e5e7eb;
+
+    --neutral-text-primary: #1f2937;
+    --neutral-text-secondary: #4b5563;
+
+    --accent-soft-purple: #e0d7ff;
+    --accent-sky-blue: #bae6fd;
+    --accent-mint: #a0f0e3;
+  }
+
+  .dark {
+    --neutral-light: #0d0f12;
+    --neutral-card-light: #111315;
+
+    --neutral-text-primary: #f9fafb;
+    --neutral-text-secondary: #e5e7eb;
+  }
+}
+
+/* ------------------------------------------------------------
+   2. TAILWIND LAYERS
+------------------------------------------------------------ */
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* ------------------------------------------------------------
+   3. CUSTOM COLOR UTILITIES
+------------------------------------------------------------ */
+@layer utilities {
+  .bg-neutral-card-dark { background-color: var(--neutral-card-dark); }
+  .bg-neutral-card-light { background-color: var(--neutral-card-light); }
+  .bg-neutral-light { background-color: var(--neutral-light); }
+  .bg-neutral-dark { background-color: var(--neutral-dark); }
+
+  .text-neutral-text-primary { color: var(--neutral-text-primary); }
+  .text-neutral-text-secondary { color: var(--neutral-text-secondary); }
+
+  .border-neutral-border { border-color: var(--neutral-border); }
+}
+
+/* ------------------------------------------------------------
+   4. GLOBAL BEHAVIOR + ANIMATION
+------------------------------------------------------------ */
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+* {
+  @apply transition-colors duration-200;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------
+   5. GLOBAL THEME + TYPOGRAPHY
+------------------------------------------------------------ */
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+.page-transition {
+  @apply animate-fadeIn;
+}
+
+a {
+  @apply text-indigo-400 hover:text-indigo-300 transition-colors;
+}
+
+.h1 { @apply text-4xl font-heading font-semibold tracking-tight; }
+.h2 { @apply text-3xl font-heading font-semibold tracking-tight; }
+.h3 { @apply text-2xl font-heading font-medium; }
+.h4 { @apply text-xl font-heading; }
+.body { @apply text-base text-neutral-text-secondary leading-relaxed; }
+
+/* ------------------------------------------------------------
+   6. KBD SHORTCUT STYLE
+------------------------------------------------------------ */
+.kbd {
+  @apply 
+    px-2 
+    py-0.5 
+    rounded-lg 
+    bg-neutral-light 
+    dark:bg-neutral-card-dark
+    border 
+    border-neutral-border
+    text-xs 
+    font-mono 
+    text-neutral-text-primary
+    dark:text-white
+  ;
+}
+
+/* ------------------------------------------------------------
+   7. INPUTS + FORMS
+------------------------------------------------------------ */
+input,
+textarea,
+select {
+  @apply bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 outline-none;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  @apply border-indigo-500 ring-1 ring-indigo-500;
+}
+
+/* ------------------------------------------------------------
+   8. BUTTON SYSTEM
+------------------------------------------------------------ */
+.btn { @apply px-4 py-2 rounded-xl font-medium inline-flex items-center justify-center transition-all duration-200; }
+.btn-primary { @apply bg-brand-primary text-white hover:bg-blue-600 active:scale-[0.98]; }
+.btn-secondary { @apply bg-neutral-card-dark text-neutral-text-primary border border-neutral-border hover:bg-slate-800; }
+.btn-ghost { @apply text-neutral-text-secondary hover:text-white hover:bg-slate-800 rounded-xl; }
+.btn-outline { @apply border border-neutral-border text-neutral-text-primary hover:bg-slate-800; }
+.btn-danger { @apply bg-red-600 text-white hover:bg-red-700; }
+
+.btn-sm { @apply text-sm px-3 py-1.5; }
+.btn-lg { @apply text-lg px-6 py-3; }
+
+/* ------------------------------------------------------------
+   9. CARD SYSTEM
+------------------------------------------------------------ */
+.card {
+  @apply bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-soft backdrop-blur;
+}
+
+.card-hover { @apply hover:-translate-y-0.5 hover:shadow-card transition-all duration-200; }
+.card-stat { @apply bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-2; }
+.card-analytics { @apply bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-card; }
+
+/* ------------------------------------------------------------
+   10. NAVIGATION
+------------------------------------------------------------ */
+.sidebar { @apply w-64 h-screen bg-slate-950 border-r border-slate-800 fixed top-0 left-0 flex flex-col; }
+
+.navbar { @apply w-full h-16 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-6 fixed top-0 left-0 z-40; }
+
+.workspace-switcher {
+  @apply flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 cursor-pointer;
+}
+
+.profile-menu { @apply flex items-center gap-2 cursor-pointer hover:bg-slate-800 px-3 py-1.5 rounded-lg; }
+
+/* ------------------------------------------------------------
+   11. MODALS
+------------------------------------------------------------ */
+.modal {
+  @apply bg-slate-900 border border-slate-700 rounded-2xl p-8 shadow-2xl max-w-lg w-full animate-fadeIn;
+}
+
+/* ------------------------------------------------------------
+   12. TOAST SYSTEM
+------------------------------------------------------------ */
+.skillify-toast {
+  @apply bg-slate-800 text-slate-50 px-4 py-3 rounded-lg shadow-lg border border-slate-700;
+}
+
+.toast-success { @apply skillify-toast border-green-500 text-green-300; }
+.toast-error   { @apply skillify-toast border-red-500 text-red-300; }
+.toast-info    { @apply skillify-toast border-blue-500 text-blue-300; }
+
+/* ------------------------------------------------------------
+   13. TABLE SYSTEM
+------------------------------------------------------------ */
+.table { @apply w-full border-collapse; }
+
+.table th { @apply text-left text-sm font-medium text-neutral-text-secondary border-b border-slate-700 pb-2; }
+.table td { @apply py-3 text-sm text-neutral-text-primary border-b border-slate-800; }
+
+/* ------------------------------------------------------------
+   14. PRICING CARDS
+------------------------------------------------------------ */
+.pricing-card { @apply bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center shadow-card; }
+.pricing-card-popular { @apply bg-slate-900 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.4)]; }
+.pricing-price { @apply text-4xl font-heading font-semibold mt-4; }
+.pricing-features { @apply mt-4 flex flex-col gap-3 text-neutral-text-secondary; }
+
+/* ------------------------------------------------------------
+   15. GRID HELPERS
+------------------------------------------------------------ */
+.grid-2 { @apply grid grid-cols-1 md:grid-cols-2 gap-6; }
+.grid-3 { @apply grid grid-cols-1 md:grid-cols-3 gap-6; }
+.grid-4 { @apply grid grid-cols-1 md:grid-cols-4 gap-6; }
+
+/* ------------------------------------------------------------
+   16. LAYOUT BLOCKS
+------------------------------------------------------------ */
+.section { @apply max-w-7xl mx-auto px-6 py-12; }
+.page    { @apply pt-20 px-6; }
+
+/* ------------------------------------------------------------
+   17. BADGES
+------------------------------------------------------------ */
+.badge { @apply px-3 py-1 rounded-full text-xs font-medium; }
+.badge-blue  { @apply bg-blue-500/20 text-blue-300; }
+.badge-green { @apply bg-green-500/20 text-green-300; }
+.badge-red   { @apply bg-red-500/20 text-red-300; }
+
+/* ------------------------------------------------------------
+   18. AUTOMATION BUILDER — NODE BASE
+------------------------------------------------------------ */
+.node-base {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 500;
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  max-width: 180px;
+  text-align: left;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  user-select: none;
+}

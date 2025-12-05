@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "streetsidesoftware.code-spell-checker",
+    "csstools.postcss",
+    "firsttris.vscode-jest-runner",
+    "github.copilot",
+    "github.copilot-chat"
+  ]
+}
