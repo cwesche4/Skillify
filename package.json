@@ -16,7 +16,8 @@
     "prisma:reset": "prisma migrate reset",
     "prisma:seed": "tsx prisma/seed.ts",
     "studio": "prisma studio --url=\"postgresql://postgres:postgres@localhost:5432/skillify?schema=public\"",
-    "prepare": "husky install"
+    "prepare": "husky",
+    "test": "vitest run"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.1.0",

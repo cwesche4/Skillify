@@ -1,7 +1,10 @@
 #!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
 
-# Run ESLint + Prettier before commits
-echo "🔍 Running lint checks..."
-
+echo "🔍 Running ESLint..."
 npm run lint:fix || exit 1
+
+echo "🎨 Running Prettier..."
 npm run format || exit 1
+
+echo "✨ Pre-commit checks passed!"
