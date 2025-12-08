@@ -1,20 +1,20 @@
 // components/dashboard/AiCoachLivePanel.tsx
-"use client"
+'use client'
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from 'react'
 
-import { Badge } from "@/components/ui/Badge"
-import { Card } from "@/components/ui/Card"
-import { analyzeTrends } from "@/lib/analytics/aiAnnotations"
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+import { analyzeTrends } from '@/lib/analytics/aiAnnotations'
 
-import { AnomalyDetector } from "@/components/dashboard/ai-coach/AnomalyDetector"
-import { CostOptimizer } from "@/components/dashboard/ai-coach/CostOptimizer"
-import { FlowImprover } from "@/components/dashboard/ai-coach/FlowImprover"
-import { PerformanceSummary } from "@/components/dashboard/ai-coach/PerformanceSummary"
+import { AnomalyDetector } from '@/components/dashboard/ai-coach/AnomalyDetector'
+import { CostOptimizer } from '@/components/dashboard/ai-coach/CostOptimizer'
+import { FlowImprover } from '@/components/dashboard/ai-coach/FlowImprover'
+import { PerformanceSummary } from '@/components/dashboard/ai-coach/PerformanceSummary'
 
 type Anomaly = {
   id: string
-  severity: "low" | "medium" | "high"
+  severity: 'low' | 'medium' | 'high'
   message: string
   time: string
 }
@@ -47,14 +47,16 @@ export function AiCoachLivePanel({
   const [trend, setTrend] = useState(0)
   const [issues, setIssues] = useState(initialIssues)
 
-  const [avgDuration, setAvgDuration] = useState<string>("—")
-  const [monthlyCost, setMonthlyCost] = useState<string>("—")
+  const [avgDuration, setAvgDuration] = useState<string>('—')
+  const [monthlyCost, setMonthlyCost] = useState<string>('—')
 
   const [topExpensive, setTopExpensive] = useState<
     { automation: string; cost: string }[]
   >([])
 
-  const [slowNodes, setSlowNodes] = useState<{ node: string; duration: string }[]>([])
+  const [slowNodes, setSlowNodes] = useState<
+    { node: string; duration: string }[]
+  >([])
 
   const [anomalies, setAnomalies] = useState<Anomaly[]>([])
 
@@ -75,7 +77,7 @@ export function AiCoachLivePanel({
       try {
         // You can later replace this with your real endpoint
         const res = await fetch(`/api/workspaces/${workspaceId}/coach/live`, {
-          cache: "no-store",
+          cache: 'no-store',
         })
 
         if (!res.ok) {
@@ -141,7 +143,7 @@ export function AiCoachLivePanel({
           </p>
         </div>
 
-        <Badge variant="blue">{loading ? "Syncing…" : "Live"}</Badge>
+        <Badge variant="blue">{loading ? 'Syncing…' : 'Live'}</Badge>
       </div>
 
       {/* Main grid */}
@@ -160,17 +162,17 @@ export function AiCoachLivePanel({
               monthlyCost={monthlyCost}
               topExpensive={topExpensive}
               suggestions={[
-                "Reduce frequency for non-critical flows.",
-                "Batch low-priority jobs during off-peak hours.",
-                "Consolidate duplicate AI calls into shared utilities.",
+                'Reduce frequency for non-critical flows.',
+                'Batch low-priority jobs during off-peak hours.',
+                'Consolidate duplicate AI calls into shared utilities.',
               ]}
             />
             <FlowImprover
               slowNodes={slowNodes}
               suggestions={[
-                "Move slow nodes later in the flow where possible.",
-                "Cache heavy AI responses that are reused frequently.",
-                "Split long-running branches into separate background flows.",
+                'Move slow nodes later in the flow where possible.',
+                'Cache heavy AI responses that are reused frequently.',
+                'Split long-running branches into separate background flows.',
               ]}
             />
           </div>

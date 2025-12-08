@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import { motion } from "framer-motion"
+import { motion } from 'framer-motion'
 
-import type { CommandSearchResult } from "@/lib/command-center/types"
+import type { CommandSearchResult } from '@/lib/command-center/types'
 
-import { Badge } from "@/components/ui/Badge"
-import { cn } from "@/lib/utils"
-import { LayoutDashboard, LineChart, User, Workflow } from "lucide-react"
+import { Badge } from '@/components/ui/Badge'
+import { cn } from '@/lib/utils'
+import { LayoutDashboard, LineChart, User, Workflow } from 'lucide-react'
 
 interface CommandCenterResultsProps {
   results: CommandSearchResult[]
@@ -17,7 +17,7 @@ interface CommandCenterResultsProps {
 /* ----------------------------------------------
    Icons by type
 ---------------------------------------------- */
-const ICONS: Record<CommandSearchResult["type"], JSX.Element> = {
+const ICONS: Record<CommandSearchResult['type'], JSX.Element> = {
   workspace: <LayoutDashboard className="h-3.5 w-3.5" />,
   automation: <Workflow className="h-3.5 w-3.5" />,
   run: <LineChart className="h-3.5 w-3.5" />,
@@ -55,10 +55,10 @@ export default function CommandCenterResults({
               type="button"
               onClick={() => onSelect(result)}
               className={cn(
-                "group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition",
+                'group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition',
                 active
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "text-slate-200 hover:bg-slate-900/60",
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-200 hover:bg-slate-900/60',
               )}
             >
               <div className="flex items-center gap-3">
@@ -69,7 +69,9 @@ export default function CommandCenterResults({
 
                 {/* TEXT */}
                 <div className="flex flex-col">
-                  <span className="text-xs font-medium">{getPrimaryLabel(result)}</span>
+                  <span className="text-xs font-medium">
+                    {getPrimaryLabel(result)}
+                  </span>
 
                   <span className="text-[11px] text-slate-400">
                     {getSecondaryLabel(result)}
@@ -92,61 +94,69 @@ export default function CommandCenterResults({
 ---------------------------------------------- */
 function getPrimaryLabel(r: CommandSearchResult) {
   switch (r.type) {
-    case "workspace":
+    case 'workspace':
       return r.name
-    case "automation":
+    case 'automation':
       return r.name
-    case "run":
+    case 'run':
       return r.automationName
-    case "member":
+    case 'member':
       return r.clerkId
   }
 }
 
 function getSecondaryLabel(r: CommandSearchResult) {
   switch (r.type) {
-    case "workspace":
+    case 'workspace':
       return `Workspace · ${r.slug}`
 
-    case "automation":
+    case 'automation':
       return `Automation · ${r.workspaceName}`
 
-    case "run":
+    case 'run':
       return `Run · ${new Date(r.createdAt).toLocaleString()}`
 
-    case "member":
+    case 'member':
       return `Member · ${r.workspaceName} · Role: ${r.role}`
   }
 }
 
 function getBadge(r: CommandSearchResult) {
   switch (r.type) {
-    case "workspace":
+    case 'workspace':
       return <Badge variant="blue">Workspace</Badge>
 
-    case "automation":
+    case 'automation':
       return (
         <Badge
           variant={
-            r.status === "ACTIVE" ? "green" : r.status === "PAUSED" ? "blue" : "default"
+            r.status === 'ACTIVE'
+              ? 'green'
+              : r.status === 'PAUSED'
+                ? 'blue'
+                : 'default'
           }
         >
           {r.status}
         </Badge>
       )
 
-    case "run":
+    case 'run':
       return (
         <Badge
           variant={
-            r.status === "SUCCESS" ? "green" : r.status === "FAILED" ? "red" : "blue"
+            r.status === 'SUCCESS'
+              ? 'green'
+              : r.status === 'FAILED'
+                ? 'red'
+                : 'blue'
           }
         >
           {r.status}
         </Badge>
       )
 
-    case "member":
+    case 'member':
       return <Badge variant="default">Member</Badge>
   }
 }

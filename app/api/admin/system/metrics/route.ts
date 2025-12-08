@@ -1,16 +1,16 @@
-import { currentUser } from "@clerk/nextjs/server"
-import { AutomationStatus, RunStatus } from "@prisma/client"
-import { NextResponse } from "next/server"
+import { currentUser } from '@clerk/nextjs/server'
+import { AutomationStatus, RunStatus } from '@prisma/client'
+import { NextResponse } from 'next/server'
 
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
 export async function GET() {
   // Admin guard
   const user = await currentUser()
   const role = (user?.publicMetadata as any)?.role
 
-  if (!user || role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (!user || role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const now = Date.now()
@@ -42,7 +42,7 @@ export async function GET() {
 
   const recentRuns = await prisma.automationRun.findMany({
     take: 10,
-    orderBy: { startedAt: "desc" },
+    orderBy: { startedAt: 'desc' },
     include: {
       automation: {
         select: {
@@ -66,9 +66,9 @@ export async function GET() {
     failureRate,
     recentRuns: recentRuns.map((r: any) => ({
       id: r.id,
-      automationName: r.automation?.name ?? "Unknown",
-      workspaceName: r.automation?.workspace?.name ?? "Unknown",
-      workspaceSlug: r.automation?.workspace?.slug ?? "",
+      automationName: r.automation?.name ?? 'Unknown',
+      workspaceName: r.automation?.workspace?.name ?? 'Unknown',
+      workspaceSlug: r.automation?.workspace?.slug ?? '',
       status: r.status,
       startedAt: r.startedAt.toISOString(),
     })),

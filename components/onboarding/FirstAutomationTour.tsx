@@ -1,14 +1,14 @@
 // components/onboarding/FirstAutomationTour.tsx
-"use client"
+'use client'
 
-import Link from "next/link"
-import { useEffect, useState } from "react"
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 export function FirstAutomationTour() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    const key = "skillify-first-automation-tour-dismissed"
+    const key = 'skillify-first-automation-tour-dismissed'
     const stored = window.localStorage.getItem(key)
     if (!stored) {
       setVisible(true)
@@ -16,8 +16,8 @@ export function FirstAutomationTour() {
   }, [])
 
   function dismiss() {
-    const key = "skillify-first-automation-tour-dismissed"
-    window.localStorage.setItem(key, "true")
+    const key = 'skillify-first-automation-tour-dismissed'
+    window.localStorage.setItem(key, 'true')
     setVisible(false)
   }
 
@@ -30,8 +30,8 @@ export function FirstAutomationTour() {
           Welcome to your first automation
         </p>
         <p className="text-neutral-text-secondary">
-          Start by creating a simple flow. You can refine it later using the AI Coach and
-          analytics.
+          Start by creating a simple flow. You can refine it later using the AI
+          Coach and analytics.
         </p>
         <div className="flex items-center gap-3">
           <Link

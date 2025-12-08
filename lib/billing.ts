@@ -1,14 +1,14 @@
 // lib/billing.ts
 
-export type BillingPlan = "BASIC" | "PRO" | "ELITE"
+export type BillingPlan = 'BASIC' | 'PRO' | 'ELITE'
 
 export function planRank(plan: BillingPlan): number {
   switch (plan) {
-    case "BASIC":
+    case 'BASIC':
       return 1
-    case "PRO":
+    case 'PRO':
       return 2
-    case "ELITE":
+    case 'ELITE':
       return 3
     default:
       return 0
@@ -27,6 +27,9 @@ export function hasPlan(current: BillingPlan, required: BillingPlan): boolean {
  * React helper to gate UI by plan.
  * Use in client components.
  */
-export function featureAllowed(current: BillingPlan, minPlan: BillingPlan): boolean {
+export function featureAllowed(
+  current: BillingPlan,
+  minPlan: BillingPlan,
+): boolean {
   return hasPlan(current, minPlan)
 }

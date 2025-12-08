@@ -1,20 +1,20 @@
-"use client"
+'use client'
 
-import { ChevronRight } from "lucide-react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 function formatSegment(seg: string) {
-  return seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  return seg.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 export function Breadcrumbs() {
   const pathname = usePathname()
-  const segments = pathname.split("/").filter(Boolean) // remove ""
+  const segments = pathname.split('/').filter(Boolean) // remove ""
 
   // Start from /dashboard as base
   const crumbs = segments.map((seg, index) => {
-    const href = "/" + segments.slice(0, index + 1).join("/")
+    const href = '/' + segments.slice(0, index + 1).join('/')
     return { label: formatSegment(seg), href }
   })
 
@@ -29,7 +29,9 @@ export function Breadcrumbs() {
         const isLast = idx === crumbs.length - 1
         return (
           <span key={crumb.href} className="flex items-center">
-            {idx > 0 && <ChevronRight size={14} className="mx-1 text-slate-500" />}
+            {idx > 0 && (
+              <ChevronRight size={14} className="mx-1 text-slate-500" />
+            )}
             {!isLast ? (
               <Link href={crumb.href} className="hover:text-slate-100">
                 {crumb.label}

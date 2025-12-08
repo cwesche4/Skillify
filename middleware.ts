@@ -1,32 +1,19 @@
-import { clerkMiddleware } from "@clerk/nextjs/server"
-import { NextResponse } from "next/server"
+import { auth } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
-export default clerkMiddleware((auth, req) => {
-  const { userId } = auth()
-  const url = req.nextUrl
-  const path = url.pathname
+export default async function middleware(req: Request) {
+  const url = new URL(req.url)
+  const pathname = url.pathname
 
-  const isPublicRoute =
-    path === "/" ||
-    path === "/pricing" ||
-    path === "/about" ||
-    path.startsWith("/sign-in") ||
-    path.startsWith("/sign-up") ||
-    path.startsWith("/sso-callback") ||
-    path.startsWith("/api/webhooks")
-
-  if (!isPublicRoute && !userId) {
-    return NextResponse.redirect(new URL("/sign-in", req.url))
-  }
-
-  // Handle onboarding redirect
-  if (path === "/dashboard" || path === "/") {
-    return NextResponse.redirect(new URL("/onboarding", req.url))
+  // Admin section
+  if (pathname.startsWith('/dashboard') && pathname.includes('/admin')) {
+    const { userId } = auth()
+    if (!userId) return NextResponse.redirect(new URL('/sign-in', req.url))
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ['/dashboard/:path*/admin/:path*'],
 }

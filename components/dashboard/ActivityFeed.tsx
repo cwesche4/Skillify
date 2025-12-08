@@ -1,10 +1,10 @@
 // components/dashboard/ActivityFeed.tsx
 
-"use client"
+'use client'
 
-import { Zap, AlertTriangle, MessageSquare, Cpu } from "lucide-react"
+import { Zap, AlertTriangle, MessageSquare, Cpu } from 'lucide-react'
 
-export type ActivityKind = "run" | "ai" | "error" | "billing"
+export type ActivityKind = 'run' | 'ai' | 'error' | 'billing'
 
 export interface ActivityItem {
   id: string
@@ -22,13 +22,15 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
         <h2 className="text-neutral-text-primary text-sm font-semibold">
           Recent activity
         </h2>
-        <span className="text-neutral-text-secondary text-[11px]">Last 24 hours</span>
+        <span className="text-neutral-text-secondary text-[11px]">
+          Last 24 hours
+        </span>
       </div>
 
       {items.length === 0 ? (
         <p className="text-neutral-text-secondary text-sm">
-          No recent activity yet. Once automations start running, you’ll see a live stream
-          here.
+          No recent activity yet. Once automations start running, you’ll see a
+          live stream here.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -49,8 +51,12 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
                     {item.timestamp}
                   </span>
                 </div>
-                <p className="text-neutral-text-secondary text-xs">{item.description}</p>
-                {item.meta && <p className="text-[11px] text-slate-400">{item.meta}</p>}
+                <p className="text-neutral-text-secondary text-xs">
+                  {item.description}
+                </p>
+                {item.meta && (
+                  <p className="text-[11px] text-slate-400">{item.meta}</p>
+                )}
               </div>
             </li>
           ))}
@@ -62,10 +68,10 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
 
 function KindIcon({ kind }: { kind: ActivityKind }) {
   const base =
-    "inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px]"
+    'inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px]'
 
   switch (kind) {
-    case "run":
+    case 'run':
       return (
         <span
           className={`${base} border-emerald-500/40 bg-emerald-500/10 text-emerald-300`}
@@ -73,22 +79,28 @@ function KindIcon({ kind }: { kind: ActivityKind }) {
           <Zap className="h-3 w-3" />
         </span>
       )
-    case "ai":
+    case 'ai':
       return (
-        <span className={`${base} border-indigo-500/40 bg-indigo-500/10 text-indigo-300`}>
+        <span
+          className={`${base} border-indigo-500/40 bg-indigo-500/10 text-indigo-300`}
+        >
           <Cpu className="h-3 w-3" />
         </span>
       )
-    case "error":
+    case 'error':
       return (
-        <span className={`${base} border-red-500/40 bg-red-500/10 text-red-300`}>
+        <span
+          className={`${base} border-red-500/40 bg-red-500/10 text-red-300`}
+        >
           <AlertTriangle className="h-3 w-3" />
         </span>
       )
-    case "billing":
+    case 'billing':
     default:
       return (
-        <span className={`${base} border-slate-500/40 bg-slate-800 text-slate-200`}>
+        <span
+          className={`${base} border-slate-500/40 bg-slate-800 text-slate-200`}
+        >
           <MessageSquare className="h-3 w-3" />
         </span>
       )

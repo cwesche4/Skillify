@@ -19,26 +19,30 @@ export function analyzeTrends({
 
   // Reliability warnings
   if (successRate < 60) {
-    insights.push("🚨 Critical reliability drop — urgent investigation recommended.")
+    insights.push(
+      '🚨 Critical reliability drop — urgent investigation recommended.',
+    )
   } else if (successRate < 80) {
-    insights.push("⚠️ Reliability is trending below recommended thresholds.")
+    insights.push('⚠️ Reliability is trending below recommended thresholds.')
   }
 
   // Trend direction
   if (trend < -0.1) {
-    insights.push("📉 Success trend is declining over time.")
+    insights.push('📉 Success trend is declining over time.')
   } else if (trend > 0.1) {
-    insights.push("📈 Success trend shows steady improvement.")
+    insights.push('📈 Success trend shows steady improvement.')
   }
 
   // High performance
   if (successRate > 95 && trend > 0.1) {
-    insights.push("🚀 Automations running exceptionally well — no major issues detected.")
+    insights.push(
+      '🚀 Automations running exceptionally well — no major issues detected.',
+    )
   }
 
   // Fallback if no insights were generated
   if (insights.length === 0) {
-    insights.push("All systems stable — no anomalies detected.")
+    insights.push('All systems stable — no anomalies detected.')
   }
 
   return insights

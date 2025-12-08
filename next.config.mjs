@@ -3,9 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: {
-      allowedOrigins: ["*"],
+      allowedOrigins: ['*'],
     },
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

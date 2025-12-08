@@ -1,14 +1,48 @@
-import { currentUser } from "@clerk/nextjs/server"
+// -------------------------------------------------------------
+// FILE: lib/auth/currentUser.ts
+// -------------------------------------------------------------
 
-import { prisma } from "@/lib/db"
+import { auth } from '@clerk/nextjs/server'
+import { prisma } from '@/lib/db'
+import { redirect } from 'next/navigation'
 
-export async function getAuthUser() {
-  const clerk = await currentUser()
-  if (!clerk) return null
+// Return Prisma user
+export async function getCurrentUserProfile() {
+  const { userId: clerkId } = auth()
+  if (!clerkId) return null
 
-  const user = await prisma.userProfile.findUnique({
-    where: { clerkId: clerk.id },
+  return prisma.userProfile.findUnique({
+    where: { clerkId },
+  })
+}
+
+// Require login
+export async function requireUser() {
+  const user = await getCurrentUserProfile()
+  if (!user) redirect('/sign-in')
+  return user
+}
+
+// Require GLOBAL ADMIN (not workspace admin)
+export async function requireAdmin() {
+  const user = await requireUser()
+  if (user.role !== 'admin') redirect('/')
+  return user
+}
+
+// Require workspace-level admin or owner
+export async function requireWorkspaceAdmin(workspaceId: string) {
+  const user = await requireUser()
+
+  const membership = await prisma.workspaceMember.findFirst({
+    where: {
+      workspaceId,
+      userId: user.id,
+      role: { in: ['OWNER', 'ADMIN'] },
+    },
   })
 
-  return user
+  if (!membership) redirect('/')
+
+  return { user, membership }
 }

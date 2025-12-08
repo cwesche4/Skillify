@@ -1,21 +1,21 @@
 // app/api/command/search/route.ts
 
-import type { CommandItem } from "@/components/command-center/types"
+import type { CommandItem } from '@/components/command-center/types'
 import {
   COMMAND_ACTIONS,
   HELP_ARTICLES,
   searchAutomations,
   searchMembers,
   searchWorkspaces,
-} from "@/lib/command-center/models" // ⬅️ FIXED PATH
-import { prisma } from "@/lib/db"
-import { auth } from "@clerk/nextjs/server"
-import { NextResponse } from "next/server"
+} from '@/lib/command-center/models' // ⬅️ FIXED PATH
+import { prisma } from '@/lib/db'
+import { auth } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
   const { userId: clerkId } = await auth()
   const url = new URL(req.url)
-  const q = (url.searchParams.get("q") ?? "").trim()
+  const q = (url.searchParams.get('q') ?? '').trim()
   const query = q.toLowerCase()
 
   const items: CommandItem[] = []
@@ -27,11 +27,11 @@ export async function GET(req: Request) {
     HELP_ARTICLES.forEach((h) => {
       items.push({
         id: `help-${h.id}`,
-        type: "help",
+        type: 'help',
         label: h.title,
-        subtitle: h.tags.join(", "),
-        group: "Help",
-        icon: "help",
+        subtitle: h.tags.join(', '),
+        group: 'Help',
+        icon: 'help',
         meta: { id: h.id },
       })
     })
@@ -66,17 +66,17 @@ export async function GET(req: Request) {
   /* ============================================================
      WORKSPACE SEARCH
   ============================================================ */
-  const wsResults = await searchWorkspaces(userProfile.id, query || "")
+  const wsResults = await searchWorkspaces(userProfile.id, query || '')
 
   wsResults.forEach((w) => {
     items.push({
       id: `workspace-${w.id}`,
-      type: "workspace",
+      type: 'workspace',
       label: w.name,
       subtitle: `Workspace • ${w.slug}`,
       href: `/dashboard?workspace=${w.slug}`,
-      group: "Workspaces",
-      icon: "dashboard",
+      group: 'Workspaces',
+      icon: 'dashboard',
     })
   })
 
@@ -93,12 +93,12 @@ export async function GET(req: Request) {
     autoResults.forEach((a) => {
       items.push({
         id: `automation-${a.id}`,
-        type: "automation",
+        type: 'automation',
         label: a.name,
         subtitle: `Automation • ${a.status}`,
         href: `/dashboard/automations/${a.id}`,
-        group: "Automations",
-        icon: "automations",
+        group: 'Automations',
+        icon: 'automations',
       })
     })
 
@@ -107,11 +107,11 @@ export async function GET(req: Request) {
       const user = m.user
       items.push({
         id: `member-${m.id}`,
-        type: "member",
-        label: user.clerkId ?? "Member",
+        type: 'member',
+        label: user.clerkId ?? 'Member',
         subtitle: `Member in ${defaultWorkspace.name}`,
-        group: "Members",
-        icon: "team",
+        group: 'Members',
+        icon: 'team',
       })
     })
   }
@@ -126,13 +126,13 @@ export async function GET(req: Request) {
 
     items.push({
       id: `command-${c.id}`,
-      type: "command",
+      type: 'command',
       label: c.label,
       subtitle: c.route,
       href: c.route,
-      group: "Commands",
-      icon: "settings",
-      shortcut: c.id === "open_analytics" ? "⌘ ⇧ A" : undefined,
+      group: 'Commands',
+      icon: 'settings',
+      shortcut: c.id === 'open_analytics' ? '⌘ ⇧ A' : undefined,
     })
   })
 
@@ -140,17 +140,20 @@ export async function GET(req: Request) {
      HELP ARTICLES
   ============================================================ */
   HELP_ARTICLES.forEach((h) => {
-    if (query && !`${h.title} ${h.tags.join(" ")}`.toLowerCase().includes(query)) {
+    if (
+      query &&
+      !`${h.title} ${h.tags.join(' ')}`.toLowerCase().includes(query)
+    ) {
       return
     }
 
     items.push({
       id: `help-${h.id}`,
-      type: "help",
+      type: 'help',
       label: h.title,
-      subtitle: h.tags.join(", "),
-      group: "Help",
-      icon: "help",
+      subtitle: h.tags.join(', '),
+      group: 'Help',
+      icon: 'help',
     })
   })
 
@@ -158,14 +161,14 @@ export async function GET(req: Request) {
      OPEN ONBOARDING
   ============================================================ */
   items.push({
-    id: "onboarding-open",
-    type: "onboarding",
-    label: "Open onboarding",
-    subtitle: "Review setup steps for your workspace",
-    group: "Onboarding",
-    icon: "help",
+    id: 'onboarding-open',
+    type: 'onboarding',
+    label: 'Open onboarding',
+    subtitle: 'Review setup steps for your workspace',
+    group: 'Onboarding',
+    icon: 'help',
     meta: {
-      action: "open_onboarding",
+      action: 'open_onboarding',
     },
   })
 

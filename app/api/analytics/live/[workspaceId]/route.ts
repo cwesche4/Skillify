@@ -1,7 +1,7 @@
 // app/api/analytics/live/[workspaceId]/route.ts
-import type { NextRequest } from "next/server"
+import type { NextRequest } from 'next/server'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 export async function GET(
   _req: NextRequest,
@@ -22,7 +22,7 @@ export async function GET(
 
       // Initial event so client knows it’s connected
       send({
-        type: "connected",
+        type: 'connected',
         workspaceId,
         timestamp: new Date().toISOString(),
       })
@@ -30,7 +30,7 @@ export async function GET(
       // Simple heartbeat – you can later replace with real analytics
       interval = setInterval(() => {
         send({
-          type: "heartbeat",
+          type: 'heartbeat',
           workspaceId,
           timestamp: new Date().toISOString(),
         })
@@ -44,9 +44,9 @@ export async function GET(
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
     },
   })
 }

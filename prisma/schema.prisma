@@ -6,8 +6,7 @@ generator client {
 }
 
 // ------------------------------
-// PRISMA 7 DATASOURCE (NO URL HERE)
-// URL comes from prisma.config.mjs
+// DATASOURCE (URL in prisma.config.mjs)
 // ------------------------------
 datasource db {
   provider = "postgresql"
@@ -37,6 +36,34 @@ enum RunStatus {
   FAILED
 }
 
+enum CalendarProvider {
+  GOOGLE
+  OUTLOOK
+  CALENDLY
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum ReminderChannel {
+  EMAIL
+  SMS
+  INTERNAL
+}
+
+enum EnterpriseStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CLOSED
+}
+
 //
 // CORE USER
 //
@@ -49,22 +76,29 @@ model UserProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Onboarding progress
   onboardingProgress OnboardingProgress?
 
-  // Relations
-  automations     Automation[]
-  runs            AutomationRun[]
-  subscription    Subscription?
-  memberships     WorkspaceMember[]
-  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
+  automations               Automation[]
+  runs                      AutomationRun[]
+  subscription              Subscription?
+  memberships               WorkspaceMember[]
+  ownedWorkspaces           Workspace[]                @relation("WorkspaceOwner")
+  dashboardPreferences      DashboardPreference[]
+  upsellRequests            UpsellRequest[]
+  enterpriseConsultRequests EnterpriseConsultRequest[]
+  templatePurchases         TemplatePurchase[]
+  microUpsellPurchases      MicroUpsellPurchase[]
+  blogPosts                 BlogPost[]
+
+  // Scheduling relations
+  calendarAccounts     CalendarAccount[]
+  bookingTypesCreated  BookingType[]     @relation("BookingTypeCreator")
+  bookingTypesAssigned BookingType[]     @relation("BookingTypeAssignedUser")
+  bookingsScheduledFor Booking[]         @relation("BookingScheduledFor")
+  bookingsCreated      Booking[]         @relation("BookingCreatedBy")
 
   @@index([clerkId])
 }
-
-//
-// ONBOARDING PROGRESS
-//
 
 model OnboardingProgress {
   id        String   @id @default(cuid())
@@ -91,18 +125,27 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members     WorkspaceMember[]
-  automations Automation[]
-  runs        AutomationRun[]
-  invites     WorkspaceInvite[]
+  members                   WorkspaceMember[]
+  automations               Automation[]
+  invites                   WorkspaceInvite[]
+  subscription              Subscription?              @relation(fields: [subscriptionId], references: [id])
+  subscriptionId            String?
+  automationRuns            AutomationRun[]
+  dashboardPreferences      DashboardPreference[]
+  upsellRequests            UpsellRequest[]
+  enterpriseConsultRequests EnterpriseConsultRequest[]
+  templatePurchases         TemplatePurchase[]
+  microUpsellPurchases      MicroUpsellPurchase[]
+  calendarAccounts          CalendarAccount[]
+  bookingTypes              BookingType[]
+  availabilityWindows       AvailabilityWindow[]
+  bookings                  Booking[]
+  reminderSequences         ReminderSequence[]
+  externalCalendarEvents    ExternalCalendarEvent[]
 
   @@index([ownerId])
   @@index([slug])
 }
-
-//
-// WORKSPACE MEMBERS
-//
 
 model WorkspaceMember {
   id          String              @id @default(cuid())
@@ -120,10 +163,6 @@ model WorkspaceMember {
   @@index([workspaceId])
   @@index([userId])
 }
-
-//
-// WORKSPACE INVITES
-//
 
 model WorkspaceInvite {
   id          String              @id @default(cuid())
@@ -164,7 +203,8 @@ model Automation {
   user      UserProfile @relation(fields: [userId], references: [id])
   workspace Workspace   @relation(fields: [workspaceId], references: [id])
 
-  runs AutomationRun[]
+  runs           AutomationRun[]
+  upsellRequests UpsellRequest[]
 }
 
 model AutomationRun {
@@ -176,6 +216,8 @@ model AutomationRun {
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
   log        String?
+
+  durationMs Int?
 
   automation    Automation   @relation(fields: [automationId], references: [id])
   workspace     Workspace    @relation(fields: [workspaceId], references: [id])
@@ -226,6 +268,326 @@ model Subscription {
   cancelAtPeriodEnd  Boolean   @default(false)
   canceledAt         DateTime?
 
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  workspaces Workspace[]
+}
+
+model DashboardPreference {
+  id          String @id @default(cuid())
+  userId      String
+  workspaceId String
+
+  layout Json
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  user      UserProfile @relation(fields: [userId], references: [id])
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model UpsellRequest {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  userId       String
+  automationId String?
+  type         String
+  description  String
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+
+  workspace  Workspace   @relation(fields: [workspaceId], references: [id])
+  user       UserProfile @relation(fields: [userId], references: [id])
+  automation Automation? @relation(fields: [automationId], references: [id])
+}
+
+model BuildRequest {
+  id          String  @id @default(cuid())
+  workspaceId String?
+  userId      String?
+
+  name    String
+  email   String
+  phone   String?
+  company String?
+  website String?
+  size    String?
+
+  projectType     String?
+  projectSummary  String
+  automationCount Int?
+  budgetRange     String?
+  timeline        String?
+
+  status    String   @default("NEW") // NEW | REVIEWING | CLOSED
+  createdAt DateTime @default(now())
+}
+
+model EnterpriseConsultRequest {
+  id          String           @id @default(cuid())
+  workspaceId String
+  userId      String
+  name        String
+  email       String
+  phone       String?
+  companySize String?
+  projectGoal String?
+  description String
+  status      EnterpriseStatus @default(NEW)
+  createdAt   DateTime         @default(now())
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+  user      UserProfile @relation(fields: [userId], references: [id])
+}
+
+model TemplatePurchase {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  templateId  String
+  price       Int
+  createdAt   DateTime @default(now())
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+  user      UserProfile @relation(fields: [userId], references: [id])
+}
+
+model MicroUpsellPurchase {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  feature     String
+  price       Int
+  createdAt   DateTime @default(now())
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+  user      UserProfile @relation(fields: [userId], references: [id])
+}
+
+/// Connected calendar accounts (Google, Outlook, etc.)
+model CalendarAccount {
+  id          String           @id @default(cuid())
+  userId      String
+  workspaceId String
+  provider    CalendarProvider
+  externalId  String
+  email       String
+  timezone    String
+
+  credentialRef String?
+
+  connectedAt    DateTime  @default(now())
+  disconnectedAt DateTime?
+
+  user      UserProfile @relation(fields: [userId], references: [id])
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+
+  externalEvents ExternalCalendarEvent[]
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([provider, externalId])
+}
+
+/// Event types like "Demo Call", "Strategy Call", "Onboarding", etc.
+model BookingType {
+  id          String @id @default(cuid())
+  workspaceId String
+  createdById String
+
+  name        String
+  slug        String  @unique
+  description String?
+
+  durationMinutes Int
+  bufferBefore    Int @default(0)
+  bufferAfter     Int @default(0)
+
+  maxPerDay       Int?
+  requireApproval Boolean @default(false)
+  isActive        Boolean @default(true)
+  isPrivate       Boolean @default(false)
+
+  timezone String
+
+  assignedUserId String?
+  assignedUser   UserProfile? @relation("BookingTypeAssignedUser", fields: [assignedUserId], references: [id])
+
+  publicPath String?
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+  createdBy UserProfile @relation("BookingTypeCreator", fields: [createdById], references: [id])
+
+  availabilityWindows AvailabilityWindow[]
+  bookings            Booking[]
+  reminderSequences   ReminderSequence[]
+
+  @@index([workspaceId])
+  @@index([slug])
+  @@index([assignedUserId])
+}
+
+/// High-level availability windows (supports weekly + specific-date overrides)
+model AvailabilityWindow {
+  id            String @id @default(cuid())
+  workspaceId   String
+  bookingTypeId String
+
+  dayOfWeek    Int?
+  dateOverride DateTime?
+
+  startTimeMinutes Int
+  endTimeMinutes   Int
+
+  isOverride Boolean @default(false)
+
+  timezone String
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id])
+  bookingType BookingType @relation(fields: [bookingTypeId], references: [id])
+
+  @@index([workspaceId])
+  @@index([bookingTypeId])
+  @@index([dayOfWeek])
+  @@index([dateOverride])
+}
+
+/// A booking created via Skillify or synced from Calendly / external calendars.
+model Booking {
+  id            String @id @default(cuid())
+  workspaceId   String
+  bookingTypeId String
+
+  scheduledForUserId String?
+  createdByUserId    String?
+
+  status   BookingStatus     @default(PENDING)
+  provider CalendarProvider?
+
+  start DateTime
+  end   DateTime
+
+  timezone String
+
+  guestName  String
+  guestEmail String
+  guestPhone String?
+
+  source          String?
+  externalEventId String?
+  externalUrl     String?
+
+  answers              Json?
+  aiQualificationScore Int?
+  aiSummary            String?
+
+  notes String?
+
+  // Reschedule / cancellation
+  rescheduleToken RescheduleToken?
+
+  // Relations
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id])
+  bookingType BookingType @relation(fields: [bookingTypeId], references: [id])
+
+  scheduledForUser UserProfile? @relation("BookingScheduledFor", fields: [scheduledForUserId], references: [id])
+  createdByUser    UserProfile? @relation("BookingCreatedBy", fields: [createdByUserId], references: [id])
+
+  externalEvents ExternalCalendarEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([bookingTypeId])
+  @@index([status])
+  @@index([guestEmail])
+  @@index([provider, externalEventId])
+}
+
+/// Secure reschedule / cancel tokens for guests
+model RescheduleToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  bookingId String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([token])
+}
+
+/// Reminder configuration (per BookingType)
+model ReminderSequence {
+  id            String @id @default(cuid())
+  workspaceId   String
+  bookingTypeId String
+
+  offsetMinutes Int
+
+  channel     ReminderChannel
+  templateKey String
+
+  isActive Boolean @default(true)
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id])
+  bookingType BookingType @relation(fields: [bookingTypeId], references: [id])
+
+  @@index([workspaceId])
+  @@index([bookingTypeId])
+  @@index([channel])
+}
+
+/// Mirror of external events (Calendly, Google Calendar, etc.)
+model ExternalCalendarEvent {
+  id                String           @id @default(cuid())
+  workspaceId       String
+  calendarAccountId String?
+  provider          CalendarProvider
+
+  externalId String
+  rawPayload Json
+  bookingId  String?
+
+  start DateTime
+  end   DateTime
+  title String?
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id])
+  calendarAccount CalendarAccount? @relation(fields: [calendarAccountId], references: [id])
+  booking         Booking?         @relation(fields: [bookingId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, externalId])
+  @@index([workspaceId])
+  @@index([calendarAccountId])
+  @@index([provider, externalId])
+}
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  excerpt     String?
+  content     String
+  tags        String[]
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  authorId String?
+  author   UserProfile? @relation(fields: [authorId], references: [id])
+
+  @@index([slug])
+  @@index([published])
 }

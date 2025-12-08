@@ -1,11 +1,11 @@
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { fail, ok } from "@/lib/api/responses"
-import { prisma } from "@/lib/db"
+import { fail, ok } from '@/lib/api/responses'
+import { prisma } from '@/lib/db'
 
 export async function POST(req: Request) {
   const { userId } = await auth()
-  if (!userId) return fail("Unauthorized", 401)
+  if (!userId) return fail('Unauthorized', 401)
 
   const { token } = await req.json()
 
@@ -13,14 +13,14 @@ export async function POST(req: Request) {
     where: { token },
   })
 
-  if (!invite) return fail("Invalid invite token", 400)
-  if (invite.expiresAt < new Date()) return fail("Invite expired", 400)
+  if (!invite) return fail('Invalid invite token', 400)
+  if (invite.expiresAt < new Date()) return fail('Invite expired', 400)
 
   const userProfile = await prisma.userProfile.findUnique({
     where: { clerkId: userId },
   })
 
-  if (!userProfile) return fail("User not found", 400)
+  if (!userProfile) return fail('User not found', 400)
 
   await prisma.workspaceMember.create({
     data: {

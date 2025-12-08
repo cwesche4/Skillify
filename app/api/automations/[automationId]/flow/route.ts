@@ -1,7 +1,7 @@
 // app/api/automations/[automationId]/flow/route.ts
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
 interface Params {
   params: { automationId: string }
@@ -10,7 +10,7 @@ interface Params {
 export async function GET(_req: Request, { params }: Params) {
   const { userId } = await auth()
   if (!userId) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
     })
   }
@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: Params) {
   })
 
   if (!automation) {
-    return new Response(JSON.stringify({ error: "Automation not found" }), {
+    return new Response(JSON.stringify({ error: 'Automation not found' }), {
       status: 404,
     })
   }
@@ -38,7 +38,7 @@ export async function GET(_req: Request, { params }: Params) {
     }),
     {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
     },
   )
 }
@@ -46,7 +46,7 @@ export async function GET(_req: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   const { userId } = await auth()
   if (!userId) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
     })
   }
@@ -67,6 +67,6 @@ export async function PUT(req: Request, { params }: Params) {
 
   return new Response(JSON.stringify({ automation }), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: { 'Content-Type': 'application/json' },
   })
 }

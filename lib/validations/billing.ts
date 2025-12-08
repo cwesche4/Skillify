@@ -1,5 +1,5 @@
-import { z } from "zod"
+import { z } from 'zod'
 
 export const updatePlanSchema = z.object({
-  plan: z.enum(["free", "pro", "business"]),
+  plan: z.enum(['free', 'pro', 'business']),
 })

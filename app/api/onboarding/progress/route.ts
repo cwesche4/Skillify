@@ -3,10 +3,10 @@ import {
   getOnboardingStatusForUser,
   setOnboardingTaskCompletion,
   type OnboardingTaskId,
-} from "@/lib/command-center/onboarding"
-import { prisma } from "@/lib/db"
-import { auth } from "@clerk/nextjs/server"
-import { NextResponse } from "next/server"
+} from '@/lib/command-center/onboarding'
+import { prisma } from '@/lib/db'
+import { auth } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
 type PostBody = {
   taskId: OnboardingTaskId
@@ -37,7 +37,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const { userId: clerkId } = await auth()
   if (!clerkId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const userProfile = await prisma.userProfile.findUnique({
@@ -45,13 +45,17 @@ export async function POST(req: Request) {
   })
 
   if (!userProfile) {
-    return NextResponse.json({ error: "UserProfile missing" }, { status: 400 })
+    return NextResponse.json({ error: 'UserProfile missing' }, { status: 400 })
   }
 
   const body = (await req.json()) as PostBody
   const completed = body.completed ?? true
 
-  const status = await setOnboardingTaskCompletion(userProfile.id, body.taskId, completed)
+  const status = await setOnboardingTaskCompletion(
+    userProfile.id,
+    body.taskId,
+    completed,
+  )
 
   return NextResponse.json({
     completedTasks: status.completedTasks,

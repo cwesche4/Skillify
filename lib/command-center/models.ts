@@ -1,5 +1,5 @@
 // lib/command-center/models.ts
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
 /* ============================================================
    TYPES
@@ -34,7 +34,7 @@ export async function searchAutomations(
   return prisma.automation.findMany({
     where: {
       workspaceId,
-      name: { contains: query, mode: "insensitive" },
+      name: { contains: query, mode: 'insensitive' },
     },
     select: {
       id: true,
@@ -55,7 +55,7 @@ export async function searchWorkspaces(
   return prisma.workspace.findMany({
     where: {
       members: { some: { userId } },
-      name: { contains: query, mode: "insensitive" },
+      name: { contains: query, mode: 'insensitive' },
     },
     select: {
       id: true,
@@ -77,7 +77,7 @@ export async function searchMembers(
     where: {
       workspaceId,
       user: {
-        OR: [{ clerkId: { contains: query, mode: "insensitive" } }],
+        OR: [{ clerkId: { contains: query, mode: 'insensitive' } }],
       },
     },
     include: { user: true },
@@ -90,24 +90,24 @@ export async function searchMembers(
 ============================================================ */
 export const COMMAND_ACTIONS = [
   {
-    id: "new_automation",
-    label: "Create new automation",
-    route: "/dashboard/automations",
+    id: 'new_automation',
+    label: 'Create new automation',
+    route: '/dashboard/automations',
   },
   {
-    id: "open_analytics",
-    label: "Open analytics dashboard",
-    route: "/dashboard/analytics",
+    id: 'open_analytics',
+    label: 'Open analytics dashboard',
+    route: '/dashboard/analytics',
   },
   {
-    id: "open_settings",
-    label: "Open workspace settings",
-    route: "/dashboard/settings",
+    id: 'open_settings',
+    label: 'Open workspace settings',
+    route: '/dashboard/settings',
   },
   {
-    id: "invite_member",
-    label: "Invite workspace member",
-    route: "/dashboard/workspaces",
+    id: 'invite_member',
+    label: 'Invite workspace member',
+    route: '/dashboard/workspaces',
   },
 ]
 
@@ -116,18 +116,18 @@ export const COMMAND_ACTIONS = [
 ============================================================ */
 export const HELP_ARTICLES = [
   {
-    id: "optimizing-flows",
-    title: "How to optimize slow automations",
-    tags: ["performance", "flows"],
+    id: 'optimizing-flows',
+    title: 'How to optimize slow automations',
+    tags: ['performance', 'flows'],
   },
   {
-    id: "ai-coach",
-    title: "How AI Coach guides your automations",
-    tags: ["ai", "coach"],
+    id: 'ai-coach',
+    title: 'How AI Coach guides your automations',
+    tags: ['ai', 'coach'],
   },
   {
-    id: "analytics",
-    title: "Understanding analytics & cost metrics",
-    tags: ["analytics"],
+    id: 'analytics',
+    title: 'Understanding analytics & cost metrics',
+    tags: ['analytics'],
   },
 ]

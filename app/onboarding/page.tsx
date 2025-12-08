@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import { Badge } from "@/components/ui/Badge"
-import { Card } from "@/components/ui/Card"
-import Link from "next/link"
-import { useEffect, useState } from "react"
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 type OnboardingResponse = {
   workspace?: {
@@ -11,11 +11,15 @@ type OnboardingResponse = {
     slug: string
     name: string
   }
-  tier: "basic" | "pro" | "elite"
+  tier: 'basic' | 'pro' | 'elite'
   bootstrap?: boolean
 }
 
-type TaskId = "explore-automations" | "view-analytics" | "try-ai-coach" | "invite-member"
+type TaskId =
+  | 'explore-automations'
+  | 'view-analytics'
+  | 'try-ai-coach'
+  | 'invite-member'
 
 type ProgressResponse = {
   completedTasks: TaskId[]
@@ -26,40 +30,40 @@ const TASKS: {
   label: string
   description: string
   href: string
-  badgeVariant: React.ComponentProps<typeof Badge>["variant"]
+  badgeVariant: React.ComponentProps<typeof Badge>['variant']
   step: string
 }[] = [
   {
-    id: "explore-automations",
-    label: "Explore Your Automations",
-    description: "Review the starter flows and learn how they work.",
-    href: "/dashboard/automations",
-    badgeVariant: "blue",
-    step: "Step 1",
+    id: 'explore-automations',
+    label: 'Explore Your Automations',
+    description: 'Review the starter flows and learn how they work.',
+    href: '/dashboard/automations',
+    badgeVariant: 'blue',
+    step: 'Step 1',
   },
   {
-    id: "view-analytics",
-    label: "Check Analytics Dashboard",
-    description: "Explore run trends, success rates, and workspace health.",
-    href: "/dashboard/analytics",
-    badgeVariant: "green",
-    step: "Step 2",
+    id: 'view-analytics',
+    label: 'Check Analytics Dashboard',
+    description: 'Explore run trends, success rates, and workspace health.',
+    href: '/dashboard/analytics',
+    badgeVariant: 'green',
+    step: 'Step 2',
   },
   {
-    id: "try-ai-coach",
-    label: "Try AI Coach",
-    description: "Let AI Coach analyze, explain, or optimize a flow.",
-    href: "/dashboard/analytics", // or your actual AI Coach page
-    badgeVariant: "purple",
-    step: "Step 3",
+    id: 'try-ai-coach',
+    label: 'Try AI Coach',
+    description: 'Let AI Coach analyze, explain, or optimize a flow.',
+    href: '/dashboard/analytics', // or your actual AI Coach page
+    badgeVariant: 'purple',
+    step: 'Step 3',
   },
   {
-    id: "invite-member",
-    label: "Invite a Team Member",
-    description: "Collaborate with teammates inside your workspace.",
-    href: "/dashboard/workspaces",
-    badgeVariant: "orange",
-    step: "Step 4",
+    id: 'invite-member',
+    label: 'Invite a Team Member',
+    description: 'Collaborate with teammates inside your workspace.',
+    href: '/dashboard/workspaces',
+    badgeVariant: 'orange',
+    step: 'Step 4',
   },
 ]
 
@@ -71,10 +75,11 @@ export default function OnboardingPage() {
   useEffect(() => {
     async function bootstrapAndLoad() {
       // 1) Ensure workspace + tier
-      const res = await fetch("/api/workspaces/bootstrap", {
-        method: "POST",
+      const res = await fetch('/api/workspaces/bootstrap', {
+        method: 'POST',
       })
-      const json: OnboardingResponse & { bootstrap?: boolean } = await res.json()
+      const json: OnboardingResponse & { bootstrap?: boolean } =
+        await res.json()
       setData(json)
 
       if (!json.bootstrap && json.workspace?.slug) {
@@ -85,7 +90,7 @@ export default function OnboardingPage() {
 
       // 2) Load onboarding progress
       setLoadingTasks(true)
-      const progRes = await fetch("/api/onboarding/progress")
+      const progRes = await fetch('/api/onboarding/progress')
       if (progRes.ok) {
         const progJson: ProgressResponse = await progRes.json()
         setCompleted(progJson.completedTasks ?? [])
@@ -103,9 +108,9 @@ export default function OnboardingPage() {
     )
 
     // Persist to API
-    await fetch("/api/onboarding/progress", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    await fetch('/api/onboarding/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ taskId, completed: !isDone }),
     })
   }
@@ -119,14 +124,14 @@ export default function OnboardingPage() {
   }
 
   const tierLabel =
-    data.tier === "elite" ? "Elite" : data.tier === "pro" ? "Pro" : "Starter"
+    data.tier === 'elite' ? 'Elite' : data.tier === 'pro' ? 'Pro' : 'Starter'
 
   const tierColor =
-    data.tier === "elite"
-      ? "bg-purple-600 text-white"
-      : data.tier === "pro"
-        ? "bg-blue-600 text-white"
-        : "bg-gray-300 text-gray-900"
+    data.tier === 'elite'
+      ? 'bg-purple-600 text-white'
+      : data.tier === 'pro'
+        ? 'bg-blue-600 text-white'
+        : 'bg-gray-300 text-gray-900'
 
   const progressPercent =
     TASKS.length === 0 ? 0 : Math.round((completed.length / TASKS.length) * 100)
@@ -140,11 +145,13 @@ export default function OnboardingPage() {
         </h1>
 
         <p className="text-neutral-text-secondary text-sm">
-          Your workspace has been created and pre-configured based on your subscription
-          tier.
+          Your workspace has been created and pre-configured based on your
+          subscription tier.
         </p>
 
-        <span className={`inline-block rounded-full px-3 py-1 text-xs ${tierColor}`}>
+        <span
+          className={`inline-block rounded-full px-3 py-1 text-xs ${tierColor}`}
+        >
           {tierLabel} Plan
         </span>
       </section>
@@ -156,21 +163,21 @@ export default function OnboardingPage() {
         </h2>
 
         <p className="text-neutral-text-secondary text-sm">
-          <span className="text-neutral-text-primary font-medium">Name:</span>{" "}
+          <span className="text-neutral-text-primary font-medium">Name:</span>{' '}
           {data.workspace?.name}
         </p>
 
         <p className="text-neutral-text-secondary mt-1 text-sm">
-          <span className="text-neutral-text-primary font-medium">Slug:</span>{" "}
+          <span className="text-neutral-text-primary font-medium">Slug:</span>{' '}
           {data.workspace?.slug}
         </p>
 
         <p className="text-neutral-text-secondary mt-3 text-sm">
-          {data.tier === "elite"
-            ? "Full AI-enabled demo flows, advanced examples, and analytics."
-            : data.tier === "pro"
-              ? "Medium-level starter automations and run history."
-              : "A simple starter automation to help you begin quickly."}
+          {data.tier === 'elite'
+            ? 'Full AI-enabled demo flows, advanced examples, and analytics.'
+            : data.tier === 'pro'
+              ? 'Medium-level starter automations and run history.'
+              : 'A simple starter automation to help you begin quickly.'}
         </p>
       </Card>
 
@@ -199,7 +206,9 @@ export default function OnboardingPage() {
         </h2>
 
         {loadingTasks && (
-          <p className="text-neutral-text-secondary text-xs">Loading your progress...</p>
+          <p className="text-neutral-text-secondary text-xs">
+            Loading your progress...
+          </p>
         )}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -209,7 +218,9 @@ export default function OnboardingPage() {
               <Card
                 key={task.id}
                 className={`space-y-2 p-5 transition ${
-                  isDone ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" : ""
+                  isDone
+                    ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40'
+                    : ''
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -234,11 +245,11 @@ export default function OnboardingPage() {
                     onClick={() => toggleTask(task.id)}
                     className={`rounded-full border px-2.5 py-1 text-xs ${
                       isDone
-                        ? "border-emerald-500 text-emerald-600 dark:text-emerald-300"
-                        : "border-neutral-300 text-neutral-600 dark:border-neutral-700 dark:text-neutral-200"
+                        ? 'border-emerald-500 text-emerald-600 dark:text-emerald-300'
+                        : 'border-neutral-300 text-neutral-600 dark:border-neutral-700 dark:text-neutral-200'
                     }`}
                   >
-                    {isDone ? "Completed" : "Mark done"}
+                    {isDone ? 'Completed' : 'Mark done'}
                   </button>
                 </div>
               </Card>

@@ -17,7 +17,7 @@ export function registerShortcut(def: RegisteredShortcut) {
   const normalized: RegisteredShortcut = {
     ...def,
     keys: Array.isArray(def.keys) ? def.keys : [def.keys],
-    group: def.group ?? "General",
+    group: def.group ?? 'General',
   }
 
   const index = registry.findIndex((s) => s.id === def.id)

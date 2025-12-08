@@ -1,9 +1,9 @@
 // components/ui/PageHeader.tsx
-"use client"
+'use client'
 
-import * as React from "react"
+import * as React from 'react'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 interface PageHeaderProps {
   title: string
@@ -12,11 +12,16 @@ interface PageHeaderProps {
   className?: string
 }
 
-export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+  className,
+}: PageHeaderProps) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+        'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between',
         className,
       )}
     >

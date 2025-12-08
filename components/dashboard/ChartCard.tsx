@@ -1,8 +1,8 @@
 // components/dashboard/ChartCard.tsx
-"use client"
+'use client'
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card"
-import { cn } from "@/lib/utils"
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { cn } from '@/lib/utils'
 
 interface ChartCardProps {
   title: string
@@ -20,15 +20,19 @@ export function ChartCard({
   className,
 }: ChartCardProps) {
   return (
-    <Card className={cn("card-analytics", className)}>
+    <Card className={cn('card-analytics', className)}>
       <CardHeader className="mb-4 flex flex-row items-center justify-between gap-4">
         <div>
           <CardTitle>{title}</CardTitle>
           {description && (
-            <p className="text-neutral-text-secondary mt-1 text-xs">{description}</p>
+            <p className="text-neutral-text-secondary mt-1 text-xs">
+              {description}
+            </p>
           )}
         </div>
-        {rightSlot && <div className="flex items-center gap-2">{rightSlot}</div>}
+        {rightSlot && (
+          <div className="flex items-center gap-2">{rightSlot}</div>
+        )}
       </CardHeader>
 
       <CardContent>

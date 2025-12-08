@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2 } from 'lucide-react'
 
-import { Badge } from "@/components/ui/Badge"
-import { Card } from "@/components/ui/Card"
-import { cn } from "@/lib/utils"
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+import { cn } from '@/lib/utils'
 
 interface PerformanceSummaryProps {
   healthScore: number
@@ -21,7 +21,7 @@ export function PerformanceSummary({
   issues,
   recommendations,
 }: PerformanceSummaryProps) {
-  const srNumber = Number(successRate.replace("%", ""))
+  const srNumber = Number(successRate.replace('%', ''))
 
   return (
     <Card className="card-analytics p-6">
@@ -29,7 +29,11 @@ export function PerformanceSummary({
         <h3 className="font-heading text-lg text-white">
           AI Coach – Performance Summary
         </h3>
-        <Badge variant={healthScore > 80 ? "green" : healthScore > 50 ? "blue" : "red"}>
+        <Badge
+          variant={
+            healthScore > 80 ? 'green' : healthScore > 50 ? 'blue' : 'red'
+          }
+        >
           {healthScore}% Health
         </Badge>
       </div>
@@ -38,7 +42,9 @@ export function PerformanceSummary({
       <div className="mb-8 grid grid-cols-3 gap-4">
         {/* SUCCESS RATE UPDATED BLOCK */}
         <div className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <p className="text-neutral-text-secondary mb-1 text-xs">Success Rate</p>
+          <p className="text-neutral-text-secondary mb-1 text-xs">
+            Success Rate
+          </p>
 
           <div className="flex items-end justify-between">
             <p className="font-heading text-2xl text-white">{successRate}</p>
@@ -46,12 +52,12 @@ export function PerformanceSummary({
             {/* Color Dot */}
             <span
               className={cn(
-                "h-3 w-3 rounded-full",
+                'h-3 w-3 rounded-full',
                 srNumber >= 85
-                  ? "bg-emerald-400"
+                  ? 'bg-emerald-400'
                   : srNumber >= 60
-                    ? "bg-amber-400"
-                    : "bg-rose-400",
+                    ? 'bg-amber-400'
+                    : 'bg-rose-400',
               )}
             />
           </div>
@@ -67,13 +73,17 @@ export function PerformanceSummary({
 
         {/* AVG DURATION */}
         <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <p className="text-neutral-text-secondary mb-1 text-xs">Avg. Duration</p>
+          <p className="text-neutral-text-secondary mb-1 text-xs">
+            Avg. Duration
+          </p>
           <p className="font-heading text-2xl text-white">{avgDuration}</p>
         </div>
 
         {/* ISSUES */}
         <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <p className="text-neutral-text-secondary mb-1 text-xs">Issues Detected</p>
+          <p className="text-neutral-text-secondary mb-1 text-xs">
+            Issues Detected
+          </p>
           <p className="font-heading text-2xl text-white">{issues}</p>
         </div>
       </div>

@@ -1,20 +1,9 @@
 {
-    "extends": "./tsconfig.shared.json",
-    "compilerOptions": {
-        "jsx": "react-jsx",
-        "types": [
-            "node"
-        ]
-    },
-    "include": [
-        "app/api/**/*",
-        "lib/**/*",
-        "prisma/**/*",
-        "scripts/**/*"
-    ],
-    "exclude": [
-        "node_modules",
-        "app/**/page.tsx",
-        "app/**/layout.tsx"
-    ]
+  "extends": "./tsconfig.shared.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["node"]
+  },
+  "include": ["app/api/**/*", "lib/**/*", "prisma/**/*", "scripts/**/*"],
+  "exclude": ["node_modules", "app/**/page.tsx", "app/**/layout.tsx"]
 }

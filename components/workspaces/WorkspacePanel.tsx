@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import CreateWorkspaceModal from "./CreateWorkspaceModal"
+import { useState } from 'react'
+import CreateWorkspaceModal from './CreateWorkspaceModal'
 
 export default function WorkspacePanel({
   workspaces,
@@ -18,13 +18,15 @@ export default function WorkspacePanel({
         onClick={() => setOpen(true)}
         className="bg-neutral-card-light dark:bg-neutral-card-dark hidden items-center gap-2 rounded-lg border border-neutral-border px-3 py-2 transition hover:bg-neutral-light dark:text-white dark:hover:bg-neutral-dark md:flex"
       >
-        {current ? current.name : "Workspace"}
+        {current ? current.name : 'Workspace'}
       </button>
 
       {open && (
         <div className="fixed inset-0 z-40 flex justify-end bg-black/40">
           <div className="bg-neutral-card-light flex h-full w-80 flex-col border-l border-neutral-border p-4 dark:bg-neutral-dark">
-            <h2 className="mb-4 text-lg font-semibold dark:text-white">Workspaces</h2>
+            <h2 className="mb-4 text-lg font-semibold dark:text-white">
+              Workspaces
+            </h2>
 
             <div className="flex-1 space-y-2 overflow-y-auto">
               {workspaces.map((ws) => (
@@ -33,8 +35,8 @@ export default function WorkspacePanel({
                   href={`/dashboard/${ws.slug}`}
                   className={`dark:hover:bg-neutral-card-dark block rounded-md px-3 py-2 hover:bg-neutral-light ${
                     current?.id === ws.id
-                      ? "dark:bg-neutral-card-dark bg-neutral-light font-medium"
-                      : ""
+                      ? 'dark:bg-neutral-card-dark bg-neutral-light font-medium'
+                      : ''
                   }`}
                 >
                   {ws.name}

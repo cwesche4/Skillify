@@ -1,5 +1,5 @@
-import { clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 
 /**
  * Utility to merge Tailwind classes correctly.

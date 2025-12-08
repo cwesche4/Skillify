@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import { Badge } from "@/components/ui/Badge"
-import { Card } from "@/components/ui/Card"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
-type Tier = "starter" | "pro" | "elite"
+type Tier = 'starter' | 'pro' | 'elite'
 
 const PLANS: {
   id: Tier
@@ -14,46 +14,46 @@ const PLANS: {
   highlight?: string
 }[] = [
   {
-    id: "starter",
-    label: "Starter",
-    tagline: "Great for trying Skillify with simple flows.",
+    id: 'starter',
+    label: 'Starter',
+    tagline: 'Great for trying Skillify with simple flows.',
   },
   {
-    id: "pro",
-    label: "Pro",
-    tagline: "More automations, more data, AI-powered examples.",
-    highlight: "Most popular",
+    id: 'pro',
+    label: 'Pro',
+    tagline: 'More automations, more data, AI-powered examples.',
+    highlight: 'Most popular',
   },
   {
-    id: "elite",
-    label: "Elite",
-    tagline: "Full AI experience and advanced demo workspace.",
-    highlight: "Best experience",
+    id: 'elite',
+    label: 'Elite',
+    tagline: 'Full AI experience and advanced demo workspace.',
+    highlight: 'Best experience',
   },
 ]
 
 export default function PlanOnboardingPage() {
   const router = useRouter()
-  const [tier, setTier] = useState<Tier>("starter")
+  const [tier, setTier] = useState<Tier>('starter')
   const [loading, setLoading] = useState(false)
 
   const confirm = async () => {
     setLoading(true)
     try {
-      await fetch("/api/workspaces/bootstrap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      await fetch('/api/workspaces/bootstrap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tier }),
       })
 
-      router.push("/onboarding")
+      router.push('/onboarding')
     } finally {
       setLoading(false)
     }
   }
 
   const skip = async () => {
-    setTier("starter")
+    setTier('starter')
     await confirm()
   }
 
@@ -64,8 +64,8 @@ export default function PlanOnboardingPage() {
           Choose your starting plan
         </h1>
         <p className="text-neutral-text-secondary text-sm">
-          You can change plans later in Billing. This just controls which demo automations
-          and data we set up for you.
+          You can change plans later in Billing. This just controls which demo
+          automations and data we set up for you.
         </p>
       </section>
 
@@ -78,7 +78,9 @@ export default function PlanOnboardingPage() {
               type="button"
               onClick={() => setTier(plan.id)}
               className={`text-left transition ${
-                active ? "ring-2 ring-brand-primary" : "ring-1 ring-neutral-border"
+                active
+                  ? 'ring-2 ring-brand-primary'
+                  : 'ring-1 ring-neutral-border'
               } rounded-2xl`}
             >
               <Card className="flex h-full flex-col justify-between p-5">
@@ -93,7 +95,9 @@ export default function PlanOnboardingPage() {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-neutral-text-secondary text-xs">{plan.tagline}</p>
+                  <p className="text-neutral-text-secondary text-xs">
+                    {plan.tagline}
+                  </p>
                 </div>
               </Card>
             </button>
@@ -108,7 +112,7 @@ export default function PlanOnboardingPage() {
           disabled={loading}
           className="hover:bg-brand-primary/90 rounded-xl bg-brand-primary px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
         >
-          {loading ? "Setting up workspace..." : "Continue with selected plan"}
+          {loading ? 'Setting up workspace...' : 'Continue with selected plan'}
         </button>
 
         <button

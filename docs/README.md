@@ -8,16 +8,16 @@ This repository contains the full Skillify application: API routes, automation b
 
 ## 🚀 Tech Stack
 
-| Layer | Technologies |
-|-------|--------------|
-| Frontend | Next.js 14 (App Router), React 18, TailwindCSS 3, Framer Motion |
-| Backend | Next.js API Routes, Prisma 7 + PrismaPg Adapter, Postgres |
-| AI System | OpenAI API, AI Coach, AI Insights Engine |
-| Builder | ReactFlow 11, Custom Node Types, Autosave, History, Groups, AI Nodes |
-| Auth | Clerk |
-| Analytics | Heatmaps, Trends, Success Rates, Recharts |
-| Testing | Vitest + React Testing Library + JSDOM |
-| Tooling | Turbo, ESLint Flat Config, Prettier, Tailwind Plugins |
+| Layer     | Technologies                                                         |
+| --------- | -------------------------------------------------------------------- |
+| Frontend  | Next.js 14 (App Router), React 18, TailwindCSS 3, Framer Motion      |
+| Backend   | Next.js API Routes, Prisma 7 + PrismaPg Adapter, Postgres            |
+| AI System | OpenAI API, AI Coach, AI Insights Engine                             |
+| Builder   | ReactFlow 11, Custom Node Types, Autosave, History, Groups, AI Nodes |
+| Auth      | Clerk                                                                |
+| Analytics | Heatmaps, Trends, Success Rates, Recharts                            |
+| Testing   | Vitest + React Testing Library + JSDOM                               |
+| Tooling   | Turbo, ESLint Flat Config, Prettier, Tailwind Plugins                |
 
 ---
 
@@ -86,6 +86,7 @@ Open testing UI:
 npm run test:ui
 
 Includes:
+
 - Smoke tests
 - React rendering tests
 - Dashboard tests
@@ -98,13 +99,13 @@ Includes:
 
 Skillify includes:
 
-- ESLint Flat Config  
-- Type-aware TypeScript analysis  
-- React + Hooks rules  
-- Tailwind class validation  
-- Prettier auto-formatting  
-- Turbo integration  
-- VSCode automation  
+- ESLint Flat Config
+- Type-aware TypeScript analysis
+- React + Hooks rules
+- Tailwind class validation
+- Prettier auto-formatting
+- Turbo integration
+- VSCode automation
 
 ---
 
@@ -117,7 +118,7 @@ esbenp.prettier-vscode
 bradlc.vscode-tailwindcss  
 streetsidesoftware.code-spell-checker  
 csstools.postcss  
-firsttris.vscode-jest-runner  
+firsttris.vscode-jest-runner
 
 ---
 
@@ -129,7 +130,7 @@ editor.formatOnSave = true
 source.fixAll = always  
 source.fixAll.eslint = always  
 eslint.validate = javascript, javascriptreact, typescript, typescriptreact  
-files.eol = \n  
+files.eol = \n
 
 ---
 
@@ -143,7 +144,7 @@ trailingComma: all
 tabWidth: 2  
 printWidth: 100  
 bracketSpacing: true  
-plugins: prettier-plugin-tailwindcss  
+plugins: prettier-plugin-tailwindcss
 
 ---
 
@@ -154,7 +155,7 @@ node_modules
 dist  
 coverage  
 prisma/migrations  
-public  
+public
 
 ---
 
@@ -166,25 +167,28 @@ lib/ — Logic, analytics, helpers
 prisma/ — Schema + migrations  
 tests/ — Vitest  
 scripts/ — Tooling scripts  
-public/ — Static assets  
+public/ — Static assets
 
 ---
 
 ## 🤖 AI Systems
 
 ### AI Coach
-- Live insights  
-- Trend analytics  
-- Cost optimization  
-- Anomaly detection  
+
+- Live insights
+- Trend analytics
+- Cost optimization
+- Anomaly detection
 
 ### AI Builder Assist
-- AI Explain  
-- AI Optimize  
-- Auto layout guidance  
+
+- AI Explain
+- AI Optimize
+- Auto layout guidance
 
 ### AI Search
-- Workspace-aware semantic search  
+
+- Workspace-aware semantic search
 
 ---
 
@@ -192,48 +196,48 @@ public/ — Static assets
 
 Includes:
 
-- Custom node types  
-- Drag & drop palette  
-- AI nodes (LLM, Classifier, Splitter)  
-- Group nodes  
-- Autosave  
-- Undo/redo  
-- Snap grid  
-- History stack  
-- Auto layout  
-- Fullscreen mode  
-- Unified NodeData  
+- Custom node types
+- Drag & drop palette
+- AI nodes (LLM, Classifier, Splitter)
+- Group nodes
+- Autosave
+- Undo/redo
+- Snap grid
+- History stack
+- Auto layout
+- Fullscreen mode
+- Unified NodeData
 
 ---
 
 ## 🔐 Workspaces & Permissions
 
-- Multi-tenant  
-- Workspace creation  
-- Member invites  
-- Roles: OWNER, ADMIN, MEMBER  
-- Subscription tier gating  
-- Workspace-aware routing  
+- Multi-tenant
+- Workspace creation
+- Member invites
+- Roles: OWNER, ADMIN, MEMBER
+- Subscription tier gating
+- Workspace-aware routing
 
 ---
 
 ## 📊 Analytics Engine
 
-- Reliability heatmaps  
-- Success trends  
-- Cost analytics  
-- AI insights  
-- Failure breakdown  
-- Run comparison  
+- Reliability heatmaps
+- Success trends
+- Cost analytics
+- AI insights
+- Failure breakdown
+- Run comparison
 
 ---
 
 ## ⚡ Command Center
 
-- AI-powered command search  
-- Keyboard shortcuts  
-- Deep search  
-- Workspace-aware actions  
+- AI-powered command search
+- Keyboard shortcuts
+- Deep search
+- Workspace-aware actions
 
 ---
 

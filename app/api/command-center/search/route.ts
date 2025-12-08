@@ -1,11 +1,15 @@
 // app/api/command-center/search/route.ts
-import { prisma } from "@/lib/db"
-import type { AutomationStatus, RunStatus, WorkspaceMemberRole } from "@prisma/client"
-import type { NextRequest } from "next/server"
-import { NextResponse } from "next/server"
+import { prisma } from '@/lib/db'
+import type {
+  AutomationStatus,
+  RunStatus,
+  WorkspaceMemberRole,
+} from '@prisma/client'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
 type WorkspaceSearchResult = {
-  type: "workspace"
+  type: 'workspace'
   id: string
   name: string
   slug: string
@@ -13,7 +17,7 @@ type WorkspaceSearchResult = {
 }
 
 type AutomationSearchResult = {
-  type: "automation"
+  type: 'automation'
   id: string
   name: string
   workspaceId: string
@@ -24,7 +28,7 @@ type AutomationSearchResult = {
 }
 
 type RunSearchResult = {
-  type: "run"
+  type: 'run'
   id: string
   automationId: string
   automationName: string
@@ -37,7 +41,7 @@ type RunSearchResult = {
 }
 
 type MemberSearchResult = {
-  type: "member"
+  type: 'member'
   id: string
   workspaceId: string
   workspaceName: string
@@ -54,7 +58,7 @@ export type CommandSearchResult =
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const query = (searchParams.get("q") ?? "").trim()
+  const query = (searchParams.get('q') ?? '').trim()
 
   if (!query) {
     return NextResponse.json<CommandSearchResult[]>([])
@@ -66,23 +70,23 @@ export async function GET(req: NextRequest) {
   const workspaces = await prisma.workspace.findMany({
     where: {
       OR: [
-        { name: { contains: q, mode: "insensitive" } },
-        { slug: { contains: q, mode: "insensitive" } },
+        { name: { contains: q, mode: 'insensitive' } },
+        { slug: { contains: q, mode: 'insensitive' } },
       ],
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
     take: 5,
   })
 
   // Automations
   const automations = await prisma.automation.findMany({
     where: {
-      name: { contains: q, mode: "insensitive" },
+      name: { contains: q, mode: 'insensitive' },
     },
     include: {
       workspace: true,
       runs: {
-        orderBy: { startedAt: "desc" },
+        orderBy: { startedAt: 'desc' },
         take: 1,
       },
     },
@@ -92,7 +96,7 @@ export async function GET(req: NextRequest) {
   // Runs
   const runs = await prisma.automationRun.findMany({
     where: {
-      log: query ? { contains: q, mode: "insensitive" } : undefined,
+      log: query ? { contains: q, mode: 'insensitive' } : undefined,
     },
     include: {
       automation: {
@@ -101,7 +105,7 @@ export async function GET(req: NextRequest) {
         },
       },
     },
-    orderBy: { startedAt: "desc" },
+    orderBy: { startedAt: 'desc' },
     take: 5,
   })
 
@@ -111,12 +115,12 @@ export async function GET(req: NextRequest) {
       OR: [
         {
           workspace: {
-            name: { contains: q, mode: "insensitive" },
+            name: { contains: q, mode: 'insensitive' },
           },
         },
         {
           user: {
-            clerkId: { contains: q, mode: "insensitive" },
+            clerkId: { contains: q, mode: 'insensitive' },
           },
         },
       ],
@@ -129,7 +133,7 @@ export async function GET(req: NextRequest) {
   })
 
   const workspaceResults: WorkspaceSearchResult[] = workspaces.map((w) => ({
-    type: "workspace",
+    type: 'workspace',
     id: w.id,
     name: w.name,
     slug: w.slug,
@@ -137,11 +141,11 @@ export async function GET(req: NextRequest) {
   }))
 
   const automationResults: AutomationSearchResult[] = automations.map((a) => ({
-    type: "automation",
+    type: 'automation',
     id: a.id,
     name: a.name,
     workspaceId: a.workspaceId,
-    workspaceName: a.workspace?.name ?? "",
+    workspaceName: a.workspace?.name ?? '',
     status: a.status,
     createdAt: a.createdAt.toISOString(),
     lastRunAt: a.runs[0]?.startedAt ? a.runs[0].startedAt.toISOString() : null,
@@ -149,15 +153,17 @@ export async function GET(req: NextRequest) {
 
   const runResults: RunSearchResult[] = runs.map((r) => {
     const durationMs =
-      r.finishedAt && r.startedAt ? r.finishedAt.getTime() - r.startedAt.getTime() : null
+      r.finishedAt && r.startedAt
+        ? r.finishedAt.getTime() - r.startedAt.getTime()
+        : null
 
     return {
-      type: "run",
+      type: 'run',
       id: r.id,
       automationId: r.automationId,
-      automationName: r.automation?.name ?? "",
+      automationName: r.automation?.name ?? '',
       workspaceId: r.workspaceId,
-      workspaceName: r.automation?.workspace?.name ?? "",
+      workspaceName: r.automation?.workspace?.name ?? '',
       status: r.status,
       startedAt: r.startedAt.toISOString(),
       finishedAt: r.finishedAt ? r.finishedAt.toISOString() : null,
@@ -166,12 +172,12 @@ export async function GET(req: NextRequest) {
   })
 
   const memberResults: MemberSearchResult[] = members.map((m) => ({
-    type: "member",
+    type: 'member',
     id: m.id,
     workspaceId: m.workspaceId,
-    workspaceName: m.workspace?.name ?? "",
-    userId: m.user?.id ?? "",
-    clerkId: m.user?.clerkId ?? "",
+    workspaceName: m.workspace?.name ?? '',
+    userId: m.user?.id ?? '',
+    clerkId: m.user?.clerkId ?? '',
     role: m.role,
   }))
 

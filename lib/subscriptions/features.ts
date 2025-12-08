@@ -37,4 +37,4 @@ export const FEATURE_MATRIX = {
 } as const
 
 export type TierKey = keyof typeof FEATURE_MATRIX
-export type FeatureKey = keyof (typeof FEATURE_MATRIX)["basic"]
+export type FeatureKey = keyof (typeof FEATURE_MATRIX)['basic']

@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync } from 'child_process'
 
-console.log("🏗️ Building Skillify...");
-execSync("next build", { stdio: "inherit" });
+console.log('🏗️ Building Skillify...')
+execSync('next build', { stdio: 'inherit' })

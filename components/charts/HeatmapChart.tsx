@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useMemo } from "react"
+import { useMemo } from 'react'
 
 export interface HeatmapDatum {
   x: string // e.g. day or hour label on X axis
@@ -30,7 +30,7 @@ export function HeatmapChart({
   min,
   max,
   className,
-  valueSuffix = "%",
+  valueSuffix = '%',
 }: HeatmapChartProps) {
   const valueMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -69,7 +69,7 @@ export function HeatmapChart({
   return (
     <div
       className={`text-neutral-text-secondary w-full overflow-x-auto text-[11px] ${
-        className ?? ""
+        className ?? ''
       }`}
     >
       <div className="inline-grid min-w-full">
@@ -117,8 +117,14 @@ export function HeatmapChart({
                 <div
                   key={key}
                   className="border-neutral-border/40 relative flex h-7 items-center justify-center rounded-sm border"
-                  style={{ backgroundColor: value != null ? bg : "transparent" }}
-                  title={value != null ? `${value.toFixed(1)}${valueSuffix}` : "No data"}
+                  style={{
+                    backgroundColor: value != null ? bg : 'transparent',
+                  }}
+                  title={
+                    value != null
+                      ? `${value.toFixed(1)}${valueSuffix}`
+                      : 'No data'
+                  }
                 >
                   {value != null && (
                     <span className="text-neutral-card-light text-[10px]">

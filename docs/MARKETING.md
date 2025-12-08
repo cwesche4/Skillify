@@ -15,7 +15,7 @@ Skillify automates and enhances business operations:
 ✔ Generates AI-powered content  
 ✔ Visual automation builder  
 ✔ Live AI analytics + insights  
-✔ Workspace-level collaboration  
+✔ Workspace-level collaboration
 
 If your team repeats something more than twice — Skillify can automate it.
 
@@ -25,19 +25,19 @@ If your team repeats something more than twice — Skillify can automate it.
 
 Skillify includes a full enterprise automation studio:
 
-- Drag-and-drop builder  
-- AI Node (LLM)  
-- Classifier Node  
-- Splitter Node  
-- Trigger / Delay / Webhook nodes  
-- Group nodes  
-- Auto Layout  
-- Autosave  
-- Fullscreen mode  
-- Undo / Redo history  
-- Snap grid  
-- Node Inspector  
-- Unified NodeData model  
+- Drag-and-drop builder
+- AI Node (LLM)
+- Classifier Node
+- Splitter Node
+- Trigger / Delay / Webhook nodes
+- Group nodes
+- Auto Layout
+- Autosave
+- Fullscreen mode
+- Undo / Redo history
+- Snap grid
+- Node Inspector
+- Unified NodeData model
 
 Designed for agencies and advanced users who need **clean, reliable automations at scale**.
 
@@ -47,13 +47,13 @@ Designed for agencies and advanced users who need **clean, reliable automations 
 
 AI Coach monitors your automations and provides insights:
 
-- Detect anomalies  
-- Predict failures  
-- Recommend optimizations  
-- Reduce cost  
-- Identify slow or inefficient nodes  
-- Weekly performance scoring  
-- Workspace-level diagnostics  
+- Detect anomalies
+- Predict failures
+- Recommend optimizations
+- Reduce cost
+- Identify slow or inefficient nodes
+- Weekly performance scoring
+- Workspace-level diagnostics
 
 AI Coach is like having a full-time automation engineer watching your workflows.
 
@@ -63,14 +63,14 @@ AI Coach is like having a full-time automation engineer watching your workflows.
 
 Skillify includes a professional analytics suite:
 
-- Success Rate  
-- Failure Patterns  
-- Cost-per-run  
-- Run Durations  
-- Reliability Heatmaps  
-- Trend Graphs  
-- AI Insights & Recommendations  
-- Run Comparison Tools  
+- Success Rate
+- Failure Patterns
+- Cost-per-run
+- Run Durations
+- Reliability Heatmaps
+- Trend Graphs
+- AI Insights & Recommendations
+- Run Comparison Tools
 
 Turn every automation into measurable success.
 
@@ -80,12 +80,12 @@ Turn every automation into measurable success.
 
 Skillify supports teams of all sizes:
 
-- Unlimited workspaces  
-- Invite team members  
-- Assign roles (Owner / Admin / Member)  
-- Organization-level settings  
-- Workspace switcher  
-- Shared analytics & insights  
+- Unlimited workspaces
+- Invite team members
+- Assign roles (Owner / Admin / Member)
+- Organization-level settings
+- Workspace switcher
+- Shared analytics & insights
 
 Perfect for automation agencies or businesses with multiple departments.
 
@@ -93,42 +93,47 @@ Perfect for automation agencies or businesses with multiple departments.
 
 # 💎 Subscription Tiers
 
-### 🟢 Basic  
-- Core builder  
-- Trigger / Delay / Webhook  
-- Auto Layout  
-- Fullscreen  
+### 🟢 Basic
 
-### 🔵 Pro  
-Everything in Basic PLUS:  
-- AI Nodes  
-- Group Nodes  
-- OR Paths  
-- AI Node Explainer  
-- Inspector Panel  
-- AI Flow Improve  
+- Core builder
+- Trigger / Delay / Webhook
+- Auto Layout
+- Fullscreen
 
-### 🟣 Elite  
-Everything in Pro PLUS:  
-- AI Coach Live  
-- Real-time analytics overlays  
-- Advanced permissions  
-- AI Onboarding Assistant  
-- Priority execution queue  
-- Enterprise support  
+### 🔵 Pro
+
+Everything in Basic PLUS:
+
+- AI Nodes
+- Group Nodes
+- OR Paths
+- AI Node Explainer
+- Inspector Panel
+- AI Flow Improve
+
+### 🟣 Elite
+
+Everything in Pro PLUS:
+
+- AI Coach Live
+- Real-time analytics overlays
+- Advanced permissions
+- AI Onboarding Assistant
+- Priority execution queue
+- Enterprise support
 
 ---
 
 # 🧩 Built For These Industries
 
-- Automation agencies  
-- SaaS founders  
-- Marketing teams  
-- Customer support  
-- Lead qualification  
-- Appointment automation  
-- Internal operations  
-- Content production pipelines  
+- Automation agencies
+- SaaS founders
+- Marketing teams
+- Customer support
+- Lead qualification
+- Appointment automation
+- Internal operations
+- Content production pipelines
 
 If a workflow exists — Skillify can optimize it.
 
@@ -136,14 +141,14 @@ If a workflow exists — Skillify can optimize it.
 
 # 🚀 Why Teams Choose Skillify
 
-- Cleaner workflows  
-- Faster execution  
-- Higher reliability  
-- Lower cost per run  
-- Better data visibility  
-- AI-powered improvements  
-- Smooth onboarding  
-- Built-in collaboration  
+- Cleaner workflows
+- Faster execution
+- Higher reliability
+- Lower cost per run
+- Better data visibility
+- AI-powered improvements
+- Smooth onboarding
+- Built-in collaboration
 
 Skillify gives everyday teams **the power of enterprise-grade automation**.
 

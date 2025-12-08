@@ -1,7 +1,7 @@
 // components/charts/SuccessRateBarChart.tsx
-"use client"
+'use client'
 
-import type { FC } from "react"
+import type { FC } from 'react'
 import {
   Bar,
   CartesianGrid,
@@ -10,8 +10,8 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts"
-import { ChartGradients } from "./ChartGradients"
+} from 'recharts'
+import { ChartGradients } from './ChartGradients'
 
 export type SuccessRatePoint = {
   label: string // "Mon", "Week 48", "Automation A"
@@ -26,12 +26,15 @@ type SuccessRateBarChartProps = {
 
 export const SuccessRateBarChart: FC<SuccessRateBarChartProps> = ({
   data,
-  idPrefix = "success-rate",
+  idPrefix = 'success-rate',
 }) => {
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer>
-        <RechartsBarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+        <RechartsBarChart
+          data={data}
+          margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
+        >
           <ChartGradients idPrefix={idPrefix} />
           <CartesianGrid
             strokeDasharray="3 3"
@@ -42,12 +45,12 @@ export const SuccessRateBarChart: FC<SuccessRateBarChartProps> = ({
             dataKey="label"
             tickLine={false}
             axisLine={false}
-            tick={{ fontSize: 11, fill: "#9ca3af" }}
+            tick={{ fontSize: 11, fill: '#9ca3af' }}
           />
           <YAxis
             tickLine={false}
             axisLine={false}
-            tick={{ fontSize: 11, fill: "#9ca3af" }}
+            tick={{ fontSize: 11, fill: '#9ca3af' }}
             width={32}
             domain={[0, 100]}
             tickFormatter={(v) => `${v}%`}
@@ -57,14 +60,14 @@ export const SuccessRateBarChart: FC<SuccessRateBarChartProps> = ({
               const v = value as number
               const total = payload?.payload?.totalRuns as number | undefined
               return total != null
-                ? [`${v.toFixed(1)}% of ${total} runs`, "Success rate"]
-                : [`${v.toFixed(1)}%`, "Success rate"]
+                ? [`${v.toFixed(1)}% of ${total} runs`, 'Success rate']
+                : [`${v.toFixed(1)}%`, 'Success rate']
             }}
-            labelStyle={{ color: "#e5e7eb" }}
+            labelStyle={{ color: '#e5e7eb' }}
             contentStyle={{
-              backgroundColor: "#020617",
+              backgroundColor: '#020617',
               borderRadius: 8,
-              border: "1px solid rgba(148,163,184,0.4)",
+              border: '1px solid rgba(148,163,184,0.4)',
               fontSize: 11,
             }}
           />

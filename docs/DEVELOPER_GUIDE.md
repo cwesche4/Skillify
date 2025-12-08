@@ -1,6 +1,6 @@
 ```mdx-all-in-one
 # 🛠️ Skillify Developer Guide
-A complete engineering reference for maintaining and extending the Skillify platform.  
+A complete engineering reference for maintaining and extending the Skillify platform.
 This file defines architecture, coding standards, folder rules, and required conventions.
 
 ------------------------------------------------------------
@@ -39,13 +39,13 @@ Follow clean, feature-based architecture:
 ------------------------------------------------------------
 
 # 2. Tech Stack Overview
-Frontend: Next.js 14, React 18, TailwindCSS, Framer Motion  
-Backend: Next.js API Routes, Prisma 7, Postgres  
-AI: OpenAI API + AI Coach + Insights Engine  
-Builder: ReactFlow 11 (Unified NodeData — no generics)  
-Auth: Clerk  
-Testing: Vitest, RTL, JSDOM  
-Tooling: Turbo, ESLint Flat Config, Prettier, Husky  
+Frontend: Next.js 14, React 18, TailwindCSS, Framer Motion
+Backend: Next.js API Routes, Prisma 7, Postgres
+AI: OpenAI API + AI Coach + Insights Engine
+Builder: ReactFlow 11 (Unified NodeData — no generics)
+Auth: Clerk
+Testing: Vitest, RTL, JSDOM
+Tooling: Turbo, ESLint Flat Config, Prettier, Husky
 
 ------------------------------------------------------------
 
@@ -222,12 +222,12 @@ Checklist:
 
 # 12. Contribution Workflow
 
-1. Create a new branch  
-2. Make changes  
-3. Add/Update tests  
-4. Run lint + test + type-check  
-5. Submit PR  
-6. Review + merge  
+1. Create a new branch
+2. Make changes
+3. Add/Update tests
+4. Run lint + test + type-check
+5. Submit PR
+6. Review + merge
 
 ------------------------------------------------------------
 

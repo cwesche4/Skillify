@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
 
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const workspace = searchParams.get("workspace") ?? "skillify-hq"
+  const workspace = searchParams.get('workspace') ?? 'skillify-hq'
 
   try {
     const activeAutomations = await prisma.automation.count({
       where: {
         workspaceId: workspace,
-        status: "ACTIVE", // ← FIXED
+        status: 'ACTIVE', // ← FIXED
       },
     })
 
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
     const lastRun = await prisma.automationRun.findFirst({
       where: { workspaceId: workspace },
-      orderBy: { startedAt: "desc" },
+      orderBy: { startedAt: 'desc' },
     })
 
     return NextResponse.json({
@@ -40,7 +40,10 @@ export async function GET(req: Request) {
       lastRunAt: lastRun?.startedAt ?? null,
     })
   } catch (e) {
-    console.error("SUMMARY ERROR:", e)
-    return NextResponse.json({ error: "Failed to load analytics" }, { status: 500 })
+    console.error('SUMMARY ERROR:', e)
+    return NextResponse.json(
+      { error: 'Failed to load analytics' },
+      { status: 500 },
+    )
   }
 }

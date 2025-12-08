@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react"
-import type { ReactNode } from "react"
+import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-export type DeltaDirection = "up" | "down" | "neutral"
+export type DeltaDirection = 'up' | 'down' | 'neutral'
 
-export type StatIntent = "default" | "primary" | "danger" | "muted"
+export type StatIntent = 'default' | 'primary' | 'danger' | 'muted'
 
 export interface StatItem {
   label: string
@@ -40,40 +40,41 @@ export function MetricCard(props: StatItem) {
     value,
     helper,
     delta,
-    deltaDirection = "neutral",
+    deltaDirection = 'neutral',
 
     // tone overrides intent if provided
-    intent = props.tone ?? "default",
+    intent = props.tone ?? 'default',
 
     icon,
   } = props
 
   const base =
-    "card card-hover flex flex-col justify-between border transition-all duration-200"
+    'card card-hover flex flex-col justify-between border transition-all duration-200'
 
   const intentClasses: Record<StatIntent, string> = {
-    default: "border-slate-800 bg-slate-900/40",
+    default: 'border-slate-800 bg-slate-900/40',
     primary:
-      "border-emerald-500/40 bg-emerald-500/5 shadow-[0_0_24px_rgba(16,185,129,0.25)]",
-    danger: "border-red-500/40 bg-red-500/5 shadow-[0_0_24px_rgba(248,113,113,0.25)]",
-    muted: "border-slate-800/60 bg-slate-900/60 opacity-80",
+      'border-emerald-500/40 bg-emerald-500/5 shadow-[0_0_24px_rgba(16,185,129,0.25)]',
+    danger:
+      'border-red-500/40 bg-red-500/5 shadow-[0_0_24px_rgba(248,113,113,0.25)]',
+    muted: 'border-slate-800/60 bg-slate-900/60 opacity-80',
   }
 
   const deltaIcon =
-    deltaDirection === "up" ? (
+    deltaDirection === 'up' ? (
       <ArrowUpRight className="h-3 w-3 text-emerald-400" />
-    ) : deltaDirection === "down" ? (
+    ) : deltaDirection === 'down' ? (
       <ArrowDownRight className="h-3 w-3 text-red-400" />
     ) : (
       <Minus className="h-3 w-3 text-slate-500" />
     )
 
   const deltaColor =
-    deltaDirection === "up"
-      ? "text-emerald-300"
-      : deltaDirection === "down"
-        ? "text-red-300"
-        : "text-slate-400"
+    deltaDirection === 'up'
+      ? 'text-emerald-300'
+      : deltaDirection === 'down'
+        ? 'text-red-300'
+        : 'text-slate-400'
 
   return (
     <div className={`${base} ${intentClasses[intent]}`}>

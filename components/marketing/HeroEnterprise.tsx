@@ -1,0 +1,120 @@
+// components/marketing/HeroEnterprise.tsx
+
+'use client'
+
+import { ArrowRight, Check } from 'lucide-react'
+import Link from 'next/link'
+
+export function HeroEnterprise() {
+  return (
+    <section className="px-6 pb-20 pt-24 lg:pb-28 lg:pt-28">
+      <div className="mx-auto grid max-w-6xl items-center gap-16 lg:grid-cols-[1.3fr,1fr]">
+        <div>
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-zinc-200/70 bg-zinc-50/70 px-3 py-1 text-xs text-zinc-600 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:text-zinc-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Enterprise-ready automation for multi-team orgs
+          </div>
+
+          <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+            One workspace for demos, follow-ups, and customer journeys.
+          </h1>
+
+          <p className="mt-5 max-w-xl text-base text-zinc-600 dark:text-zinc-400 sm:text-lg">
+            Skillify orchestrates demos, onboarding, and lifecycle touchpoints
+            across teams — with AI qualification and calendar automation built
+            in.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <Link
+              href="/marketing/demo"
+              className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_32px_-12px_rgba(37,99,235,0.8)] transition hover:bg-blue-700 sm:text-base"
+            >
+              Book an enterprise demo
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/marketing/case-studies"
+              className="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-6 py-3 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900 sm:text-base"
+            >
+              View customer stories
+            </Link>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 sm:text-sm">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-emerald-500" />
+              SOC2-ready architecture
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-emerald-500" />
+              Role-based workspaces
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-emerald-500" />
+              HubSpot + Calendly sync
+            </div>
+          </div>
+        </div>
+
+        {/* Right "mock enterprise overview" */}
+        <div className="relative">
+          <div className="absolute -inset-6 -z-10 bg-gradient-to-br from-blue-500/20 via-indigo-500/20 to-sky-400/10 blur-3xl" />
+          <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/90 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950/80">
+            <div className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-3 dark:border-zinc-800/80">
+              <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Pipeline overview
+              </span>
+              <span className="text-xs text-emerald-500">Live</span>
+            </div>
+            <div className="space-y-4 p-5">
+              <div className="grid grid-cols-3 gap-3 text-xs">
+                {[
+                  {
+                    label: 'Qualified demos',
+                    value: '+38%',
+                    note: 'last 30 days',
+                  },
+                  { label: 'Time-to-first-touch', value: '1.4m', note: 'avg' },
+                  {
+                    label: 'No-show rate',
+                    value: '-24%',
+                    note: 'vs last quarter',
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900/60"
+                  >
+                    <div className="text-[11px] text-zinc-500">
+                      {item.label}
+                    </div>
+                    <div className="text-sm font-semibold">{item.value}</div>
+                    <div className="text-[11px] text-zinc-500">{item.note}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 space-y-2">
+                {[
+                  'Inbound lead → AI score → AE calendar',
+                  'Missed demo → auto reschedule + SMS',
+                  'New customer → 30-day onboarding journey',
+                ].map((rule) => (
+                  <div
+                    key={rule}
+                    className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-xs dark:border-zinc-800 dark:bg-zinc-900/70"
+                  >
+                    <span className="text-zinc-600 dark:text-zinc-300">
+                      {rule}
+                    </span>
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}

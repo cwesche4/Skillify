@@ -1,17 +1,17 @@
 // app/dashboard/workspaces/[workspaceId]/settings/page.tsx
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
-import { Button } from "@/components/ui/Button"
+import { Button } from '@/components/ui/Button'
 
 export default function WorkspaceSettingsPage({ params }: any) {
   const { workspaceId } = params
   const router = useRouter()
 
-  const [name, setName] = useState("")
-  const [initialName, setInitialName] = useState("")
+  const [name, setName] = useState('')
+  const [initialName, setInitialName] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,20 +26,21 @@ export default function WorkspaceSettingsPage({ params }: any) {
 
   const save = async () => {
     await fetch(`/api/workspaces/${workspaceId}`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify({ name }),
     })
     setInitialName(name)
   }
 
   const remove = async () => {
-    if (!confirm("Are you sure? This will delete the workspace for everyone.")) return
+    if (!confirm('Are you sure? This will delete the workspace for everyone.'))
+      return
 
     await fetch(`/api/workspaces/${workspaceId}`, {
-      method: "DELETE",
+      method: 'DELETE',
     })
 
-    router.push("/dashboard/workspaces")
+    router.push('/dashboard/workspaces')
   }
 
   if (loading) return <div>Loading...</div>
@@ -48,7 +49,9 @@ export default function WorkspaceSettingsPage({ params }: any) {
     <div className="space-y-8">
       <div>
         <h1 className="h2 mb-2">Workspace Settings</h1>
-        <p className="body">Manage this workspace’s name and dangerous actions.</p>
+        <p className="body">
+          Manage this workspace’s name and dangerous actions.
+        </p>
       </div>
 
       <div className="card space-y-4">
@@ -62,7 +65,10 @@ export default function WorkspaceSettingsPage({ params }: any) {
           />
         </div>
 
-        <Button disabled={name.trim() === "" || name === initialName} onClick={save}>
+        <Button
+          disabled={name.trim() === '' || name === initialName}
+          onClick={save}
+        >
           Save changes
         </Button>
       </div>
@@ -70,8 +76,8 @@ export default function WorkspaceSettingsPage({ params }: any) {
       <div className="card border-red-500/60">
         <h2 className="h3 mb-2 text-red-400">Danger Zone</h2>
         <p className="body mb-4">
-          Deleting this workspace will remove access for all members and delete associated
-          data.
+          Deleting this workspace will remove access for all members and delete
+          associated data.
         </p>
 
         <Button className="btn-danger" onClick={remove}>

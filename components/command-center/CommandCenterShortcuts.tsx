@@ -1,13 +1,13 @@
 // components/command-center/CommandCenterShortcuts.tsx
-"use client"
+'use client'
 
-import { AnimatePresence, motion } from "framer-motion"
-import { useCommandCenter } from "./CommandCenterProvider"
-import type { RegisteredShortcut } from "./shortcutRegistry"
+import { AnimatePresence, motion } from 'framer-motion'
+import { useCommandCenter } from './CommandCenterProvider'
+import type { RegisteredShortcut } from './shortcutRegistry'
 
 function groupShortcuts(shortcuts: RegisteredShortcut[]) {
   return shortcuts.reduce<Record<string, RegisteredShortcut[]>>((acc, sc) => {
-    const key = sc.group ?? "General"
+    const key = sc.group ?? 'General'
     if (!acc[key]) acc[key] = []
     acc[key].push(sc)
     return acc
@@ -60,7 +60,9 @@ export function CommandCenterShortcuts() {
                       key={sc.id}
                       className="flex items-center justify-between rounded-lg px-2 py-1 hover:bg-slate-900/70"
                     >
-                      <span className="text-[11px] text-slate-100">{sc.label}</span>
+                      <span className="text-[11px] text-slate-100">
+                        {sc.label}
+                      </span>
                       <span className="flex items-center gap-1 text-[10px] text-slate-300">
                         {sc.keys.map((k, i) => (
                           <span

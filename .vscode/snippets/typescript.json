@@ -1,10 +1,6 @@
 {
   "Type Definition": {
     "prefix": "type",
-    "body": [
-      "export type ${1:TypeName} = {",
-      "  $2",
-      "}"
-    ]
+    "body": ["export type ${1:TypeName} = {", "  $2", "}"]
   }
 }

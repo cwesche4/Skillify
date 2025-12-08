@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2022"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
@@ -17,26 +13,27 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     // Enable React automatic JSX transform globally
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "jsxImportSource": "react",
     "incremental": true,
     // 🔑 Alias config so "@/..." works everywhere
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     "**/*.cjs",
-    "**/*.mjs"
+    "**/*.mjs",
+    ".next/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "tests/**"
-  ]
+  "exclude": ["node_modules", "tests/**"]
 }

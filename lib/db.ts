@@ -1,12 +1,12 @@
 // lib/db.ts
 
-import { PrismaPg } from "@prisma/adapter-pg"
-import { PrismaClient } from "@prisma/client"
-import pg from "pg"
+import { PrismaPg } from '@prisma/adapter-pg'
+import { PrismaClient } from '@prisma/client'
+import pg from 'pg'
 
 const url = process.env.DATABASE_URL
 if (!url) {
-  throw new Error("❌ Missing DATABASE_URL in .env")
+  throw new Error('❌ Missing DATABASE_URL in .env')
 }
 
 const pool = new pg.Pool({
@@ -24,10 +24,13 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    log:
+      process.env.NODE_ENV === 'development'
+        ? ['query', 'error', 'warn']
+        : ['error'],
   })
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
 }
 

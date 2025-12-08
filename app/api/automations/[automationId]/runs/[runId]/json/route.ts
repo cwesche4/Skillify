@@ -1,7 +1,7 @@
 // app/api/automations/[automationId]/runs/[runId]/json/route.ts
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
 interface Params {
   params: { automationId: string; runId: string }
@@ -10,7 +10,7 @@ interface Params {
 export async function GET(_req: Request, { params }: Params) {
   const { userId } = await auth()
   if (!userId) {
-    return new Response("Unauthorized", { status: 401 })
+    return new Response('Unauthorized', { status: 401 })
   }
 
   const run = await prisma.automationRun.findUnique({
@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: Params) {
   })
 
   if (!run) {
-    return new Response("Run not found", { status: 404 })
+    return new Response('Run not found', { status: 404 })
   }
 
   const payload = {
@@ -34,8 +34,8 @@ export async function GET(_req: Request, { params }: Params) {
   return new Response(JSON.stringify(payload, null, 2), {
     status: 200,
     headers: {
-      "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="automation-run-${run.id}.json"`,
+      'Content-Type': 'application/json',
+      'Content-Disposition': `attachment; filename="automation-run-${run.id}.json"`,
     },
   })
 }

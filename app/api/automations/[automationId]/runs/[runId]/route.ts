@@ -1,7 +1,7 @@
 // app/api/automations/[automationId]/runs/[runId]/route.ts
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
 interface Params {
   params: { automationId: string; runId: string }
@@ -10,7 +10,7 @@ interface Params {
 export async function GET(_req: Request, { params }: Params) {
   const { userId } = await auth()
   if (!userId) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
     })
   }
@@ -30,13 +30,13 @@ export async function GET(_req: Request, { params }: Params) {
   })
 
   if (!run) {
-    return new Response(JSON.stringify({ error: "Run not found" }), {
+    return new Response(JSON.stringify({ error: 'Run not found' }), {
       status: 404,
     })
   }
 
   return new Response(JSON.stringify({ run }), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: { 'Content-Type': 'application/json' },
   })
 }

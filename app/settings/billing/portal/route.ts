@@ -1,12 +1,12 @@
-import { auth, clerkClient } from "@clerk/nextjs/server"
-import type { NextRequest } from "next/server"
-import { NextResponse } from "next/server"
+import { auth, clerkClient } from '@clerk/nextjs/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 // import Stripe from "stripe"; // uncomment when you add Stripe
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
-    return NextResponse.redirect(new URL("/sign-in", req.url))
+    return NextResponse.redirect(new URL('/sign-in', req.url))
   }
 
   const client = await clerkClient()
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   if (!stripeCustomerId) {
     // For now, just return to settings
-    return NextResponse.redirect(new URL("/settings", req.url))
+    return NextResponse.redirect(new URL('/settings', req.url))
   }
 
   // When you add Stripe, this is where you'd create a billing portal session:
@@ -33,5 +33,5 @@ export async function POST(req: NextRequest) {
   //
   // return NextResponse.redirect(session.url);
 
-  return NextResponse.redirect(new URL("/settings", req.url))
+  return NextResponse.redirect(new URL('/settings', req.url))
 }

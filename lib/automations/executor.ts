@@ -1,7 +1,6 @@
 // lib/automations/executor.ts
-import { RunStatus, AutomationStatus } from "@prisma/client"
-
-import { prisma } from "@/lib/db"
+import { RunStatus, AutomationStatus } from '@prisma/client'
+import { prisma } from '@/lib/db'
 
 /* ------------------------------ Types ------------------------------ */
 
@@ -58,58 +57,58 @@ export async function executeNode(
   context: NodeExecutionContext,
 ): Promise<NodeExecutionResult> {
   switch (type) {
-    case "trigger":
+    case 'trigger':
       return {
         output: { triggered: true, payload: context.triggerPayload ?? null },
-        log: "Trigger fired.",
+        log: 'Trigger fired.',
       }
 
-    case "ai-llm":
+    case 'ai-llm':
       return {
-        output: { text: "AI placeholder response (wire to OpenAI soon)." },
-        log: `AI LLM executed, prompt: ${(data?.prompt ?? "").slice(0, 80)}`,
+        output: { text: 'AI placeholder response (wire to OpenAI soon).' },
+        log: `AI LLM executed, prompt: ${(data?.prompt ?? '').slice(0, 80)}`,
       }
 
-    case "ai-classifier":
+    case 'ai-classifier':
       return {
-        output: { label: (data?.classes ?? [])[0] ?? "default" },
-        log: `AI classifier labeled: ${(data?.classes ?? [])[0] ?? "default"}`,
+        output: { label: (data?.classes ?? [])[0] ?? 'default' },
+        log: `AI classifier labeled: ${(data?.classes ?? [])[0] ?? 'default'}`,
       }
 
-    case "ai-splitter":
+    case 'ai-splitter':
       return {
-        output: { splitKey: "A" },
-        log: "AI splitter → path A.",
+        output: { splitKey: 'A' },
+        log: 'AI splitter → path A.',
       }
 
-    case "or-path":
+    case 'or-path':
       return {
-        output: { path: "A" },
-        log: "OR path selected: A",
+        output: { path: 'A' },
+        log: 'OR path selected: A',
       }
 
-    case "delay":
+    case 'delay':
       return {
         output: { completed: true },
-        log: "Delay executed (stub). Scheduler coming soon.",
+        log: 'Delay executed (stub). Scheduler coming soon.',
       }
 
-    case "webhook":
+    case 'webhook':
       return {
-        output: { status: "queued" },
-        log: `Webhook queued → ${data?.url ?? "no-url"}`,
+        output: { status: 'queued' },
+        log: `Webhook queued → ${data?.url ?? 'no-url'}`,
       }
 
-    case "group":
+    case 'group':
       return {
         output: { grouped: true },
-        log: "Group node (visual only).",
+        log: 'Group node (visual only).',
       }
 
     default:
       return {
         output: {},
-        log: `Unknown node type: ${type ?? "none"}`,
+        log: `Unknown node type: ${type ?? 'none'}`,
       }
   }
 }
@@ -125,12 +124,15 @@ export async function runAutomation(
     include: { workspace: true },
   })
 
-  if (!automation) throw new Error("Automation not found")
-  if (automation.status !== AutomationStatus.ACTIVE)
-    throw new Error("Automation is not active")
+  if (!automation) throw new Error('Automation not found')
+  if (automation.status !== AutomationStatus.ACTIVE) {
+    throw new Error('Automation is not active')
+  }
 
   const rawFlow = automation.flow as any as FlowGraph | null
-  if (!rawFlow || !rawFlow.nodes?.length) throw new Error("Automation has no flow")
+  if (!rawFlow || !rawFlow.nodes?.length) {
+    throw new Error('Automation has no flow')
+  }
 
   const flow: FlowGraph = rawFlow
 
@@ -139,7 +141,7 @@ export async function runAutomation(
       automationId: automation.id,
       workspaceId: automation.workspaceId,
       status: RunStatus.RUNNING,
-      log: "",
+      log: '',
       userProfileId: userProfileId ?? null,
     },
   })
@@ -157,13 +159,13 @@ export async function runAutomation(
     const context: NodeExecutionContext = { triggerPayload, depth }
     const result = await executeNode(node.type, node.data, context)
 
-    logLines.push(`[${node.type ?? "node"}:${node.id}] ${result.log}`)
+    logLines.push(`[${node.type ?? 'node'}:${node.id}] ${result.log}`)
 
     await prisma.automationRunEvent.create({
       data: {
         runId: run.id,
         nodeId: node.id,
-        nodeType: node.type ?? "unknown",
+        nodeType: node.type ?? 'unknown',
         status: RunStatus.RUNNING,
         message: result.log,
         path: result.output?.path ?? null,
@@ -176,7 +178,7 @@ export async function runAutomation(
 
   try {
     const roots = findStartNodes(flow)
-    if (!roots.length) logLines.push("⚠ No root nodes found.")
+    if (!roots.length) logLines.push('⚠ No root nodes found.')
 
     for (const root of roots) await processNode(root.id, 0)
 
@@ -185,7 +187,7 @@ export async function runAutomation(
       data: {
         status: RunStatus.SUCCESS,
         finishedAt: new Date(),
-        log: logLines.join("\n"),
+        log: logLines.join('\n'),
       },
     })
 
@@ -198,7 +200,7 @@ export async function runAutomation(
       data: {
         status: RunStatus.FAILED,
         finishedAt: new Date(),
-        log: logLines.join("\n"),
+        log: logLines.join('\n'),
       },
     })
 
@@ -209,7 +211,7 @@ export async function runAutomation(
 /* ------------------------------ LIVE STREAMING EXECUTOR (SSE) ------------------------------ */
 
 export async function executeAutomationLive(
-  prismaClient: any,
+  _prismaClient: any,
   runId: string,
   flow: FlowGraph,
   emit: (evt: any) => Promise<void>,
@@ -227,11 +229,11 @@ export async function executeAutomationLive(
     const result = await executeNode(node.type, node.data, { depth })
 
     const evt = {
-      kind: "nodeEnd",
+      kind: 'nodeEnd',
       runId,
       nodeId: node.id,
-      nodeType: node.type ?? "unknown",
-      status: "SUCCESS",
+      nodeType: node.type ?? 'unknown',
+      status: 'SUCCESS',
       message: result.log,
       path: result.output?.path ?? null,
     }
@@ -246,13 +248,13 @@ export async function executeAutomationLive(
 
   try {
     const roots = findStartNodes(flow)
-    if (!roots.length) logLines.push("⚠ No root nodes found.")
+    if (!roots.length) logLines.push('⚠ No root nodes found.')
 
     for (const r of roots) await processNode(r.id, 0)
 
-    return { success: true, log: logLines.join("\n") }
+    return { success: true, log: logLines.join('\n') }
   } catch (err: any) {
-    logLines.push("ERROR: " + (err.message ?? "unknown"))
-    return { success: false, log: logLines.join("\n") }
+    logLines.push('ERROR: ' + (err.message ?? 'unknown'))
+    return { success: false, log: logLines.join('\n') }
   }
 }

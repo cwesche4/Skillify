@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { semanticSearch } from "@/lib/ai/search"
-import { AnimatePresence, motion } from "framer-motion"
-import Fuse from "fuse.js"
+import { semanticSearch } from '@/lib/ai/search'
+import { AnimatePresence, motion } from 'framer-motion'
+import Fuse from 'fuse.js'
 import {
   BarChart3,
   FolderPlus,
@@ -13,9 +13,9 @@ import {
   Settings,
   Sparkles,
   Workflow,
-} from "lucide-react"
-import { usePathname } from "next/navigation"
-import React, { useEffect, useState } from "react"
+} from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
 
 //
 // TYPES
@@ -28,7 +28,7 @@ type Workspace = {
 
 type IconType = React.ComponentType<React.SVGProps<SVGSVGElement>>
 
-type CommandKind = "workspace" | "page" | "help" | "ai" | "action"
+type CommandKind = 'workspace' | 'page' | 'help' | 'ai' | 'action'
 
 export type CommandItem = {
   id: string
@@ -46,10 +46,10 @@ export type CommandItem = {
 //
 // CONSTANTS
 //
-const PINNED_IDS: string[] = ["page:automations", "page:analytics", "ai:teach"]
+const PINNED_IDS: string[] = ['page:automations', 'page:analytics', 'ai:teach']
 
-const HEATMAP_KEY = "skillify-cmd-heatmap"
-const HISTORY_KEY = "skillify-cmd-history"
+const HEATMAP_KEY = 'skillify-cmd-heatmap'
+const HISTORY_KEY = 'skillify-cmd-history'
 
 //
 // HEATMAP HELPERS
@@ -73,11 +73,17 @@ function readHeat(): Record<string, number> {
 //
 // COMPONENT
 //
-export default function CommandPalette({ workspaces }: { workspaces: Workspace[] }) {
+export default function CommandPalette({
+  workspaces,
+  current,
+}: {
+  workspaces: Workspace[]
+  current: Workspace | null
+}) {
   const pathname = usePathname()
 
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState('')
   const [loadingAI, setLoadingAI] = useState(false)
   const [results, setResults] = useState<CommandItem[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
@@ -90,7 +96,7 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
   // FUZZY SEARCH
   //
   const fuse = new Fuse<Workspace>(workspaces, {
-    keys: ["name", "slug"],
+    keys: ['name', 'slug'],
     threshold: 0.3,
   })
 
@@ -100,106 +106,200 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
   const workspaceCommands: CommandItem[] = workspaces.map(
     (w: Workspace): CommandItem => ({
       id: `workspace:${w.slug}`,
-      type: "workspace",
+      type: 'workspace',
       label: w.name,
-      subtitle: "Switch workspace",
+      subtitle: 'Switch workspace',
       href: `/dashboard/${w.slug}`,
       icon: Inbox,
-      group: "Workspaces",
-      tags: ["workspace"],
+      group: 'Workspaces',
+      tags: ['workspace'],
     }),
   )
+
+  //
+  // ADVANCED AI COACH COMMANDS
+  //
+  const AI_COACH_ITEMS: CommandItem[] = [
+    {
+      id: 'ai:workspace-health',
+      type: 'ai',
+      label: 'Analyze Workspace Health',
+      subtitle: 'AI review of reliability, patterns & bottlenecks',
+      icon: Sparkles,
+      group: 'AI Recommendations',
+      tags: ['ai', 'insights'],
+      action: () => {
+        const url = new URL(window.location.href)
+        url.searchParams.set('coach', 'open')
+        url.searchParams.set(
+          'q',
+          'Analyze the overall health of this workspace.',
+        )
+        window.location.href = url.toString()
+      },
+    },
+    {
+      id: 'ai:explain-runs',
+      type: 'ai',
+      label: 'Explain Recent Runs',
+      subtitle: 'AI explains failures, anomalies & timing',
+      icon: Sparkles,
+      group: 'AI Recommendations',
+      tags: ['ai', 'explain', 'runs'],
+      action: () => {
+        const url = new URL(window.location.href)
+        url.searchParams.set('coach', 'open')
+        url.searchParams.set('q', 'Explain the last 20 automation runs.')
+        window.location.href = url.toString()
+      },
+    },
+    {
+      id: 'ai:optimize-automations',
+      type: 'ai',
+      label: 'Recommend Optimizations',
+      subtitle: 'AI suggests improvements for reliability & performance',
+      icon: Sparkles,
+      group: 'AI Recommendations',
+      tags: ['ai', 'optimize'],
+      action: () => {
+        const url = new URL(window.location.href)
+        url.searchParams.set('coach', 'open')
+        url.searchParams.set(
+          'q',
+          'What are the top optimizations I should make to improve reliability?',
+        )
+        window.location.href = url.toString()
+      },
+    },
+    {
+      id: 'ai:detect-issues',
+      type: 'ai',
+      label: 'Detect Reliability Issues',
+      subtitle: 'AI scans for patterns, risks, and weak points',
+      icon: Sparkles,
+      group: 'AI Recommendations',
+      tags: ['ai', 'issues'],
+      action: () => {
+        const url = new URL(window.location.href)
+        url.searchParams.set('coach', 'open')
+        url.searchParams.set(
+          'q',
+          'Find reliability issues across my workspace.',
+        )
+        window.location.href = url.toString()
+      },
+    },
+    {
+      id: 'ai:coach',
+      type: 'ai',
+      label: 'Ask AI Coach',
+      subtitle: 'Insights • Optimization • Explanations',
+      icon: Sparkles,
+      group: 'AI',
+      shortcut: 'AI C',
+      tags: ['ai', 'coach'],
+      action: () => {
+        const url = new URL(window.location.href)
+        url.searchParams.set('coach', 'open')
+        window.location.href = url.toString()
+      },
+    },
+    {
+      id: 'ai:teach',
+      type: 'ai',
+      label: 'Teach Me Skillify (AI Guide)',
+      subtitle: 'Learn Skillify step-by-step',
+      icon: Sparkles,
+      group: 'AI',
+      shortcut: 'AI',
+      tags: ['ai', 'guide'],
+      action: () => window.dispatchEvent(new CustomEvent('open-ai-onboarding')),
+    },
+  ]
 
   //
   // STATIC COMMANDS
   //
   const ALL_ITEMS: CommandItem[] = [
-    // Workspaces
     ...workspaceCommands,
 
     // Navigation
     {
-      id: "page:automations",
-      type: "page",
-      label: "Automations",
-      subtitle: "Manage automation flows",
-      href: "/dashboard/automations",
+      id: 'page:automations',
+      type: 'page',
+      label: 'Automations',
+      subtitle: 'Manage automation flows',
+      href: '/dashboard/automations',
       icon: Workflow,
-      group: "Navigation",
-      shortcut: "G A",
-      tags: ["flows", "builder"],
+      group: 'Navigation',
+      shortcut: 'G A',
+      tags: ['flows', 'builder'],
     },
     {
-      id: "page:analytics",
-      type: "page",
-      label: "Analytics",
-      subtitle: "Performance & metrics",
-      href: "/dashboard/analytics",
+      id: 'page:analytics',
+      type: 'page',
+      label: 'Analytics',
+      subtitle: 'Performance & metrics',
+      href: '/dashboard/analytics',
       icon: BarChart3,
-      group: "Navigation",
-      shortcut: "G N",
-      tags: ["metrics", "reports"],
+      group: 'Navigation',
+      shortcut: 'G N',
+      tags: ['analytics', 'metrics'],
     },
     {
-      id: "page:settings",
-      type: "page",
-      label: "Settings",
-      subtitle: "Preferences & workspace config",
-      href: "/dashboard/settings",
+      id: 'page:settings',
+      type: 'page',
+      label: 'Settings',
+      subtitle: 'Preferences & workspace config',
+      href: '/dashboard/settings',
       icon: Settings,
-      group: "Navigation",
-      shortcut: "G S",
-      tags: ["account", "team"],
+      group: 'Navigation',
+      shortcut: 'G S',
+      tags: ['settings'],
     },
 
-    // Actions
+    // Quick Actions
     {
-      id: "action:create-workspace",
-      type: "action",
-      label: "Create Workspace",
-      subtitle: "Set up a new workspace",
+      id: 'action:create-workspace',
+      type: 'action',
+      label: 'Create Workspace',
+      subtitle: 'Set up a new workspace',
       icon: FolderPlus,
-      group: "Quick Actions",
-      shortcut: "W",
-      tags: ["organization"],
-      action: () => window.dispatchEvent(new CustomEvent("open-create-workspace")),
+      group: 'Quick Actions',
+      shortcut: 'W',
+      tags: ['workspace'],
+      action: () =>
+        window.dispatchEvent(new CustomEvent('open-create-workspace')),
     },
     {
-      id: "action:create-automation",
-      type: "action",
-      label: "Create Automation",
-      subtitle: "Start a new flow",
+      id: 'action:create-automation',
+      type: 'action',
+      label: 'Create Automation',
+      subtitle: 'Start a new automation',
       icon: Plus,
-      group: "Quick Actions",
-      shortcut: "A",
-      tags: ["flow", "builder"],
-      action: () => window.location.assign("/dashboard/automations/new"),
+      group: 'Quick Actions',
+      shortcut: 'A',
+      tags: ['automation'],
+      action: () => window.location.assign('/dashboard/automations/new'),
     },
 
     // Support
     {
-      id: "help:panel",
-      type: "help",
-      label: "Open Help Panel",
-      subtitle: "Shortcuts, docs, tips",
+      id: 'help:panel',
+      type: 'help',
+      label: 'Open Help Panel',
+      subtitle: 'Shortcuts, docs, tips',
       icon: LifeBuoy,
-      group: "Support",
-      tags: ["help", "docs"],
-      action: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" })),
+      group: 'Support',
+      tags: ['help'],
+      action: () =>
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' })),
     },
 
-    // AI
-    {
-      id: "ai:teach",
-      type: "ai",
-      label: "Teach Me Skillify (AI Guide)",
-      subtitle: "Learn Skillify step-by-step",
-      icon: Sparkles,
-      group: "AI",
-      shortcut: "AI",
-      tags: ["ai", "guide", "training"],
-      action: () => window.dispatchEvent(new CustomEvent("open-ai-onboarding")),
-    },
+    //
+    // AI Coach (Advanced)
+    //
+    ...AI_COACH_ITEMS,
   ]
 
   //
@@ -208,49 +308,45 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
   useEffect(() => {
     try {
       const raw = localStorage.getItem(HISTORY_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as string[]
-        setHistoryIds(parsed)
-      }
+      if (raw) setHistoryIds(JSON.parse(raw))
     } catch {}
   }, [])
 
   //
-  // CONTEXT SCORE
+  // SCORING
   //
   function contextScore(item: CommandItem): number {
     let score = 0
-
     if (PINNED_IDS.includes(item.id)) score += 3
     if (historyIds.includes(item.id)) score += 2
-
     const heat = heatmap[item.id] ?? 0
     score += Math.min(heat, 4)
-
-    if (pathname.includes("automations") && item.label.includes("Automation")) score += 2
-
-    if (pathname.includes("analytics") && item.label.includes("Analytics")) score += 2
-
+    if (pathname.includes('automations') && item.label.includes('Automation'))
+      score += 2
+    if (pathname.includes('analytics') && item.label.includes('Analytics'))
+      score += 2
     return score
   }
 
   //
-  // NO QUERY → SHOW PINNED + RECENT + CONTEXT
+  // NO QUERY VIEW
   //
   useEffect(() => {
     if (query.trim()) return
 
     const map = new Map(ALL_ITEMS.map((i) => [i.id, i]))
 
-    const pinned = PINNED_IDS.map((id) => map.get(id)).filter(Boolean) as CommandItem[]
-
+    const pinned = PINNED_IDS.map((id) => map.get(id)).filter(
+      Boolean,
+    ) as CommandItem[]
     const recent = historyIds
       .map((id) => map.get(id))
       .filter(Boolean)
       .filter((i) => !pinned.some((p) => p.id === i!.id)) as CommandItem[]
-
     const rest = ALL_ITEMS.filter(
-      (i) => !pinned.some((p) => p.id === i.id) && !recent.some((r) => r.id === i.id),
+      (i) =>
+        !pinned.some((p) => p.id === i.id) &&
+        !recent.some((r) => r!.id === i.id),
     )
 
     const final = [...pinned, ...recent, ...rest].sort(
@@ -263,7 +359,7 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
   }, [query, historyIds, pathname, heatmap])
 
   //
-  // SEARCH
+  // QUERY SEARCH
   //
   useEffect(() => {
     if (!query.trim()) return
@@ -273,25 +369,23 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
     const run = async () => {
       setLoadingAI(true)
 
-      // fuzzy workspace match
       const fuzzyWs = fuse.search(query).map((res) => res.item)
       const fuzzyCommands: CommandItem[] = fuzzyWs.map((w) => ({
         id: `workspace:${w.slug}`,
-        type: "workspace",
+        type: 'workspace',
         label: w.name,
-        subtitle: "Switch workspace",
+        subtitle: 'Switch workspace',
         href: `/dashboard/${w.slug}`,
         icon: Inbox,
-        group: "Workspaces",
-        tags: ["workspace"],
+        group: 'Workspaces',
+        tags: ['workspace'],
       }))
 
-      // AI ranking
       const aiRanked: CommandItem[] = await semanticSearch(query, ALL_ITEMS)
 
-      const merged: CommandItem[] = [...aiRanked, ...fuzzyCommands].reduce(
-        (acc: CommandItem[], item: CommandItem) => {
-          if (!acc.find((x) => x.id === item.id)) acc.push(item)
+      const merged = [...aiRanked, ...fuzzyCommands].reduce(
+        (acc: CommandItem[], x) => {
+          if (!acc.find((i) => i.id === x.id)) acc.push(x)
           return acc
         },
         [],
@@ -310,7 +404,6 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
     return () => {
       mounted = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
   //
@@ -325,15 +418,16 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
   }, [query, results])
 
   //
-  // EXECUTE COMMAND
+  // EXECUTION
   //
   function execute(item: CommandItem) {
     setOpen(false)
 
     recordHeat(item.id)
-
-    const updated = [item.id, ...historyIds.filter((x) => x !== item.id)].slice(0, 10)
-
+    const updated = [item.id, ...historyIds.filter((x) => x !== item.id)].slice(
+      0,
+      10,
+    )
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated))
     setHistoryIds(updated)
 
@@ -342,45 +436,42 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
   }
 
   //
-  // KEYBOARD
+  // KEYBOARD SHORTCUTS
   //
   useEffect(() => {
     function keyHandler(e: KeyboardEvent) {
-      // ⌘K
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setOpen((o) => !o)
       }
 
       if (!open) return
 
-      if (e.key === "ArrowDown") {
+      if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setActiveIndex((idx) => Math.min(idx + 1, results.length - 1))
+        setActiveIndex((i) => Math.min(i + 1, results.length - 1))
       }
 
-      if (e.key === "ArrowUp") {
+      if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setActiveIndex((idx) => Math.max(idx - 1, 0))
+        setActiveIndex((i) => Math.max(i - 1, 0))
       }
 
-      if (e.key === "Enter") {
+      if (e.key === 'Enter') {
         const item = results[activeIndex]
         if (item) execute(item)
       }
 
-      if (e.key === "Escape") {
-        setOpen(false)
-      }
+      if (e.key === 'Escape') setOpen(false)
 
-      if (e.key === "Tab" && suggestedLabel) {
+      if (e.key === 'Tab' && suggestedLabel) {
         e.preventDefault()
         setQuery(suggestedLabel)
       }
     }
 
-    window.addEventListener("keydown", keyHandler)
-    return () => window.removeEventListener("keydown", keyHandler)
+    window.addEventListener('keydown', keyHandler)
+    return () => window.removeEventListener('keydown', keyHandler)
   }, [open, results, activeIndex, suggestedLabel])
 
   const activeItem: CommandItem | undefined = results[activeIndex]
@@ -404,21 +495,21 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.96, opacity: 0 }}
           >
-            {/* Search Input */}
+            {/* Search */}
             <div className="relative">
               <Search className="text-neutral-text-secondary absolute left-3 top-3 h-4 w-4" />
               <input
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search workspaces, pages, actions… (⌘K)"
+                placeholder="Search workspaces, pages, automations, AI tools… (⌘K)"
                 className="dark:bg-neutral-card-dark text-neutral-text-primary w-full rounded-lg border border-neutral-border bg-neutral-light py-2 pl-10 pr-3"
               />
             </div>
 
             {query && suggestedLabel && suggestedLabel !== query && (
               <div className="text-neutral-text-secondary mt-1 text-[12px]">
-                Suggested: <span className="font-medium">{suggestedLabel}</span>{" "}
+                Suggested: <span className="font-medium">{suggestedLabel}</span>{' '}
                 <span className="opacity-70">(press Tab)</span>
               </div>
             )}
@@ -429,11 +520,11 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
               </div>
             )}
 
-            {/* Two-Column Layout (List + Preview) */}
+            {/* Two Column Layout */}
             <div className="mt-3 grid max-h-80 grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)] gap-3">
-              {/* Left list */}
+              {/* LEFT — RESULTS */}
               <div className="overflow-y-auto pr-1">
-                {results.map((item: CommandItem, idx: number) => {
+                {results.map((item, idx) => {
                   const Icon = item.icon
                   const active = idx === activeIndex
 
@@ -443,16 +534,20 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
                       onClick={() => execute(item)}
                       className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left transition ${
                         active
-                          ? "bg-brand-primary/20 text-brand-primary"
-                          : "dark:hover:bg-neutral-card-dark hover:bg-neutral-light"
+                          ? 'bg-brand-primary/20 text-brand-primary'
+                          : 'dark:hover:bg-neutral-card-dark hover:bg-neutral-light'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         {!!Icon && <Icon className="h-4 w-4" />}
                         <div>
-                          <div className="text-sm font-medium">{item.label}</div>
+                          <div className="text-sm font-medium">
+                            {item.label}
+                          </div>
                           {item.subtitle && (
-                            <div className="text-xs opacity-70">{item.subtitle}</div>
+                            <div className="text-xs opacity-70">
+                              {item.subtitle}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -467,13 +562,17 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
                 })}
               </div>
 
-              {/* Right preview */}
+              {/* RIGHT — PREVIEW */}
               <div className="bg-neutral-light/70 dark:bg-neutral-card-dark/70 rounded-lg border border-neutral-border p-3 text-xs">
                 {activeItem ? (
                   <>
                     <div className="mb-2 flex items-center gap-2">
-                      {!!activeItem?.icon && <activeItem.icon className="h-4 w-4" />}
-                      <span className="text-sm font-medium">{activeItem.label}</span>
+                      {activeItem.icon && (
+                        <activeItem.icon className="h-4 w-4" />
+                      )}
+                      <span className="text-sm font-medium">
+                        {activeItem.label}
+                      </span>
 
                       <span className="ml-auto rounded border border-neutral-border px-2 py-0.5 text-[10px] uppercase opacity-70">
                         {activeItem.group}
@@ -482,7 +581,7 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
 
                     <p className="text-neutral-text-secondary mb-2">
                       {activeItem.subtitle ||
-                        "Run this command to navigate or perform an action inside Skillify."}
+                        'Run this command to navigate or perform an action inside Skillify.'}
                     </p>
 
                     {activeItem.tags && (
@@ -505,7 +604,8 @@ export default function CommandPalette({ workspaces }: { workspaces: Workspace[]
                   </>
                 ) : (
                   <div className="text-neutral-text-secondary">
-                    Start typing to search workspaces, pages, or actions.
+                    Start typing to explore workspaces, pages, actions, or AI
+                    tools.
                   </div>
                 )}
               </div>

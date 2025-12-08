@@ -5,6 +5,6 @@ export interface WorkspaceWithMembers {
   members: {
     id: string
     userId: string
-    role: "OWNER" | "ADMIN" | "MEMBER"
+    role: 'OWNER' | 'ADMIN' | 'MEMBER'
   }[]
 }

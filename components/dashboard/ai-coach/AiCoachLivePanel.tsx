@@ -1,10 +1,10 @@
 // components/dashboard/ai-coach/AiCoachLivePanel.tsx
-"use client"
+'use client'
 
-import { Badge } from "@/components/ui/Badge"
-import { Card } from "@/components/ui/Card"
-import type { LiveCoachSnapshot } from "@/lib/analytics/liveCoach"
-import { useEffect, useState } from "react"
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+import type { LiveCoachSnapshot } from '@/lib/analytics/liveCoach'
+import { useEffect, useState } from 'react'
 
 type AiCoachLivePanelProps = {
   workspaceId: string
@@ -20,18 +20,18 @@ export function AiCoachLivePanel({ workspaceId }: AiCoachLivePanelProps) {
     const url = `/api/workspaces/${workspaceId}/coach/live/stream`
     const es = new EventSource(url)
 
-    es.addEventListener("snapshot", (event) => {
+    es.addEventListener('snapshot', (event) => {
       const message = event as MessageEvent
       try {
         const parsed: LiveCoachSnapshot = JSON.parse(message.data)
         setData(parsed)
         setConnected(true)
       } catch (error) {
-        console.error("AI Coach SSE parse error", error)
+        console.error('AI Coach SSE parse error', error)
       }
     })
 
-    es.addEventListener("error", () => {
+    es.addEventListener('error', () => {
       setConnected(false)
       // Let browser retry; if you want manual backoff, you can close & reopen here.
     })
@@ -61,7 +61,11 @@ export function AiCoachLivePanel({ workspaceId }: AiCoachLivePanelProps) {
   } = data
 
   const trendTone =
-    trend > 5 ? "text-emerald-300" : trend < -5 ? "text-rose-300" : "text-slate-300"
+    trend > 5
+      ? 'text-emerald-300'
+      : trend < -5
+        ? 'text-rose-300'
+        : 'text-slate-300'
 
   return (
     <Card className="space-y-4 p-5">
@@ -74,15 +78,17 @@ export function AiCoachLivePanel({ workspaceId }: AiCoachLivePanelProps) {
             Streaming live metrics from your last 30 days of runs.
           </p>
         </div>
-        <Badge variant={connected ? "green" : "red"}>
-          {connected ? "Live" : "Disconnected"}
+        <Badge variant={connected ? 'green' : 'red'}>
+          {connected ? 'Live' : 'Disconnected'}
         </Badge>
       </div>
 
       {/* Top line metrics */}
       <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
         <div>
-          <p className="text-neutral-text-secondary mb-1 text-[11px]">Success rate</p>
+          <p className="text-neutral-text-secondary mb-1 text-[11px]">
+            Success rate
+          </p>
           <p className="text-neutral-text-primary text-xl font-semibold">
             {successRate.toFixed(1)}%
           </p>
@@ -93,13 +99,15 @@ export function AiCoachLivePanel({ workspaceId }: AiCoachLivePanelProps) {
             Trend (vs last week)
           </p>
           <p className={`text-xl font-semibold ${trendTone}`}>
-            {trend >= 0 ? "+" : ""}
+            {trend >= 0 ? '+' : ''}
             {trend.toFixed(1)}%
           </p>
         </div>
 
         <div>
-          <p className="text-neutral-text-secondary mb-1 text-[11px]">Avg. duration</p>
+          <p className="text-neutral-text-secondary mb-1 text-[11px]">
+            Avg. duration
+          </p>
           <p className="text-neutral-text-primary text-xl font-semibold">
             {(avgDurationMs / 1000).toFixed(2)}s
           </p>
@@ -134,13 +142,20 @@ export function AiCoachLivePanel({ workspaceId }: AiCoachLivePanelProps) {
             Top expensive automations
           </p>
           {topExpensive.length === 0 && (
-            <p className="text-neutral-text-secondary text-[11px]">No cost data yet.</p>
+            <p className="text-neutral-text-secondary text-[11px]">
+              No cost data yet.
+            </p>
           )}
           <ul className="space-y-1 text-[11px] text-slate-200">
             {topExpensive.map((item) => (
-              <li key={item.automation} className="flex items-center justify-between">
+              <li
+                key={item.automation}
+                className="flex items-center justify-between"
+              >
                 <span className="truncate pr-2">{item.automation}</span>
-                <span className="text-slate-300">${item.monthlyCostUsd.toFixed(2)}</span>
+                <span className="text-slate-300">
+                  ${item.monthlyCostUsd.toFixed(2)}
+                </span>
               </li>
             ))}
           </ul>
@@ -184,11 +199,11 @@ export function AiCoachLivePanel({ workspaceId }: AiCoachLivePanelProps) {
               <li key={a.id} className="flex flex-col gap-0.5">
                 <span
                   className={
-                    a.severity === "high"
-                      ? "text-rose-300"
-                      : a.severity === "medium"
-                        ? "text-amber-300"
-                        : "text-slate-200"
+                    a.severity === 'high'
+                      ? 'text-rose-300'
+                      : a.severity === 'medium'
+                        ? 'text-amber-300'
+                        : 'text-slate-200'
                   }
                 >
                   {a.message}

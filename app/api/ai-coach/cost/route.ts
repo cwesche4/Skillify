@@ -1,11 +1,11 @@
 // app/api/ai-coach/cost/route.ts
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
 
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
-  const workspaceId = url.searchParams.get("workspaceId")
+  const workspaceId = url.searchParams.get('workspaceId')
 
   const where = workspaceId ? { workspaceId } : {}
 
@@ -18,11 +18,11 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     monthlyCost: estimatedMonthlyCost,
-    currency: "USD",
+    currency: 'USD',
     topExpensive: [],
     suggestions: [
-      "Shorten prompts for AI LLM nodes.",
-      "Batch similar requests to reduce overhead.",
+      'Shorten prompts for AI LLM nodes.',
+      'Batch similar requests to reduce overhead.',
     ],
   })
 }

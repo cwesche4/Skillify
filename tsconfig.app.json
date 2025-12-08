@@ -1,18 +1,8 @@
 {
-    "extends": "./tsconfig.shared.json",
-    "compilerOptions": {
-        "jsx": "preserve"
-    },
-    "include": [
-        "app/**/*",
-        "components/**/*",
-        "lib/**/*",
-        "next-env.d.ts"
-    ],
-    "exclude": [
-        "node_modules",
-        "prisma/**",
-        "scripts/**",
-        "tests/**"
-    ]
+  "extends": "./tsconfig.shared.json",
+  "compilerOptions": {
+    "jsx": "preserve"
+  },
+  "include": ["app/**/*", "components/**/*", "lib/**/*", "next-env.d.ts"],
+  "exclude": ["node_modules", "prisma/**", "scripts/**", "tests/**"]
 }

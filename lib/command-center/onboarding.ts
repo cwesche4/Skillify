@@ -1,7 +1,11 @@
 // lib/command-center/onboarding.ts
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
-export type OnboardingTaskId = "automations" | "analytics" | "ai-coach" | "invite"
+export type OnboardingTaskId =
+  | 'automations'
+  | 'analytics'
+  | 'ai-coach'
+  | 'invite'
 
 export interface OnboardingStatus {
   completedTasks: OnboardingTaskId[]

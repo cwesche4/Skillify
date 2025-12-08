@@ -1,7 +1,10 @@
 // lib/analytics/runStats.ts
-
-import { prisma } from "@/lib/db"
-import type { AutomationRunSummary, BasicRunStats, FailureCluster } from "./types"
+import { prisma } from '@/lib/db'
+import type {
+  AutomationRunSummary,
+  BasicRunStats,
+  FailureCluster,
+} from './types'
 
 // Safely compute duration if finishedAt exists
 function computeDurationMs(start: Date, end: Date | null): number | null {
@@ -9,7 +12,9 @@ function computeDurationMs(start: Date, end: Date | null): number | null {
   return end.getTime() - start.getTime()
 }
 
-export async function getWorkspaceRunStats(workspaceId: string): Promise<BasicRunStats> {
+export async function getWorkspaceRunStats(
+  workspaceId: string,
+): Promise<BasicRunStats> {
   const runs = await prisma.automationRun.findMany({
     where: { workspaceId },
     select: {
@@ -20,17 +25,19 @@ export async function getWorkspaceRunStats(workspaceId: string): Promise<BasicRu
   })
 
   const total = runs.length
-  const success = runs.filter((r) => r.status === "SUCCESS").length
-  const failed = runs.filter((r) => r.status === "FAILED").length
-  const running = runs.filter((r) => r.status === "RUNNING").length
-  const pending = runs.filter((r) => r.status === "PENDING").length
+  const success = runs.filter((r) => r.status === 'SUCCESS').length
+  const failed = runs.filter((r) => r.status === 'FAILED').length
+  const running = runs.filter((r) => r.status === 'RUNNING').length
+  const pending = runs.filter((r) => r.status === 'PENDING').length
 
   const durations = runs
     .map((r) => computeDurationMs(r.startedAt, r.finishedAt))
     .filter((x): x is number => x !== null)
 
   const avgDurationMs =
-    durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0
+    durations.length > 0
+      ? durations.reduce((a, b) => a + b, 0) / durations.length
+      : 0
 
   const successRate = total > 0 ? (success / total) * 100 : 0
 
@@ -45,23 +52,23 @@ export async function getWorkspaceRunStats(workspaceId: string): Promise<BasicRu
   }
 }
 
-export async function getFailureClusters(workspaceId: string): Promise<FailureCluster[]> {
-  // Your schema does NOT include errorMessage, so we cannot select it.
-  // Instead, we fallback to grouping by FAILED logs.
+export async function getFailureClusters(
+  workspaceId: string,
+): Promise<FailureCluster[]> {
   const failures = await prisma.automationRun.findMany({
     where: {
       workspaceId,
-      status: "FAILED",
+      status: 'FAILED',
     },
     select: {
-      log: true, // This is what your schema has
+      log: true,
     },
   })
 
   const buckets = new Map<string, number>()
 
   for (const f of failures) {
-    const reason = f.log ?? "Unknown Error"
+    const reason = f.log ?? 'Unknown Error'
     buckets.set(reason, (buckets.get(reason) ?? 0) + 1)
   }
 
@@ -78,7 +85,7 @@ export async function getAutomationPerformanceGrid(
     where: { workspaceId },
     include: {
       runs: {
-        orderBy: { startedAt: "desc" },
+        orderBy: { startedAt: 'desc' },
         take: 50,
       },
     },
@@ -86,7 +93,7 @@ export async function getAutomationPerformanceGrid(
 
   return automations.map((a) => {
     const totalRuns = a.runs.length
-    const successCount = a.runs.filter((r) => r.status === "SUCCESS").length
+    const successCount = a.runs.filter((r) => r.status === 'SUCCESS').length
 
     const durations = a.runs
       .map((r) => computeDurationMs(r.startedAt, r.finishedAt))

@@ -5,47 +5,47 @@
 // -------------------------------
 // SEARCH MODES
 // -------------------------------
-export type CommandCenterMode = "search" | "actions" | "ai" | "onboarding"
+export type CommandCenterMode = 'search' | 'actions' | 'ai' | 'onboarding'
 
 export type CommandCenterSearchMode =
-  | "all"
-  | "workspaces"
-  | "automations"
-  | "runs"
-  | "members"
+  | 'all'
+  | 'workspaces'
+  | 'automations'
+  | 'runs'
+  | 'members'
 
 // -------------------------------
 // SEARCH RESULT TYPES
 // -------------------------------
 
 export interface WorkspaceSearchResult {
-  type: "workspace"
+  type: 'workspace'
   id: string
   name: string
   slug: string
 }
 
 export interface AutomationSearchResult {
-  type: "automation"
+  type: 'automation'
   id: string
   name: string
   workspaceId: string
   workspaceName: string
-  status: "ACTIVE" | "INACTIVE" | "PAUSED"
+  status: 'ACTIVE' | 'INACTIVE' | 'PAUSED'
 }
 
 export interface RunSearchResult {
-  type: "run"
+  type: 'run'
   id: string
   automationId: string
   automationName: string
   workspaceId: string
   createdAt: string
-  status: "SUCCESS" | "FAILED" | "RUNNING" | "PENDING"
+  status: 'SUCCESS' | 'FAILED' | 'RUNNING' | 'PENDING'
 }
 
 export interface MemberSearchResult {
-  type: "member"
+  type: 'member'
   id: string
   clerkId: string
   workspaceName: string
@@ -83,7 +83,7 @@ export interface OnboardingItem {
   description: string
   href?: string
   completed: boolean
-  priority: "low" | "medium" | "high"
+  priority: 'low' | 'medium' | 'high'
 }
 
 export interface OnboardingResponse {

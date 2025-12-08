@@ -1,5 +1,5 @@
 // app/api/command/execute/route.ts
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
 
 type CommandExecuteBody = {
   action?: string
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   // In future, you can execute server-side actions based on body.action
   // For now we just acknowledge.
   switch (body.action) {
-    case "open_onboarding":
+    case 'open_onboarding':
       // Frontend listens to window event; nothing special here.
       break
     default:

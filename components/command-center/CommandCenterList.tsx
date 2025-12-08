@@ -1,9 +1,9 @@
 // components/command-center/CommandCenterList.tsx
-"use client"
+'use client'
 
-import { cn } from "@/lib/utils"
-import { useCommandCenter } from "./CommandCenterProvider"
-import type { CommandItem } from "./types"
+import { cn } from '@/lib/utils'
+import { useCommandCenter } from './CommandCenterProvider'
+import type { CommandItem } from './types'
 
 import {
   BarChart3,
@@ -15,7 +15,7 @@ import {
   Settings,
   Users,
   Workflow,
-} from "lucide-react"
+} from 'lucide-react'
 
 // FIXED ICON DICTIONARY TYPE
 const ICONS: Record<string, React.ComponentType<any>> = {
@@ -36,7 +36,11 @@ export interface CommandCenterListProps {
   onSelect?: (item: CommandItem) => void
 }
 
-export function CommandCenterList({ items, loading, onSelect }: CommandCenterListProps) {
+export function CommandCenterList({
+  items,
+  loading,
+  onSelect,
+}: CommandCenterListProps) {
   const { setOpen } = useCommandCenter()
 
   if (loading) {
@@ -53,7 +57,7 @@ export function CommandCenterList({ items, loading, onSelect }: CommandCenterLis
 
   // group by "group"
   const grouped = items.reduce<Record<string, CommandItem[]>>((acc, cmd) => {
-    const key = cmd.group ?? "Other"
+    const key = cmd.group ?? 'Other'
     if (!acc[key]) acc[key] = []
     acc[key].push(cmd)
     return acc
@@ -69,8 +73,8 @@ export function CommandCenterList({ items, loading, onSelect }: CommandCenterLis
     }
 
     // Fire custom onboarding action
-    if (item.type === "onboarding" && item.meta?.action === "open_onboarding") {
-      window.dispatchEvent(new CustomEvent("skillify-open-tour"))
+    if (item.type === 'onboarding' && item.meta?.action === 'open_onboarding') {
+      window.dispatchEvent(new CustomEvent('skillify-open-tour'))
     }
 
     if (onSelect) onSelect(item)
@@ -93,8 +97,8 @@ export function CommandCenterList({ items, loading, onSelect }: CommandCenterLis
                   type="button"
                   onClick={() => handleSelect(cmd)}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left",
-                    "hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-600",
+                    'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left',
+                    'hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-600',
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -107,7 +111,9 @@ export function CommandCenterList({ items, loading, onSelect }: CommandCenterLis
                         {cmd.label}
                       </span>
                       {cmd.subtitle && (
-                        <span className="text-[10px] text-slate-400">{cmd.subtitle}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {cmd.subtitle}
+                        </span>
                       )}
                     </div>
                   </div>

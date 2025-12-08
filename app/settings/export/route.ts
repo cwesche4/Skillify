@@ -1,11 +1,11 @@
-import { auth, clerkClient } from "@clerk/nextjs/server"
-import type { NextRequest } from "next/server"
-import { NextResponse } from "next/server"
+import { auth, clerkClient } from '@clerk/nextjs/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
-    return NextResponse.redirect(new URL("/sign-in", req.url))
+    return NextResponse.redirect(new URL('/sign-in', req.url))
   }
 
   const client = await clerkClient()
@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
   return new NextResponse(body, {
     status: 200,
     headers: {
-      "Content-Type": "application/json",
-      "Content-Disposition": 'attachment; filename="my-skillify-data.json"',
+      'Content-Type': 'application/json',
+      'Content-Disposition': 'attachment; filename="my-skillify-data.json"',
     },
   })
 }

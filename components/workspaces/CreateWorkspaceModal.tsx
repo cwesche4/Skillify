@@ -1,42 +1,46 @@
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
-export default function CreateWorkspaceModal({ onCreated }: { onCreated?: () => void }) {
+export default function CreateWorkspaceModal({
+  onCreated,
+}: {
+  onCreated?: () => void
+}) {
   const router = useRouter()
 
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState("")
+  const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError] = useState('')
 
   async function createWorkspace() {
     if (!name.trim() || name.trim().length < 3) {
-      setError("Workspace name must be at least 3 characters.")
+      setError('Workspace name must be at least 3 characters.')
       return
     }
 
     setLoading(true)
-    setError("")
+    setError('')
 
-    const res = await fetch("/api/workspaces", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('/api/workspaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     })
 
     const data = await res.json()
 
     if (!res.ok) {
-      setError(data.error || "Could not create workspace.")
+      setError(data.error || 'Could not create workspace.')
       setLoading(false)
       return
     }
 
     setLoading(false)
     setOpen(false)
-    setName("")
+    setName('')
 
     // Refresh so workspace list updates
     router.refresh()
@@ -81,7 +85,7 @@ export default function CreateWorkspaceModal({ onCreated }: { onCreated?: () => 
                 onClick={createWorkspace}
                 className="rounded-md bg-brand-primary px-4 py-2 text-white disabled:opacity-50"
               >
-                {loading ? "Creating..." : "Create Workspace"}
+                {loading ? 'Creating...' : 'Create Workspace'}
               </button>
             </div>
           </div>

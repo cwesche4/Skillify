@@ -1,22 +1,22 @@
 // components/onboarding/AIOnboardingPanel.tsx
-"use client"
+'use client'
 
-import { AnimatePresence, motion } from "framer-motion"
-import { Sparkles } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { AnimatePresence, motion } from 'framer-motion'
+import { Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function AIOnboardingPanel() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<
-    { role: "user" | "assistant"; content: string }[]
+    { role: 'user' | 'assistant'; content: string }[]
   >([])
 
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     const handler = () => setOpen(true)
-    window.addEventListener("open-ai-onboarding", handler)
-    return () => window.removeEventListener("open-ai-onboarding", handler)
+    window.addEventListener('open-ai-onboarding', handler)
+    return () => window.removeEventListener('open-ai-onboarding', handler)
   }, [])
 
   useEffect(() => {
@@ -26,12 +26,12 @@ export default function AIOnboardingPanel() {
   const send = async (input: string) => {
     if (!input.trim()) return
 
-    setMessages((prev) => [...prev, { role: "user", content: input }])
+    setMessages((prev) => [...prev, { role: 'user', content: input }])
 
     const reply = {
-      role: "assistant" as const,
+      role: 'assistant' as const,
       content:
-        "To create your first automation, open Automations → New Automation. I’ll walk you through node setup and triggers.",
+        'To create your first automation, open Automations → New Automation. I’ll walk you through node setup and triggers.',
     }
 
     setMessages((prev) => [...prev, reply])
@@ -57,9 +57,9 @@ export default function AIOnboardingPanel() {
             <div
               key={i}
               className={`rounded-lg p-2 text-sm ${
-                m.role === "assistant"
-                  ? "bg-slate-800 text-white"
-                  : "bg-slate-700 text-slate-200"
+                m.role === 'assistant'
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-slate-700 text-slate-200'
               }`}
             >
               {m.content}
@@ -72,9 +72,9 @@ export default function AIOnboardingPanel() {
           placeholder="Ask how to use Skillify…"
           className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === 'Enter') {
               send(e.currentTarget.value)
-              e.currentTarget.value = ""
+              e.currentTarget.value = ''
             }
           }}
         />

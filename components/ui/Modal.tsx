@@ -1,9 +1,9 @@
 // components/ui/Modal.tsx
-"use client"
+'use client'
 
-import * as React from "react"
+import * as React from 'react'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 interface ModalProps {
   isOpen: boolean
@@ -11,7 +11,7 @@ interface ModalProps {
   title?: string
   description?: string
   children?: React.ReactNode
-  size?: "sm" | "md" | "lg"
+  size?: 'sm' | 'md' | 'lg'
 }
 
 export function Modal({
@@ -20,15 +20,16 @@ export function Modal({
   title,
   description,
   children,
-  size = "md",
+  size = 'md',
 }: ModalProps) {
   if (!isOpen) return null
 
-  const maxWidth = size === "sm" ? "max-w-sm" : size === "lg" ? "max-w-3xl" : "max-w-lg"
+  const maxWidth =
+    size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-3xl' : 'max-w-lg'
 
   return (
     <div className="skillify-backdrop">
-      <div className={cn("skillify-modal mx-auto w-full", maxWidth)}>
+      <div className={cn('skillify-modal mx-auto w-full', maxWidth)}>
         <div className="modal-header">
           <div>
             {title && <h2 className="modal-title">{title}</h2>}

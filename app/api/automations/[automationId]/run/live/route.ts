@@ -1,8 +1,8 @@
 // app/api/automations/[automationId]/run/live/route.ts
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { executeAutomationLive } from "@/lib/automations/executor"
-import { prisma } from "@/lib/db"
+import { executeAutomationLive } from '@/lib/automations/executor'
+import { prisma } from '@/lib/db'
 
 interface Params {
   params: { automationId: string }
@@ -11,7 +11,7 @@ interface Params {
 export async function GET(_req: Request, { params }: Params) {
   const { userId } = await auth()
   if (!userId) {
-    return new Response("Unauthorized", { status: 401 })
+    return new Response('Unauthorized', { status: 401 })
   }
 
   const automation = await prisma.automation.findUnique({
@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: Params) {
   })
 
   if (!automation) {
-    return new Response("Automation not found", { status: 404 })
+    return new Response('Automation not found', { status: 404 })
   }
 
   const flow = (automation.flow as any) ?? { nodes: [], edges: [] }
@@ -46,12 +46,12 @@ export async function GET(_req: Request, { params }: Params) {
           data: {
             automationId: automation.id,
             workspaceId: automation.workspaceId,
-            status: "RUNNING",
-            log: "",
+            status: 'RUNNING',
+            log: '',
           },
         })
 
-        send("runStart", {
+        send('runStart', {
           runId: runRecord.id,
           automationId: automation.id,
           name: automation.name,
@@ -65,7 +65,7 @@ export async function GET(_req: Request, { params }: Params) {
             flow,
             async (evt: any) => {
               // Save node-end events
-              if (evt.kind === "nodeEnd") {
+              if (evt.kind === 'nodeEnd') {
                 await prisma.automationRunEvent.create({
                   data: {
                     runId: evt.runId,
@@ -79,7 +79,7 @@ export async function GET(_req: Request, { params }: Params) {
               }
 
               // Stream to frontend
-              send("node", evt)
+              send('node', evt)
             },
           )
 
@@ -87,13 +87,13 @@ export async function GET(_req: Request, { params }: Params) {
           await prisma.automationRun.update({
             where: { id: runRecord.id },
             data: {
-              status: success ? "SUCCESS" : "FAILED",
+              status: success ? 'SUCCESS' : 'FAILED',
               log,
               finishedAt: new Date(),
             },
           })
 
-          send("runEnd", {
+          send('runEnd', {
             runId: runRecord.id,
             success,
             log,
@@ -102,15 +102,15 @@ export async function GET(_req: Request, { params }: Params) {
           await prisma.automationRun.update({
             where: { id: runRecord.id },
             data: {
-              status: "FAILED",
-              log: err?.message ?? "Unknown live run error",
+              status: 'FAILED',
+              log: err?.message ?? 'Unknown live run error',
               finishedAt: new Date(),
             },
           })
 
-          send("error", {
+          send('error', {
             runId: runRecord.id,
-            message: err?.message ?? "Unknown error",
+            message: err?.message ?? 'Unknown error',
           })
         } finally {
           controller.close()
@@ -122,9 +122,9 @@ export async function GET(_req: Request, { params }: Params) {
   return new Response(stream, {
     status: 200,
     headers: {
-      "Content-Type": "text/event-stream",
-      Connection: "keep-alive",
-      "Cache-Control": "no-cache, no-transform",
+      'Content-Type': 'text/event-stream',
+      Connection: 'keep-alive',
+      'Cache-Control': 'no-cache, no-transform',
     },
   })
 }

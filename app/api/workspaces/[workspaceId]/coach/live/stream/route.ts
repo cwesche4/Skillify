@@ -1,7 +1,13 @@
 // app/api/workspaces/[workspaceId]/coach/live/stream/route.ts
-import { getLiveCoachSnapshot, type LiveCoachSnapshot } from "@/lib/analytics/liveCoach"
+import {
+  getLiveCoachSnapshot,
+  type LiveCoachSnapshot,
+} from '@/lib/analytics/liveCoach'
 
-export async function GET(_req: Request, context: { params: { workspaceId: string } }) {
+export async function GET(
+  _req: Request,
+  context: { params: { workspaceId: string } },
+) {
   const { workspaceId } = context.params
   const encoder = new TextEncoder()
 
@@ -11,13 +17,14 @@ export async function GET(_req: Request, context: { params: { workspaceId: strin
     async start(controller) {
       async function pushSnapshot() {
         try {
-          const snapshot: LiveCoachSnapshot = await getLiveCoachSnapshot(workspaceId)
+          const snapshot: LiveCoachSnapshot =
+            await getLiveCoachSnapshot(workspaceId)
 
           const payload = `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`
 
           controller.enqueue(encoder.encode(payload))
         } catch (err) {
-          console.error("AI Coach SSE snapshot error:", err)
+          console.error('AI Coach SSE snapshot error:', err)
           const payload = `event: error\ndata: "AI Coach error"\n\n`
           controller.enqueue(encoder.encode(payload))
         }
@@ -37,10 +44,10 @@ export async function GET(_req: Request, context: { params: { workspaceId: strin
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   })
 }

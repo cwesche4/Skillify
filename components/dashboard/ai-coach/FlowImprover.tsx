@@ -1,10 +1,10 @@
 // components/dashboard/ai-coach/FlowImprover.tsx
-"use client"
+'use client'
 
-import { Workflow, Wand2 } from "lucide-react"
+import { Workflow, Wand2 } from 'lucide-react'
 
-import { Badge } from "@/components/ui/Badge"
-import { Card } from "@/components/ui/Card"
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
 
 interface FlowImproverProps {
   slowNodes: { node: string; duration: string }[]
@@ -15,7 +15,9 @@ export function FlowImprover({ slowNodes, suggestions }: FlowImproverProps) {
   return (
     <Card className="card-analytics">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-heading text-lg text-white">AI Coach – Flow Improver</h3>
+        <h3 className="font-heading text-lg text-white">
+          AI Coach – Flow Improver
+        </h3>
         <Badge variant="green">Live Analysis</Badge>
       </div>
 
@@ -29,7 +31,9 @@ export function FlowImprover({ slowNodes, suggestions }: FlowImproverProps) {
             className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2"
           >
             <span className="text-sm text-white">{n.node}</span>
-            <span className="text-neutral-text-secondary text-xs">{n.duration}</span>
+            <span className="text-neutral-text-secondary text-xs">
+              {n.duration}
+            </span>
           </div>
         ))}
       </div>

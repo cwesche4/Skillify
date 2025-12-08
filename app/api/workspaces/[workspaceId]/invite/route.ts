@@ -1,11 +1,11 @@
-import crypto from "crypto"
+import crypto from 'crypto'
 
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { fail, ok } from "@/lib/api/responses"
-import { prisma } from "@/lib/db"
-import { canManageWorkspace } from "@/lib/permissions/workspace"
-import { inviteUserSchema } from "@/lib/validations/workspace"
+import { fail, ok } from '@/lib/api/responses'
+import { prisma } from '@/lib/db'
+import { canManageWorkspace } from '@/lib/permissions/workspace'
+import { inviteUserSchema } from '@/lib/validations/workspace'
 
 // Create a Workspace Invite
 export async function POST(
@@ -13,14 +13,14 @@ export async function POST(
   { params }: { params: { workspaceId: string } },
 ) {
   const { userId } = await auth()
-  if (!userId) return fail("Unauthorized", 401)
+  if (!userId) return fail('Unauthorized', 401)
 
   const { workspaceId } = params
 
   // Validate body
   const body = await req.json()
   const parsed = inviteUserSchema.safeParse(body)
-  if (!parsed.success) return fail("Invalid invite data", 400)
+  if (!parsed.success) return fail('Invalid invite data', 400)
 
   const email = parsed.data.email.toLowerCase().trim()
   const role = parsed.data.role
@@ -36,11 +36,12 @@ export async function POST(
     },
   })
 
-  if (!requesterMembership) return fail("Workspace not found or unauthorized", 403)
+  if (!requesterMembership)
+    return fail('Workspace not found or unauthorized', 403)
 
   // 2. Ensure requester has permission to invite users
   if (!canManageWorkspace(requesterMembership.role)) {
-    return fail("Only workspace OWNER or ADMIN can invite members", 403)
+    return fail('Only workspace OWNER or ADMIN can invite members', 403)
   }
 
   // 3. Ensure user is not already a member
@@ -49,7 +50,7 @@ export async function POST(
   })
 
   if (existingMember) {
-    return fail("User is already a member of this workspace", 400)
+    return fail('User is already a member of this workspace', 400)
   }
 
   // 4. Ensure invite does not already exist
@@ -58,7 +59,7 @@ export async function POST(
   })
 
   if (existingInvite && !existingInvite.acceptedAt) {
-    return fail("An active invite already exists for this email", 400)
+    return fail('An active invite already exists for this email', 400)
   }
 
   // 5. Create a secure invite token

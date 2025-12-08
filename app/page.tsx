@@ -1,15 +1,15 @@
 // app/page.tsx
-import { auth } from "@clerk/nextjs/server"
-import Link from "next/link"
-import { redirect } from "next/navigation"
+import { auth } from '@clerk/nextjs/server'
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
-import Logo from "@/components/Logo"
+import Logo from '@/components/Logo'
 
 export default function Home() {
   const { userId } = auth()
 
   if (userId) {
-    return redirect("/dashboard")
+    return redirect('/dashboard')
   }
 
   return (
@@ -34,13 +34,14 @@ export default function Home() {
       {/* Hero */}
       <main className="mx-auto max-w-5xl px-6 py-20 text-center">
         <h1 className="text-neutral-text-primary dark:text-neutral-text-primary text-5xl font-bold leading-tight md:text-6xl">
-          Automate Your Entire Workflow with{" "}
+          Automate Your Entire Workflow with{' '}
           <span className="text-brand-primary">Skillify</span>
         </h1>
 
         <p className="text-neutral-text-secondary dark:text-neutral-text-secondary mx-auto mt-6 max-w-3xl text-lg">
-          AI-powered automation for appointments, follow-ups, content, CRM tasks,
-          analytics, and more. Designed for speed, clarity, and long-session focus.
+          AI-powered automation for appointments, follow-ups, content, CRM
+          tasks, analytics, and more. Designed for speed, clarity, and
+          long-session focus.
         </p>
 
         <Link

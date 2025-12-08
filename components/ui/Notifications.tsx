@@ -1,12 +1,16 @@
-"use client"
+'use client'
 
-import { Bell } from "lucide-react"
-import { useState } from "react"
+import { Bell } from 'lucide-react'
+import { useState } from 'react'
 
 const mockNotifications = [
-  { id: 1, title: "New automation run", body: "Invoice Sync finished successfully." },
-  { id: 2, title: "Usage alert", body: "You’re at 80% of your monthly runs." },
-  { id: 3, title: "New feature", body: "Multi-workspace routing is now live." },
+  {
+    id: 1,
+    title: 'New automation run',
+    body: 'Invoice Sync finished successfully.',
+  },
+  { id: 2, title: 'Usage alert', body: 'You’re at 80% of your monthly runs.' },
+  { id: 3, title: 'New feature', body: 'Multi-workspace routing is now live.' },
 ]
 
 export function Notifications() {

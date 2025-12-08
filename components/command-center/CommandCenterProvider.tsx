@@ -1,14 +1,21 @@
-"use client"
+// components/command-center/CommandCenterProvider.tsx
+'use client'
 
-import type { ReactNode } from "react"
-import { createContext, useCallback, useContext, useEffect, useState } from "react"
+import type { ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
 
-import type { CommandItem } from "@/components/command-center/types"
+import type { CommandItem } from '@/components/command-center/types'
 import {
   getShortcuts,
   registerShortcut as registryRegister,
   type RegisteredShortcut,
-} from "./shortcutRegistry"
+} from './shortcutRegistry'
 
 /* ========================================================================
    CONTEXT SHAPE
@@ -30,15 +37,17 @@ interface CommandCenterContextValue {
   registerShortcut: (def: RegisteredShortcut) => void
 }
 
-const CommandCenterContext = createContext<CommandCenterContextValue | null>(null)
+const CommandCenterContext = createContext<CommandCenterContextValue | null>(
+  null,
+)
 
 /* ========================================================================
    PROVIDER
 ======================================================================== */
 export function CommandCenterProvider({ children }: { children: ReactNode }) {
-  // Command Palette
+  // Command Center (main dialog)
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState('')
   const [commands, setCommands] = useState<CommandItem[]>([])
 
   // Shortcut overlay (⌘+/)
@@ -63,35 +72,59 @@ export function CommandCenterProvider({ children }: { children: ReactNode }) {
   /* ========================================================================
      GLOBAL KEYBOARD SHORTCUTS (native keydown)
   ======================================================================== */
-
   useEffect(() => {
     function handler(event: KeyboardEvent) {
       const key = event.key.toLowerCase()
 
       // ⌘K or Ctrl+K — Toggle Command Center
-      if ((event.metaKey || event.ctrlKey) && key === "k") {
+      if ((event.metaKey || event.ctrlKey) && key === 'k') {
         event.preventDefault()
         setOpen((prev) => !prev)
         return
       }
 
       // ⌘/ or Ctrl+/ — Open shortcuts overlay
-      if ((event.metaKey || event.ctrlKey) && key === "/") {
+      if ((event.metaKey || event.ctrlKey) && key === '/') {
         event.preventDefault()
         setShortcutsOpen(true)
         return
       }
 
       // ESC — close overlays
-      if (key === "escape") {
+      if (key === 'escape') {
         setOpen(false)
         setShortcutsOpen(false)
         return
       }
     }
 
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  /* ========================================================================
+     CUSTOM EVENTS (for other components to open/toggle)
+     - skillify-open-command-center   → open = true
+     - skillify-toggle-command-center → toggle open
+     - skillify-open-shortcuts        → shortcutsOpen = true
+  ======================================================================== */
+  useEffect(() => {
+    const openHandler = () => setOpen(true)
+    const toggleHandler = () => setOpen((prev) => !prev)
+    const shortcutsHandler = () => setShortcutsOpen(true)
+
+    window.addEventListener('skillify-open-command-center', openHandler)
+    window.addEventListener('skillify-toggle-command-center', toggleHandler)
+    window.addEventListener('skillify-open-shortcuts', shortcutsHandler)
+
+    return () => {
+      window.removeEventListener('skillify-open-command-center', openHandler)
+      window.removeEventListener(
+        'skillify-toggle-command-center',
+        toggleHandler,
+      )
+      window.removeEventListener('skillify-open-shortcuts', shortcutsHandler)
+    }
   }, [])
 
   /* ========================================================================
@@ -115,7 +148,9 @@ export function CommandCenterProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <CommandCenterContext.Provider value={ctx}>{children}</CommandCenterContext.Provider>
+    <CommandCenterContext.Provider value={ctx}>
+      {children}
+    </CommandCenterContext.Provider>
   )
 }
 
@@ -125,13 +160,16 @@ export function CommandCenterProvider({ children }: { children: ReactNode }) {
 export function useCommandCenter() {
   const ctx = useContext(CommandCenterContext)
   if (!ctx) {
-    throw new Error("useCommandCenter must be used within a CommandCenterProvider")
+    throw new Error(
+      'useCommandCenter must be used within a CommandCenterProvider',
+    )
   }
   return ctx
 }
 
 /* ========================================================================
    TOP BAR TRIGGER BUTTON
+   - Use this in your dashboard top bar next to search.
 ======================================================================== */
 export function CommandCenterTrigger() {
   const { setOpen } = useCommandCenter()

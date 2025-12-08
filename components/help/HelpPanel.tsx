@@ -1,7 +1,7 @@
 // components/help/HelpPanel.tsx
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from 'react'
 
 export default function HelpPanel() {
   const [open, setOpen] = useState(false)
@@ -10,8 +10,8 @@ export default function HelpPanel() {
     function handler() {
       setOpen(true)
     }
-    window.addEventListener("skillify-open-help", handler)
-    return () => window.removeEventListener("skillify-open-help", handler)
+    window.addEventListener('skillify-open-help', handler)
+    return () => window.removeEventListener('skillify-open-help', handler)
   }, [])
 
   if (!open) return null
@@ -22,8 +22,8 @@ export default function HelpPanel() {
         <div>
           <p className="font-medium">Need help?</p>
           <p className="mt-1 text-slate-400">
-            Use the Command Center (⌘K) to search docs, or visit the Help page for full
-            guides and tutorials.
+            Use the Command Center (⌘K) to search docs, or visit the Help page
+            for full guides and tutorials.
           </p>
         </div>
         <button

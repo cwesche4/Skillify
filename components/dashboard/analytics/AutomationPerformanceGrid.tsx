@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { Card } from "@/components/ui/Card"
-import type { AutomationRunSummary } from "@/lib/analytics/types"
+import { Card } from '@/components/ui/Card'
+import type { AutomationRunSummary } from '@/lib/analytics/types'
 
 export default function AutomationPerformanceGrid({
   items,
@@ -37,16 +37,20 @@ export default function AutomationPerformanceGrid({
                 <td
                   className={`${
                     row.successRate >= 95
-                      ? "text-emerald-400"
+                      ? 'text-emerald-400'
                       : row.successRate >= 80
-                        ? "text-sky-400"
-                        : "text-rose-400"
+                        ? 'text-sky-400'
+                        : 'text-rose-400'
                   }`}
                 >
                   {row.successRate.toFixed(1)}%
                 </td>
                 <td>{Math.round(row.avgDurationMs)} ms</td>
-                <td>{row.lastRunAt ? new Date(row.lastRunAt).toLocaleString() : "—"}</td>
+                <td>
+                  {row.lastRunAt
+                    ? new Date(row.lastRunAt).toLocaleString()
+                    : '—'}
+                </td>
               </tr>
             ))}
           </tbody>

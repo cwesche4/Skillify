@@ -1,8 +1,8 @@
 // app/api/automations/[automationId]/route.ts
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { fail, ok } from "@/lib/api/responses"
-import { prisma } from "@/lib/db"
+import { fail, ok } from '@/lib/api/responses'
+import { prisma } from '@/lib/db'
 
 interface Params {
   params: { automationId: string }
@@ -14,7 +14,7 @@ export async function GET(_: Request, { params }: Params) {
     include: { runs: true },
   })
 
-  if (!automation) return fail("Not found", 404)
+  if (!automation) return fail('Not found', 404)
 
   return ok(automation)
 }

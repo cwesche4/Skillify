@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import * as React from "react"
+import * as React from 'react'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 export function Table({
   className,
@@ -12,7 +12,7 @@ export function Table({
     <div className="w-full overflow-x-auto">
       <table
         className={cn(
-          "text-neutral-text-primary w-full border-collapse text-sm",
+          'text-neutral-text-primary w-full border-collapse text-sm',
           className,
         )}
         {...props}
@@ -25,21 +25,24 @@ export function THead({
   className,
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn("bg-slate-900/60", className)} {...props} />
+  return <thead className={cn('bg-slate-900/60', className)} {...props} />
 }
 
 export function TBody({
   className,
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody className={cn("", className)} {...props} />
+  return <tbody className={cn('', className)} {...props} />
 }
 
-export function TR({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
+export function TR({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr
       className={cn(
-        "border-b border-slate-800 transition-colors last:border-0 hover:bg-slate-900/60",
+        'border-b border-slate-800 transition-colors last:border-0 hover:bg-slate-900/60',
         className,
       )}
       {...props}
@@ -54,7 +57,7 @@ export function TH({
   return (
     <th
       className={cn(
-        "text-neutral-text-secondary px-3 py-2 text-left text-xs font-medium uppercase tracking-wide",
+        'text-neutral-text-secondary px-3 py-2 text-left text-xs font-medium uppercase tracking-wide',
         className,
       )}
       {...props}
@@ -69,7 +72,7 @@ export function TD({
   return (
     <td
       className={cn(
-        "text-neutral-text-primary px-3 py-2 align-middle text-sm",
+        'text-neutral-text-primary px-3 py-2 align-middle text-sm',
         className,
       )}
       {...props}

@@ -18,7 +18,7 @@ Components:
 - Subscription engine (Basic / Pro / Elite)
 
 Data flows through:
-UI → API → Prisma → DB → AI → UI  
+UI → API → Prisma → DB → AI → UI
 
 ------------------------------------------------------------
 # 2. Client Architecture
@@ -60,13 +60,13 @@ Streaming (AI Coach Live) uses:
 # 4. Database Architecture
 
 Tables include:
-- UserProfile  
-- Workspace  
-- WorkspaceMember  
-- Automation  
-- AutomationRun  
-- Subscription  
-- AutomationFlow (JSON)  
+- UserProfile
+- Workspace
+- WorkspaceMember
+- Automation
+- AutomationRun
+- Subscription
+- AutomationFlow (JSON)
 
 Rules:
 - Prisma used everywhere
@@ -94,8 +94,8 @@ State management:
 - Debounced autosave
 
 All builder logic stored in:
-app/dashboard/automations/...  
-lib/builder/...  
+app/dashboard/automations/...
+lib/builder/...
 
 ------------------------------------------------------------
 # 6. AI Architecture
@@ -135,11 +135,11 @@ Rules:
 
 # 8. Deployment Architecture
 
-Frontend: Vercel  
-Database: Railway / Neon / Supabase  
-Secrets: Environment variables  
-Storage: Prisma migrations  
-Monitoring: Vercel logs + DB dashboards  
+Frontend: Vercel
+Database: Railway / Neon / Supabase
+Secrets: Environment variables
+Storage: Prisma migrations
+Monitoring: Vercel logs + DB dashboards
 
 ------------------------------------------------------------
 

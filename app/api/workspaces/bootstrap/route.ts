@@ -1,18 +1,22 @@
-import { auth } from "@clerk/nextjs/server"
-import type { NextRequest } from "next/server"
-import { NextResponse } from "next/server"
+import { auth } from '@clerk/nextjs/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
-import { prisma } from "@/lib/db"
-import { AutomationStatus, RunStatus, WorkspaceMemberRole } from "@prisma/client"
+import { prisma } from '@/lib/db'
+import {
+  AutomationStatus,
+  RunStatus,
+  WorkspaceMemberRole,
+} from '@prisma/client'
 
-type Tier = "starter" | "pro" | "elite"
+type Tier = 'starter' | 'pro' | 'elite'
 
 function normalizeTier(raw?: string | null): Tier {
-  if (!raw) return "starter"
+  if (!raw) return 'starter'
   const lowered = raw.toLowerCase()
-  if (lowered === "pro") return "pro"
-  if (lowered === "elite") return "elite"
-  return "starter"
+  if (lowered === 'pro') return 'pro'
+  if (lowered === 'elite') return 'elite'
+  return 'starter'
 }
 
 async function ensureUserProfile(clerkId: string) {
@@ -24,7 +28,7 @@ async function ensureUserProfile(clerkId: string) {
     profile = await prisma.userProfile.create({
       data: {
         clerkId,
-        role: "user",
+        role: 'user',
       },
     })
   }
@@ -74,7 +78,7 @@ async function getOrCreateWorkspace(ownerId: string) {
     workspace = await prisma.workspace.create({
       data: {
         ownerId,
-        name: "Skillify HQ",
+        name: 'Skillify HQ',
         // simple unique slug based on owner id
         slug: `workspace-${ownerId}`,
         members: {
@@ -90,7 +94,11 @@ async function getOrCreateWorkspace(ownerId: string) {
   return { workspace, bootstrap }
 }
 
-async function seedDemoForTier(tier: Tier, userId: string, workspaceId: string) {
+async function seedDemoForTier(
+  tier: Tier,
+  userId: string,
+  workspaceId: string,
+) {
   // Only seed if no automations yet
   const existing = await prisma.automation.count({
     where: { workspaceId },
@@ -133,7 +141,7 @@ async function seedDemoForTier(tier: Tier, userId: string, workspaceId: string) 
         status: success ? RunStatus.SUCCESS : RunStatus.FAILED,
         startedAt: started,
         finishedAt: new Date(started.getTime() + 5 * 60 * 1000),
-        log: success ? "Run completed successfully" : "Run failed: demo error",
+        log: success ? 'Run completed successfully' : 'Run failed: demo error',
       }
     })
 
@@ -144,27 +152,27 @@ async function seedDemoForTier(tier: Tier, userId: string, workspaceId: string) 
     return automation
   }
 
-  if (tier === "starter") {
+  if (tier === 'starter') {
     await createAutomation(
-      "Missed Call → SMS Follow-up",
-      "Sends a follow-up SMS when a call is missed.",
+      'Missed Call → SMS Follow-up',
+      'Sends a follow-up SMS when a call is missed.',
       AutomationStatus.ACTIVE,
       5,
     )
     return
   }
 
-  if (tier === "pro") {
+  if (tier === 'pro') {
     await createAutomation(
-      "Webhook → Lead Routing",
-      "Ingest leads via webhook and route to the right rep.",
+      'Webhook → Lead Routing',
+      'Ingest leads via webhook and route to the right rep.',
       AutomationStatus.ACTIVE,
       8,
     )
 
     await createAutomation(
-      "Lead Nurture Drip",
-      "Time-delayed messages after a new lead comes in.",
+      'Lead Nurture Drip',
+      'Time-delayed messages after a new lead comes in.',
       AutomationStatus.PAUSED,
       4,
     )
@@ -173,22 +181,22 @@ async function seedDemoForTier(tier: Tier, userId: string, workspaceId: string) 
 
   // elite
   await createAutomation(
-    "AI Call Summary → CRM",
-    "Summarize calls via AI and push into your CRM.",
+    'AI Call Summary → CRM',
+    'Summarize calls via AI and push into your CRM.',
     AutomationStatus.ACTIVE,
     10,
   )
 
   await createAutomation(
-    "AI Intent Classifier",
-    "Classify inbound messages by intent and priority.",
+    'AI Intent Classifier',
+    'Classify inbound messages by intent and priority.',
     AutomationStatus.ACTIVE,
     7,
   )
 
   await createAutomation(
-    "VIP Escalation Flow",
-    "Escalate high-value customers directly to your best reps.",
+    'VIP Escalation Flow',
+    'Escalate high-value customers directly to your best reps.',
     AutomationStatus.ACTIVE,
     6,
   )
@@ -198,7 +206,7 @@ export async function POST(req: NextRequest) {
   const { userId: clerkUserId } = auth()
 
   if (!clerkUserId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   let body: any = null
@@ -212,9 +220,14 @@ export async function POST(req: NextRequest) {
   const profile = await ensureUserProfile(clerkUserId)
 
   // Sync onboarding progress + store chosen plan (hybrid flow: plan or skip)
-  const progress = await getOrCreateOnboardingProgress(profile.id, requestedTier)
+  const progress = await getOrCreateOnboardingProgress(
+    profile.id,
+    requestedTier,
+  )
 
-  const effectiveTier = normalizeTier((progress.steps as any)?.plan ?? requestedTier)
+  const effectiveTier = normalizeTier(
+    (progress.steps as any)?.plan ?? requestedTier,
+  )
 
   const { workspace, bootstrap } = await getOrCreateWorkspace(profile.id)
 

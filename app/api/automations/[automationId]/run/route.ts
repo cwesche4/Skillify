@@ -1,19 +1,19 @@
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { fail, ok } from "@/lib/api/responses"
-import { getUserPlanByClerkId } from "@/lib/auth/getUserPlan"
-import { runAutomation } from "@/lib/automations/executor"
-import { hasFeature } from "@/lib/subscriptions/hasFeature"
+import { fail, ok } from '@/lib/api/responses'
+import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
+import { runAutomation } from '@/lib/automations/executor'
+import { hasFeature } from '@/lib/subscriptions/hasFeature'
 
 export async function POST(
   req: Request,
   { params }: { params: { automationId: string } },
 ) {
   const { userId } = await auth()
-  if (!userId) return fail("Unauthorized", 401)
+  if (!userId) return fail('Unauthorized', 401)
 
   const plan = await getUserPlanByClerkId(userId)
-  if (!hasFeature(plan, "replay")) {
+  if (!hasFeature(plan, 'replay')) {
     // you can relax this if you want Basic to be able to run
     // but only Elite to get replay. For now we'll allow run for all.
   }
@@ -28,6 +28,6 @@ export async function POST(
     })
     return ok({ runId })
   } catch (err: any) {
-    return fail(err?.message ?? "Run failed", 400)
+    return fail(err?.message ?? 'Run failed', 400)
   }
 }

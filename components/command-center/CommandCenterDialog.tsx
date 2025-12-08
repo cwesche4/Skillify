@@ -1,11 +1,11 @@
 // components/command-center/CommandCenterDialog.tsx
-"use client"
+'use client'
 
-import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 
-import { Badge } from "@/components/ui/Badge"
-import { Card } from "@/components/ui/Card"
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
 import type {
   AiCoachResponseBody,
   CommandCenterMode,
@@ -14,59 +14,82 @@ import type {
   CommandSearchResult,
   OnboardingItem,
   OnboardingResponse,
-} from "@/lib/command-center/types"
-import { cn } from "@/lib/utils"
+} from '@/lib/command-center/types'
+import { cn } from '@/lib/utils'
 
 interface CommandCenterDialogProps {
   open: boolean
   onClose: () => void
 }
 
-export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps) {
-  const [mode, setMode] = useState<CommandCenterMode>("search")
-  const [searchMode, setSearchMode] = useState<CommandCenterSearchMode>("all")
-  const [query, setQuery] = useState("")
-  const [workspaceSlug, setWorkspaceSlug] = useState<string | undefined>(undefined)
+export function CommandCenterDialog({
+  open,
+  onClose,
+}: CommandCenterDialogProps) {
+  const [mode, setMode] = useState<CommandCenterMode>('search')
+  const [searchMode, setSearchMode] = useState<CommandCenterSearchMode>('all')
+  const [query, setQuery] = useState('')
+  const [workspaceSlug, setWorkspaceSlug] = useState<string | undefined>(
+    undefined,
+  )
 
   const [searchLoading, setSearchLoading] = useState(false)
   const [results, setResults] = useState<CommandSearchResult[]>([])
 
-  const [aiPrompt, setAiPrompt] = useState("")
+  const [aiPrompt, setAiPrompt] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiResponse, setAiResponse] = useState<string>("")
+  const [aiResponse, setAiResponse] = useState<string>('')
 
   const [onboardingLoading, setOnboardingLoading] = useState(false)
   const [onboarding, setOnboarding] = useState<OnboardingItem[]>([])
+
+  // Reset state when dialog fully closes
+  useEffect(() => {
+    if (!open) {
+      setQuery('')
+      setResults([])
+      setAiPrompt('')
+      setAiResponse('')
+      setMode('search')
+    }
+  }, [open])
 
   // Close on Escape
   useEffect(() => {
     if (!open) return
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         onClose()
       }
     }
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
   }, [open, onClose])
 
   // On first open, capture workspace from URL (?workspace=slug)
   useEffect(() => {
     if (!open) return
-    const url = new URL(window.location.href)
-    const slug = url.searchParams.get("workspace") ?? undefined
-    setWorkspaceSlug(slug)
+    try {
+      const url = new URL(window.location.href)
+      const slug = url.searchParams.get('workspace') ?? undefined
+      setWorkspaceSlug(slug)
+    } catch {
+      setWorkspaceSlug(undefined)
+    }
   }, [open])
 
   // Fetch onboarding when mode changes to onboarding
   useEffect(() => {
     const loadOnboarding = async () => {
-      if (!open || mode !== "onboarding") return
+      if (!open || mode !== 'onboarding') return
       setOnboardingLoading(true)
       try {
-        const url = new URL("/api/command-center/onboarding", window.location.origin)
+        const url = new URL(
+          '/api/command-center/onboarding',
+          window.location.origin,
+        )
         if (workspaceSlug) {
-          url.searchParams.set("workspace", workspaceSlug)
+          url.searchParams.set('workspace', workspaceSlug)
         }
         const res = await fetch(url.toString())
         const json = (await res.json()) as OnboardingResponse
@@ -83,9 +106,9 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
 
   const hasContent = useMemo(
     () =>
-      mode === "search"
+      mode === 'search'
         ? results.length > 0
-        : mode === "onboarding"
+        : mode === 'onboarding'
           ? onboarding.length > 0
           : !!aiResponse,
     [mode, results.length, onboarding.length, aiResponse],
@@ -99,9 +122,9 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
 
     setSearchLoading(true)
     try {
-      const res = await fetch("/api/command-center/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/command-center/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query,
           mode: searchMode,
@@ -121,12 +144,12 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
   const runAiCoach = async () => {
     if (!aiPrompt.trim()) return
     setAiLoading(true)
-    setAiResponse("")
+    setAiResponse('')
 
     try {
-      const res = await fetch("/api/command-center/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/command-center/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: aiPrompt,
           workspaceSlug,
@@ -136,7 +159,7 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
       setAiResponse(json.message)
     } catch (error) {
       console.error(error)
-      setAiResponse("Something went wrong while talking to AI Coach.")
+      setAiResponse('Something went wrong while talking to AI Coach.')
     } finally {
       setAiLoading(false)
     }
@@ -152,23 +175,23 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
           <div className="flex items-center gap-2 text-xs">
             <ModeChip
               label="Search"
-              active={mode === "search"}
-              onClick={() => setMode("search")}
+              active={mode === 'search'}
+              onClick={() => setMode('search')}
             />
             <ModeChip
               label="Actions"
-              active={mode === "actions"}
-              onClick={() => setMode("actions")}
+              active={mode === 'actions'}
+              onClick={() => setMode('actions')}
             />
             <ModeChip
               label="AI Coach"
-              active={mode === "ai"}
-              onClick={() => setMode("ai")}
+              active={mode === 'ai'}
+              onClick={() => setMode('ai')}
             />
             <ModeChip
               label="Onboarding"
-              active={mode === "onboarding"}
-              onClick={() => setMode("onboarding")}
+              active={mode === 'onboarding'}
+              onClick={() => setMode('onboarding')}
             />
           </div>
 
@@ -194,7 +217,7 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
 
         {/* Body */}
         <div className="flex flex-col gap-3 px-4 py-3">
-          {mode === "search" && (
+          {mode === 'search' && (
             <>
               <div className="flex items-center gap-2">
                 <input
@@ -202,7 +225,7 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
+                    if (event.key === 'Enter') {
                       void runSearch()
                     }
                   }}
@@ -227,7 +250,7 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
                   onClick={() => void runSearch()}
                   className="rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-indigo"
                 >
-                  {searchLoading ? "Searching…" : "Search"}
+                  {searchLoading ? 'Searching…' : 'Search'}
                 </button>
               </div>
 
@@ -238,16 +261,21 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
                   </p>
                 )}
 
-                {searchLoading && <p className="text-xs text-slate-400">Searching…</p>}
+                {searchLoading && (
+                  <p className="text-xs text-slate-400">Searching…</p>
+                )}
 
                 {results.map((result) => (
-                  <ResultRow key={`${result.type}-${result.id}`} result={result} />
+                  <ResultRow
+                    key={`${result.type}-${result.id}`}
+                    result={result}
+                  />
                 ))}
               </div>
             </>
           )}
 
-          {mode === "actions" && (
+          {mode === 'actions' && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <QuickAction
                 title="Create automation"
@@ -260,7 +288,7 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
                 href={
                   workspaceSlug
                     ? `/dashboard/analytics?workspace=${workspaceSlug}`
-                    : "/dashboard/analytics"
+                    : '/dashboard/analytics'
                 }
               />
               <QuickAction
@@ -274,13 +302,13 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
                 href={
                   workspaceSlug
                     ? `/dashboard/analytics?workspace=${workspaceSlug}`
-                    : "/dashboard/analytics"
+                    : '/dashboard/analytics'
                 }
               />
             </div>
           )}
 
-          {mode === "ai" && (
+          {mode === 'ai' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-300">
@@ -297,14 +325,16 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
               />
 
               <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Context is scoped to your current workspace if present.</span>
+                <span>
+                  Context is scoped to your current workspace if present.
+                </span>
                 <button
                   type="button"
                   onClick={() => void runAiCoach()}
                   className="rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-indigo disabled:opacity-60"
                   disabled={aiLoading || !aiPrompt.trim()}
                 >
-                  {aiLoading ? "Thinking…" : "Ask AI Coach"}
+                  {aiLoading ? 'Thinking…' : 'Ask AI Coach'}
                 </button>
               </div>
 
@@ -314,13 +344,15 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
                     {aiResponse}
                   </pre>
                 ) : (
-                  <p className="text-slate-500">AI Coach responses will appear here.</p>
+                  <p className="text-slate-500">
+                    AI Coach responses will appear here.
+                  </p>
                 )}
               </div>
             </div>
           )}
 
-          {mode === "onboarding" && (
+          {mode === 'onboarding' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-300">
@@ -347,10 +379,10 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
             </div>
           )}
 
-          {!hasContent && mode !== "actions" && (
+          {!hasContent && mode !== 'actions' && (
             <p className="pt-2 text-[11px] text-slate-500">
-              Tip: Use <span className="font-mono">⌘K</span> anywhere in the dashboard to
-              reopen the Command Center.
+              Tip: Use <span className="font-mono">⌘K</span> anywhere in the
+              dashboard to reopen the Command Center.
             </p>
           )}
         </div>
@@ -359,6 +391,9 @@ export function CommandCenterDialog({ open, onClose }: CommandCenterDialogProps)
   )
 }
 
+/* ========================================================================
+   SMALL SUBCOMPONENTS
+======================================================================== */
 function ModeChip({
   label,
   active,
@@ -373,10 +408,10 @@ function ModeChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full px-2.5 py-1 text-[11px]",
+        'rounded-full px-2.5 py-1 text-[11px]',
         active
-          ? "bg-slate-800 text-slate-50"
-          : "bg-transparent text-slate-400 hover:bg-slate-900",
+          ? 'bg-slate-800 text-slate-50'
+          : 'bg-transparent text-slate-400 hover:bg-slate-900',
       )}
     >
       {label}
@@ -385,7 +420,7 @@ function ModeChip({
 }
 
 function ResultRow({ result }: { result: CommandSearchResult }) {
-  if (result.type === "workspace") {
+  if (result.type === 'workspace') {
     return (
       <Link
         href={`/dashboard?workspace=${result.slug}`}
@@ -393,14 +428,16 @@ function ResultRow({ result }: { result: CommandSearchResult }) {
       >
         <div>
           <p className="font-medium text-slate-100">{result.name}</p>
-          <p className="text-[11px] text-slate-500">Workspace · {result.slug}</p>
+          <p className="text-[11px] text-slate-500">
+            Workspace · {result.slug}
+          </p>
         </div>
         <Badge variant="blue">Workspace</Badge>
       </Link>
     )
   }
 
-  if (result.type === "automation") {
+  if (result.type === 'automation') {
     return (
       <Link
         href={`/dashboard/automations/${result.id}`}
@@ -414,11 +451,11 @@ function ResultRow({ result }: { result: CommandSearchResult }) {
         </div>
         <Badge
           variant={
-            result.status === "ACTIVE"
-              ? "green"
-              : result.status === "PAUSED"
-                ? "blue"
-                : "default"
+            result.status === 'ACTIVE'
+              ? 'green'
+              : result.status === 'PAUSED'
+                ? 'blue'
+                : 'default'
           }
         >
           {result.status}
@@ -427,7 +464,7 @@ function ResultRow({ result }: { result: CommandSearchResult }) {
     )
   }
 
-  if (result.type === "run") {
+  if (result.type === 'run') {
     return (
       <Link
         href={`/dashboard/automations/${result.automationId}/runs/${result.id}`}
@@ -441,11 +478,11 @@ function ResultRow({ result }: { result: CommandSearchResult }) {
         </div>
         <Badge
           variant={
-            result.status === "SUCCESS"
-              ? "green"
-              : result.status === "FAILED"
-                ? "red"
-                : "default"
+            result.status === 'SUCCESS'
+              ? 'green'
+              : result.status === 'FAILED'
+                ? 'red'
+                : 'default'
           }
         >
           {result.status}
@@ -490,7 +527,11 @@ function QuickAction({
 
 function OnboardingRow({ item }: { item: OnboardingItem }) {
   const badgeVariant =
-    item.priority === "high" ? "red" : item.priority === "medium" ? "blue" : "default"
+    item.priority === 'high'
+      ? 'red'
+      : item.priority === 'medium'
+        ? 'blue'
+        : 'default'
 
   const content = (
     <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs">
@@ -499,7 +540,7 @@ function OnboardingRow({ item }: { item: OnboardingItem }) {
         <p className="mt-0.5 text-[11px] text-slate-400">{item.description}</p>
       </div>
       <div className="flex flex-col items-end gap-1">
-        <Badge variant={badgeVariant}>{item.completed ? "Done" : "Todo"}</Badge>
+        <Badge variant={badgeVariant}>{item.completed ? 'Done' : 'Todo'}</Badge>
       </div>
     </div>
   )

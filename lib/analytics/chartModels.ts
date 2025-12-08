@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"
+import { prisma } from '@/lib/db'
 
 //
 // 1 — RUNS OVER TIME (30 days)
@@ -9,7 +9,7 @@ export async function getRunsOverTime(workspaceId: string) {
 
   // FIX: createdAt → startedAt
   const runs = await prisma.automationRun.groupBy({
-    by: ["startedAt"],
+    by: ['startedAt'],
     where: {
       workspaceId,
       startedAt: { gte: since },
@@ -44,16 +44,16 @@ export async function getRunsOverTime(workspaceId: string) {
 //
 export async function getSuccessFailBreakdown(workspaceId: string) {
   const stats = await prisma.automationRun.groupBy({
-    by: ["status"],
+    by: ['status'],
     where: { workspaceId },
     _count: true,
   })
 
   return [
     {
-      name: "Runs",
-      success: stats.find((s) => s.status === "SUCCESS")?._count ?? 0,
-      failed: stats.find((s) => s.status === "FAILED")?._count ?? 0,
+      name: 'Runs',
+      success: stats.find((s) => s.status === 'SUCCESS')?._count ?? 0,
+      failed: stats.find((s) => s.status === 'FAILED')?._count ?? 0,
     },
   ]
 }
@@ -67,7 +67,7 @@ export async function getReliabilityHeatmap(workspaceId: string) {
   const runs = await prisma.automationRun.findMany({
     where: { workspaceId },
     select: { startedAt: true, finishedAt: true },
-    orderBy: { startedAt: "desc" },
+    orderBy: { startedAt: 'desc' },
     take: 100,
   })
 
@@ -79,7 +79,9 @@ export async function getReliabilityHeatmap(workspaceId: string) {
         : 0,
   }))
 
-  const matrix = Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => 0))
+  const matrix = Array.from({ length: 10 }, () =>
+    Array.from({ length: 10 }, () => 0),
+  )
 
   processed.forEach((run, i) => {
     const row = Math.floor(i / 10)

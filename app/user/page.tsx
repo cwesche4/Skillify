@@ -1,14 +1,14 @@
 // app/user/page.tsx
-import { currentUser } from "@clerk/nextjs/server"
-import { redirect } from "next/navigation"
+import { currentUser } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
 
 export default async function UserPage() {
   const user = await currentUser()
   const role = user?.publicMetadata?.role
 
   // Only allow user, manager, admin
-  if (!["user", "manager", "admin"].includes(String(role))) {
-    return redirect("/dashboard")
+  if (!['user', 'manager', 'admin'].includes(String(role))) {
+    return redirect('/dashboard')
   }
 
   return (

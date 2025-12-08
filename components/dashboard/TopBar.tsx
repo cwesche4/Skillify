@@ -1,10 +1,10 @@
 // components/dashboard/TopBar.tsx
-"use client"
+'use client'
 
-import { Input } from "@/components/ui/Input"
-import WorkspaceSwitcher from "@/components/workspaces/WorkspaceSwitcher"
-import { cn } from "@/lib/utils"
-import { Bell, Search } from "lucide-react"
+import { Input } from '@/components/ui/Input'
+import WorkspaceSwitcher from '@/components/workspaces/WorkspaceSwitcher'
+import { cn } from '@/lib/utils'
+import { Bell, Search } from 'lucide-react'
 
 export function TopBar({
   workspaces,
@@ -26,8 +26,8 @@ export function TopBar({
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
           <Input
             className={cn(
-              "rounded-xl border-slate-800 bg-slate-900 py-2 pl-9 pr-3",
-              "text-sm placeholder:text-slate-500",
+              'rounded-xl border-slate-800 bg-slate-900 py-2 pl-9 pr-3',
+              'text-sm placeholder:text-slate-500',
             )}
             placeholder="Search automations, contacts, runs…"
           />
@@ -48,8 +48,12 @@ export function TopBar({
             C
           </div>
           <div className="hidden flex-col items-start sm:flex">
-            <span className="text-neutral-text-secondary text-xs">Logged in as</span>
-            <span className="text-neutral-text-primary text-sm font-medium">Corbin</span>
+            <span className="text-neutral-text-secondary text-xs">
+              Logged in as
+            </span>
+            <span className="text-neutral-text-primary text-sm font-medium">
+              Corbin
+            </span>
           </div>
         </button>
       </div>

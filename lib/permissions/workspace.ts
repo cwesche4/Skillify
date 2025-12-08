@@ -1,7 +1,8 @@
+// lib/permissions/workspace.ts
 export function canManageWorkspace(role: string) {
-  return role === "OWNER" || role === "ADMIN"
+  return role === 'OWNER' || role === 'ADMIN'
 }
 
 export function isOwner(role: string) {
-  return role === "OWNER"
+  return role === 'OWNER'
 }

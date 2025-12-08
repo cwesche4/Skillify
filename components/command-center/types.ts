@@ -1,13 +1,13 @@
 // components/command-center/types.ts
-import type { SidebarIcon } from "@/components/dashboard/sidebar-items"
+import type { SidebarIcon } from '@/components/dashboard/sidebar-items'
 
 export type CommandItemType =
-  | "workspace"
-  | "automation"
-  | "member"
-  | "command"
-  | "help"
-  | "onboarding"
+  | 'workspace'
+  | 'automation'
+  | 'member'
+  | 'command'
+  | 'help'
+  | 'onboarding'
 
 export interface CommandItem {
   id: string
@@ -16,7 +16,7 @@ export interface CommandItem {
   subtitle?: string
   href?: string
   group: string
-  icon: SidebarIcon | "help" | "search"
+  icon: SidebarIcon | 'help' | 'search'
   shortcut?: string
   badge?: string
   meta?: Record<string, any>

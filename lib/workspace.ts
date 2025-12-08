@@ -1,22 +1,21 @@
 // lib/workspace.ts
-import { auth } from "@clerk/nextjs/server"
-
-import { notFound } from "@/lib/api/responses"
-import { prisma } from "@/lib/db"
+import { auth } from '@clerk/nextjs/server'
+import { prisma } from './db'
+import { notFound } from '@/lib/api/responses'
 
 /**
- * Resolve the current workspace from:
- * - URL search param (?workspace=slug)
- * - User's primary workspace fallback
+ * Resolve the active workspace for the current request.
+ * - First checks ?workspace=slug
+ * - Falls back to user's first workspace
  */
 export async function getActiveWorkspace(req: Request) {
-  const { userId } = await auth()
+  const { userId } = auth()
   if (!userId) return null
 
   const url = new URL(req.url)
-  const slug = url.searchParams.get("workspace")
+  const slug = url.searchParams.get('workspace')
 
-  // --- CASE 1: URL contains slug ----
+  // CASE 1 — URL includes ?workspace=slug
   if (slug) {
     const ws = await prisma.workspace.findUnique({
       where: { slug },
@@ -31,20 +30,16 @@ export async function getActiveWorkspace(req: Request) {
       },
     })
 
-    if (!membership) return null
-
-    return ws
+    return membership ? ws : null
   }
 
-  // --- CASE 2: fallback to primary workspace ---
+  // CASE 2 — fallback to user's first workspace
   const profile = await prisma.userProfile.findUnique({
     where: { clerkId: userId },
     include: {
       memberships: {
-        include: {
-          workspace: true,
-        },
-        orderBy: { createdAt: "asc" }, // first workspace
+        include: { workspace: true },
+        orderBy: { createdAt: 'asc' },
       },
     },
   })
@@ -53,39 +48,64 @@ export async function getActiveWorkspace(req: Request) {
 }
 
 /**
- * Get all workspaces a user belongs to.
+ * Get all workspaces a user belongs to
  */
-export async function getUserWorkspaces(userId: string) {
+export async function getUserWorkspaces(clerkId: string) {
   return prisma.workspaceMember.findMany({
-    where: { user: { clerkId: userId } },
-    include: {
-      workspace: true,
-    },
-    orderBy: { createdAt: "asc" },
+    where: { user: { clerkId } },
+    include: { workspace: true },
+    orderBy: { createdAt: 'asc' },
   })
 }
 
 /**
- * Get a workspace and check if user is a member.
+ * Get a workspace only if the user is a valid member
  */
-export async function getWorkspaceIfMember(workspaceId: string, userId: string) {
+export async function getWorkspaceIfMember(
+  workspaceId: string,
+  clerkId: string,
+) {
   const membership = await prisma.workspaceMember.findFirst({
     where: {
       workspaceId,
-      user: { clerkId: userId },
+      user: { clerkId },
     },
-    include: {
-      workspace: true,
-    },
+    include: { workspace: true },
   })
 
   return membership?.workspace ?? null
 }
 
 /**
- * Authorization helper
+ * Ensure workspace exists, throw API 404 otherwise
  */
 export function assertWorkspaceExists(ws: any) {
-  if (!ws) throw notFound("Workspace not found.")
+  if (!ws) throw notFound('Workspace not found.')
   return ws
+}
+
+/**
+ * Workspace Stats:
+ * - membersCount
+ * - automationsCount
+ * - recentRuns (last 20)
+ */
+export async function getWorkspaceStats(slug: string) {
+  const ws = await prisma.workspace.findUnique({
+    where: { slug },
+    include: {
+      members: true,
+      automations: {
+        include: { runs: true },
+      },
+    },
+  })
+
+  if (!ws) return null
+
+  return {
+    membersCount: ws.members.length,
+    automationsCount: ws.automations.length,
+    recentRuns: ws.automations.flatMap((a) => a.runs).slice(0, 20),
+  }
 }

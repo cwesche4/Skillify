@@ -1,5 +1,5 @@
 // lib/ai/search.ts
-import OpenAI from "openai"
+import OpenAI from 'openai'
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -10,7 +10,7 @@ export async function semanticSearch(query: string, items: any[]) {
 
   // 1. Embed the query
   const embedding = await client.embeddings.create({
-    model: "text-embedding-3-small",
+    model: 'text-embedding-3-small',
     input: query,
   })
 
@@ -18,7 +18,7 @@ export async function semanticSearch(query: string, items: any[]) {
 
   // 2. Embed each item label
   const itemEmbeddings = await client.embeddings.create({
-    model: "text-embedding-3-small",
+    model: 'text-embedding-3-small',
     input: items.map((item) => item.label),
   })
 

@@ -1,11 +1,11 @@
 // tests/setup/test-env.ts
 
 // 1. Extend expect with jest-dom matchers
-import "@testing-library/jest-dom/vitest"
+import '@testing-library/jest-dom/vitest'
 
 // 2. React Testing Library utilities
-import { cleanup } from "@testing-library/react"
-import { afterEach } from "vitest"
+import { cleanup } from '@testing-library/react'
+import { afterEach } from 'vitest'
 
 // Automatically unmount React trees after each test
 afterEach(() => {
@@ -18,7 +18,7 @@ afterEach(() => {
 if (!window.matchMedia) {
   window.matchMedia = () => ({
     matches: false,
-    media: "",
+    media: '',
     onchange: null,
     addListener: () => {},
     removeListener: () => {},

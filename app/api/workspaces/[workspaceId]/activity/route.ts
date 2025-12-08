@@ -1,12 +1,12 @@
 // app/api/workspaces/[workspaceId]/activity/route.ts
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { fail, ok } from "@/lib/api/responses"
-import { prisma } from "@/lib/db"
+import { fail, ok } from '@/lib/api/responses'
+import { prisma } from '@/lib/db'
 
 export async function GET(_: Request, { params }: any) {
   const { userId } = await auth()
-  if (!userId) return fail("Unauthorized", 401)
+  if (!userId) return fail('Unauthorized', 401)
 
   const { workspaceId } = params
 
@@ -17,7 +17,7 @@ export async function GET(_: Request, { params }: any) {
       automation: true,
       userProfile: true,
     },
-    orderBy: { startedAt: "desc" },
+    orderBy: { startedAt: 'desc' },
     take: 50,
   })
 

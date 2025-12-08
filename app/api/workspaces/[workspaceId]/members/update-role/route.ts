@@ -1,12 +1,12 @@
-import { auth } from "@clerk/nextjs/server"
+import { auth } from '@clerk/nextjs/server'
 
-import { fail, ok } from "@/lib/api/responses"
-import { prisma } from "@/lib/db"
-import { canManageWorkspace } from "@/lib/permissions/workspace"
+import { fail, ok } from '@/lib/api/responses'
+import { prisma } from '@/lib/db'
+import { canManageWorkspace } from '@/lib/permissions/workspace'
 
 export async function POST(req: Request, { params }: any) {
   const { userId } = await auth()
-  if (!userId) return fail("Unauthorized", 401)
+  if (!userId) return fail('Unauthorized', 401)
 
   const { workspaceId } = params
   const { memberId, role } = await req.json()
@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: any) {
   })
 
   if (!requester || !canManageWorkspace(requester.role)) {
-    return fail("Not allowed", 403)
+    return fail('Not allowed', 403)
   }
 
   // Update role

@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { UserButton, useUser } from "@clerk/nextjs"
-import Link from "next/link"
+import { UserButton, useUser } from '@clerk/nextjs'
+import Link from 'next/link'
 
 export default function Navbar() {
   const { user, isLoaded } = useUser()
@@ -23,14 +23,14 @@ export default function Navbar() {
         </Link>
 
         {/* Manager + Admin */}
-        {(role === "manager" || role === "admin") && (
+        {(role === 'manager' || role === 'admin') && (
           <Link href="/admin" className="text-sm">
             Admin Panel
           </Link>
         )}
 
         {/* Admin Only */}
-        {role === "admin" && (
+        {role === 'admin' && (
           <Link href="/admin/users" className="text-sm">
             Users
           </Link>

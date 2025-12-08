@@ -1,19 +1,19 @@
 // components/ui/Button.tsx
-"use client"
+'use client'
 
-import * as React from "react"
+import * as React from 'react'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 export type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "subtle"
-  | "outline"
-  | "ghost"
-  | "danger"
+  | 'primary'
+  | 'secondary'
+  | 'subtle'
+  | 'outline'
+  | 'ghost'
+  | 'danger'
 
-export type ButtonSize = "xs" | "sm" | "md" | "lg" | "icon"
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon'
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
@@ -25,8 +25,8 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export function Button({
-  variant = "primary",
-  size = "md",
+  variant = 'primary',
+  size = 'md',
   fullWidth,
   leftIcon,
   rightIcon,
@@ -39,28 +39,29 @@ export function Button({
   const isDisabled = disabled || loading
 
   const base =
-    "inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed"
+    'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed'
 
   const variants: Record<ButtonVariant, string> = {
     primary:
-      "bg-brand-primary text-white hover:bg-brand-primary/90 border border-brand-primary/80",
+      'bg-brand-primary text-white hover:bg-brand-primary/90 border border-brand-primary/80',
     secondary:
-      "bg-slate-900 text-neutral-text-primary border border-slate-700 hover:bg-slate-800",
+      'bg-slate-900 text-neutral-text-primary border border-slate-700 hover:bg-slate-800',
     subtle:
-      "bg-slate-900/60 text-neutral-text-primary border border-slate-800 hover:bg-slate-900",
+      'bg-slate-900/60 text-neutral-text-primary border border-slate-800 hover:bg-slate-900',
     outline:
-      "bg-transparent text-neutral-text-primary border border-slate-700 hover:bg-slate-900/60",
+      'bg-transparent text-neutral-text-primary border border-slate-700 hover:bg-slate-900/60',
     ghost:
-      "bg-transparent text-neutral-text-primary hover:bg-slate-900/60 border border-transparent",
-    danger: "bg-rose-600 text-white hover:bg-rose-500 border border-rose-500/80",
+      'bg-transparent text-neutral-text-primary hover:bg-slate-900/60 border border-transparent',
+    danger:
+      'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500/80',
   }
 
   const sizes: Record<ButtonSize, string> = {
-    xs: "h-7 px-2 text-[11px]",
-    sm: "h-8 px-3 text-xs",
-    md: "h-9 px-3.5 text-sm",
-    lg: "h-10 px-4 text-sm",
-    icon: "h-9 w-9 p-0",
+    xs: 'h-7 px-2 text-[11px]',
+    sm: 'h-8 px-3 text-xs',
+    md: 'h-9 px-3.5 text-sm',
+    lg: 'h-10 px-4 text-sm',
+    icon: 'h-9 w-9 p-0',
   }
 
   return (
@@ -69,7 +70,7 @@ export function Button({
         base,
         variants[variant],
         sizes[size],
-        fullWidth && "w-full",
+        fullWidth && 'w-full',
         className,
       )}
       disabled={isDisabled}

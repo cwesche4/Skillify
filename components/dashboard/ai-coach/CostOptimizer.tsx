@@ -1,10 +1,10 @@
 // components/dashboard/ai-coach/CostOptimizer.tsx
-"use client"
+'use client'
 
-import { DollarSign, ArrowDownCircle } from "lucide-react"
+import { DollarSign, ArrowDownCircle } from 'lucide-react'
 
-import { Badge } from "@/components/ui/Badge"
-import { Card } from "@/components/ui/Card"
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
 
 interface CostOptimizerProps {
   monthlyCost: string
@@ -20,7 +20,9 @@ export function CostOptimizer({
   return (
     <Card className="card-analytics">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-heading text-lg text-white">AI Coach – Cost Optimizer</h3>
+        <h3 className="font-heading text-lg text-white">
+          AI Coach – Cost Optimizer
+        </h3>
         <Badge variant="blue">Monthly: {monthlyCost}</Badge>
       </div>
 
@@ -35,7 +37,9 @@ export function CostOptimizer({
             className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/80 p-2"
           >
             <span className="text-sm text-white">{item.automation}</span>
-            <span className="text-neutral-text-secondary text-xs">{item.cost}</span>
+            <span className="text-neutral-text-secondary text-xs">
+              {item.cost}
+            </span>
           </div>
         ))}
       </div>

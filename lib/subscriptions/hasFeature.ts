@@ -1,18 +1,11 @@
 // lib/subscriptions/hasFeature.ts
-import { FEATURE_MATRIX, type FeatureKey, type TierKey } from "./features"
-
-export function normalizePlan(plan: string | null | undefined): TierKey {
-  if (!plan) return "basic"
-  const lower = plan.toLowerCase()
-  if (lower === "pro") return "pro"
-  if (lower === "elite") return "elite"
-  return "basic"
-}
+import { FEATURE_MATRIX, type TierKey, type FeatureKey } from './features'
 
 export function hasFeature(
-  plan: string | null | undefined,
+  plan: string | TierKey,
   feature: FeatureKey,
 ): boolean {
-  const tier = normalizePlan(plan)
-  return !!FEATURE_MATRIX[tier][feature]
+  const key = (plan ?? 'basic').toLowerCase() as TierKey
+  const matrix = FEATURE_MATRIX[key] ?? FEATURE_MATRIX.basic
+  return !!matrix[feature]
 }

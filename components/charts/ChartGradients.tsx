@@ -1,7 +1,7 @@
 // components/charts/ChartGradients.tsx
-"use client"
+'use client'
 
-import type { FC } from "react"
+import type { FC } from 'react'
 
 type ChartGradientsProps = {
   /**
@@ -11,7 +11,9 @@ type ChartGradientsProps = {
   idPrefix?: string
 }
 
-export const ChartGradients: FC<ChartGradientsProps> = ({ idPrefix = "skillify" }) => {
+export const ChartGradients: FC<ChartGradientsProps> = ({
+  idPrefix = 'skillify',
+}) => {
   const primary = `${idPrefix}-primary`
   const success = `${idPrefix}-success`
   const danger = `${idPrefix}-danger`
@@ -22,7 +24,11 @@ export const ChartGradients: FC<ChartGradientsProps> = ({ idPrefix = "skillify" 
       {/* Primary area gradient */}
       <linearGradient id={primary} x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopOpacity={0.9} stopColor="var(--brand-primary)" />
-        <stop offset="100%" stopOpacity={0.05} stopColor="var(--brand-primary)" />
+        <stop
+          offset="100%"
+          stopOpacity={0.05}
+          stopColor="var(--brand-primary)"
+        />
       </linearGradient>
 
       {/* Success */}

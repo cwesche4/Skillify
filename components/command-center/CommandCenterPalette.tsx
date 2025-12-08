@@ -1,12 +1,12 @@
 // components/command-center/CommandCenterPalette.tsx
-"use client"
+'use client'
 
-import { Search, X } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { Search, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 
-import { useCommandCenter } from "@/components/command-center/CommandCenterProvider"
-import type { CommandItem } from "@/components/command-center/types"
+import { useCommandCenter } from '@/components/command-center/CommandCenterProvider'
+import type { CommandItem } from '@/components/command-center/types'
 
 type CommandSearchResponse = {
   items: CommandItem[]
@@ -17,9 +17,13 @@ interface PaletteProps {
   current: { id: string; name: string; slug: string } | null
 }
 
-export default function CommandCenterPalette({ workspaces, current }: PaletteProps) {
+export default function CommandCenterPalette({
+  workspaces,
+  current,
+}: PaletteProps) {
   const router = useRouter()
-  const { open, setOpen, query, setQuery, commands, setCommands } = useCommandCenter()
+  const { open, setOpen, query, setQuery, commands, setCommands } =
+    useCommandCenter()
 
   const [loading, setLoading] = useState(false)
 
@@ -32,7 +36,7 @@ export default function CommandCenterPalette({ workspaces, current }: PalettePro
       setLoading(true)
       try {
         const res = await fetch(
-          `/api/command/search?q=${encodeURIComponent(query || "")}`,
+          `/api/command/search?q=${encodeURIComponent(query || '')}`,
         )
         if (!res.ok) return
         const json: CommandSearchResponse = await res.json()
@@ -54,7 +58,7 @@ export default function CommandCenterPalette({ workspaces, current }: PalettePro
   const grouped = useMemo(() => {
     const groups = new Map<string, CommandItem[]>()
     for (const item of commands) {
-      const key = item.group ?? "General"
+      const key = item.group ?? 'General'
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(item)
     }
@@ -63,7 +67,7 @@ export default function CommandCenterPalette({ workspaces, current }: PalettePro
 
   function close() {
     setOpen(false)
-    setQuery("")
+    setQuery('')
   }
 
   async function handleSelect(item: CommandItem) {
@@ -73,11 +77,11 @@ export default function CommandCenterPalette({ workspaces, current }: PalettePro
       return
     }
 
-    if (item.type === "command" || item.type === "onboarding") {
+    if (item.type === 'command' || item.type === 'onboarding') {
       const payload = item.meta ?? {}
-      await fetch("/api/command/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      await fetch('/api/command/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       close()
@@ -104,7 +108,7 @@ export default function CommandCenterPalette({ workspaces, current }: PalettePro
           />
           {query && (
             <button
-              onClick={() => setQuery("")}
+              onClick={() => setQuery('')}
               className="text-slate-500 hover:text-slate-300"
             >
               <X size={16} />
@@ -138,7 +142,9 @@ export default function CommandCenterPalette({ workspaces, current }: PalettePro
                       className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-slate-100 hover:bg-slate-900/80"
                     >
                       <div className="flex flex-col">
-                        <span className="text-xs font-medium">{item.label}</span>
+                        <span className="text-xs font-medium">
+                          {item.label}
+                        </span>
                         {item.subtitle && (
                           <span className="text-[11px] text-slate-500">
                             {item.subtitle}
@@ -160,16 +166,22 @@ export default function CommandCenterPalette({ workspaces, current }: PalettePro
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-800 px-4 py-2">
           <div className="text-[10px] text-slate-500">
-            Current workspace:{" "}
-            <span className="text-slate-300">{current?.name ?? "Not selected"}</span>
+            Current workspace:{' '}
+            <span className="text-slate-300">
+              {current?.name ?? 'Not selected'}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-[10px] text-slate-500">
             <span>
-              <kbd className="rounded border border-slate-700 px-1 text-[9px]">⌘K</kbd> to
-              open
+              <kbd className="rounded border border-slate-700 px-1 text-[9px]">
+                ⌘K
+              </kbd>{' '}
+              to open
             </span>
             <span>
-              <kbd className="rounded border border-slate-700 px-1 text-[9px]">Esc</kbd>{" "}
+              <kbd className="rounded border border-slate-700 px-1 text-[9px]">
+                Esc
+              </kbd>{' '}
               to close
             </span>
           </div>

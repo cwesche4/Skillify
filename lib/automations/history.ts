@@ -1,3 +1,4 @@
+// lib/automations/history.ts
 export class HistoryStack<T> {
   private stack: T[] = []
   private pointer = -1
