@@ -1,5 +1,5 @@
 // release.config.js
-
+/** @type {import('semantic-release').Options} */
 const releaseConfig = {
   branches: ['main'],
   plugins: [
@@ -8,13 +8,13 @@ const releaseConfig = {
     [
       '@semantic-release/changelog',
       {
-        changelogFile: 'CHANGELOG.md',
+        changelogFile: 'docs/CHANGELOG.md',
       },
     ],
     [
       '@semantic-release/git',
       {
-        assets: ['CHANGELOG.md', 'package.json'],
+        assets: ['docs/CHANGELOG.md', 'package.json', 'package-lock.json'],
         message:
           'chore(release): ${nextRelease.version}\n\n${nextRelease.notes}',
       },
@@ -23,4 +23,4 @@ const releaseConfig = {
   ],
 }
 
-module.exports = releaseConfig
+export default releaseConfig

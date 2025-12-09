@@ -1,8 +1,9 @@
-name: Production Deploy
+name: Deploy Production
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -11,22 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Type Check
-        run: npm run type-check
-
-      - name: Build
-        run: npm run build
-
-      - name: Deploy to Production
-        run: echo "⚡ Add Vercel deploy command here"
+      - name: Trigger Vercel Deploy
+        run: |
+          curl -X POST https://api.vercel.com/v1/integrations/deploy/prj_${{ secrets.VERCEL_PROJECT_ID }} \
+          -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}"
