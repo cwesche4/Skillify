@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write       # needed to create releases and push tags
+      contents: write     # needed for tags + releases
       issues: write
       pull-requests: write
 
@@ -19,17 +19,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # semantic-release needs full history + tags
+          fetch-depth: 0   # semantic-release requires full history
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run semantic-release
+      - name: Build (sanity check before release)
+        run: npm run build
+
+      - name: Run tests
+        run: |
+          if npm run test -- --runInBand; then
+            echo "Tests passed"
+          else
+            echo "Tests failed, aborting release"
+            exit 1
+          fi
+
+      - name: Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release
+        run: npx semantic-release
