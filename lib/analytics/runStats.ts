@@ -123,7 +123,7 @@ export async function getAutomationPerformanceGrid(
       const avgDuration =
         durations.length > 0
           ? durations.reduce((acc: number, x: number) => acc + x, 0) /
-          durations.length
+            durations.length
           : 0
 
       return {
