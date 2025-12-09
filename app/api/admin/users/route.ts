@@ -1,9 +1,9 @@
 // app/api/admin/users/route.ts
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-
 import { prisma } from '@/lib/db'
 
+// Helper: require the caller to be an admin
 async function requireAdmin() {
   const { userId } = auth()
   if (!userId) throw new Error('UNAUTH')
@@ -19,7 +19,7 @@ async function requireAdmin() {
   return profile
 }
 
-// GET /api/admin/users  — list users + simple stats
+// GET /api/admin/users — list users and stats
 export async function GET() {
   try {
     await requireAdmin()
@@ -27,19 +27,22 @@ export async function GET() {
     const users = await prisma.userProfile.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        automations: {
-          select: { id: true },
-        },
+        automations: { select: { id: true } },
         subscription: true,
       },
     })
 
-    const result = users.map((u) => ({
+    // Correctly typed user entry
+    type UserWithRelations = (typeof users)[number]
+
+    const result = users.map((u: UserWithRelations) => ({
       id: u.id,
       clerkId: u.clerkId,
       role: u.role,
       createdAt: u.createdAt,
+
       automationCount: u.automations.length,
+
       subscriptionStatus: u.subscription?.status ?? 'none',
       plan: u.subscription?.plan ?? null,
     }))
@@ -52,6 +55,7 @@ export async function GET() {
     if (err.message === 'FORBIDDEN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
     console.error('Admin users API error', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }

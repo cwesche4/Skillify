@@ -45,7 +45,7 @@ function inferMode(question: string): AiCoachMode {
 }
 
 //
-// PROMPT BUILDER (for future OpenAI integration)
+// PROMPT BUILDER
 //
 function buildPrompt(
   mode: AiCoachMode,
@@ -71,7 +71,7 @@ Success rate: ${context.successRate ?? 'N/A'}%
 }
 
 //
-// AI COACH ANSWER GENERATOR (deterministic placeholder)
+// AI COACH ANSWER (placeholder logic)
 //
 async function generateAiCoachAnswer(
   mode: AiCoachMode,
@@ -87,24 +87,24 @@ async function generateAiCoachAnswer(
         ? 'Here are optimization opportunities for your workspace:'
         : 'Here is an explanation based on the workspace data:'
 
-  const suggestions =
+  const suggestions: string[] =
     mode === 'insights'
       ? [
-          'Review failure spikes in the last 50 runs.',
-          'Identify automations with the lowest success rate.',
-          'Compare week-over-week reliability trends.',
-        ]
+        'Review failure spikes in the last 50 runs.',
+        'Identify automations with the lowest success rate.',
+        'Compare week-over-week reliability trends.',
+      ]
       : mode === 'optimize'
         ? [
-            'Break large automations into modular sub-flows.',
-            'Add retry logic around external integrations.',
-            'Improve naming of steps to simplify debugging.',
-          ]
+          'Break large automations into modular sub-flows.',
+          'Add retry logic around external integrations.',
+          'Improve naming of steps to simplify debugging.',
+        ]
         : [
-            'Review step-by-step execution logs.',
-            'Verify triggers and conditions match expectations.',
-            'Document intended automation behavior.',
-          ]
+          'Review step-by-step execution logs.',
+          'Verify triggers and conditions match expectations.',
+          'Document intended automation behavior.',
+        ]
 
   return {
     answer: `${intro}\n\n(Prompt preview — real AI integration coming soon):\n\n${prompt}`,
@@ -183,12 +183,14 @@ export async function POST(req: NextRequest) {
   const successRate =
     recentRunCount > 0
       ? Number(
-          (
-            (recentRuns.filter((r) => r.status === 'SUCCESS').length /
-              recentRunCount) *
-            100
-          ).toFixed(1),
-        )
+        (
+          (recentRuns.filter(
+            (r: { status: string }) => r.status === 'SUCCESS',
+          ).length /
+            recentRunCount) *
+          100
+        ).toFixed(1),
+      )
       : null
 
   const context: AiCoachContextSummary = {
@@ -200,7 +202,7 @@ export async function POST(req: NextRequest) {
   }
 
   //
-  // Generate AI response (placeholder or real OpenAI later)
+  // Generate response
   //
   const { answer, suggestions } = await generateAiCoachAnswer(
     mode,

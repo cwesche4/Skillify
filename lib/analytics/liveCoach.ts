@@ -57,7 +57,8 @@ export async function getLiveCoachSnapshot(
     }
   }
 
-  const withDurations = runsLast30.map((r) => {
+  // ✅ Fix implicit any in map()
+  const withDurations = runsLast30.map((r: (typeof runsLast30)[number]) => {
     const durationMs =
       r.startedAt && r.finishedAt
         ? r.finishedAt.getTime() - r.startedAt.getTime()
@@ -66,28 +67,50 @@ export async function getLiveCoachSnapshot(
   })
 
   const total = withDurations.length
-  const successes = withDurations.filter((r) => r.status === 'SUCCESS').length
+
+  // ✅ Fix implicit any in filter()
+  const successes = withDurations.filter(
+    (r: (typeof withDurations)[number]) => r.status === 'SUCCESS',
+  ).length
+
   const failed = total - successes
+
   const successRate = total > 0 ? (successes / total) * 100 : 0
 
-  const last7 = withDurations.filter((r) => r.startedAt >= window7)
-  const prev7 = withDurations.filter(
-    (r) =>
-      r.startedAt < window7 && r.startedAt >= new Date(now - 2 * SEVEN_DAYS),
+  // ✅ Fix implicit any in filter()
+  const last7 = withDurations.filter(
+    (r: (typeof withDurations)[number]) => r.startedAt >= window7,
   )
 
+  const prev7 = withDurations.filter((r: (typeof withDurations)[number]) => {
+    return (
+      r.startedAt < window7 && r.startedAt >= new Date(now - 2 * SEVEN_DAYS)
+    )
+  })
+
   const last7Rate = last7.length
-    ? (last7.filter((r) => r.status === 'SUCCESS').length / last7.length) * 100
+    ? (last7.filter((r: (typeof last7)[number]) => r.status === 'SUCCESS')
+      .length /
+      last7.length) *
+    100
     : successRate
 
   const prev7Rate = prev7.length
-    ? (prev7.filter((r) => r.status === 'SUCCESS').length / prev7.length) * 100
+    ? (prev7.filter((r: (typeof prev7)[number]) => r.status === 'SUCCESS')
+      .length /
+      prev7.length) *
+    100
     : successRate
 
   const trend = last7Rate - prev7Rate
 
+  // ✅ Fix reduce implicit any
   const avgDurationMs = Math.round(
-    withDurations.reduce((sum, r) => sum + (r.durationMs ?? 0), 0) / total,
+    withDurations.reduce(
+      (sum: number, r: (typeof withDurations)[number]) =>
+        sum + (r.durationMs ?? 0),
+      0,
+    ) / total,
   )
 
   const totalCostUsd = 0
@@ -96,6 +119,7 @@ export async function getLiveCoachSnapshot(
 
   const anomalies: LiveCoachSnapshot['anomalies'] = []
 
+  // ---------- Anomaly rules ----------
   if (trend < -10) {
     anomalies.push({
       id: 'trend_drop',

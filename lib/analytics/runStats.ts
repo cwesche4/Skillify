@@ -25,18 +25,32 @@ export async function getWorkspaceRunStats(
   })
 
   const total = runs.length
-  const success = runs.filter((r) => r.status === 'SUCCESS').length
-  const failed = runs.filter((r) => r.status === 'FAILED').length
-  const running = runs.filter((r) => r.status === 'RUNNING').length
-  const pending = runs.filter((r) => r.status === 'PENDING').length
+
+  const success = runs.filter(
+    (r: (typeof runs)[number]) => r.status === 'SUCCESS',
+  ).length
+
+  const failed = runs.filter(
+    (r: (typeof runs)[number]) => r.status === 'FAILED',
+  ).length
+
+  const running = runs.filter(
+    (r: (typeof runs)[number]) => r.status === 'RUNNING',
+  ).length
+
+  const pending = runs.filter(
+    (r: (typeof runs)[number]) => r.status === 'PENDING',
+  ).length
 
   const durations = runs
-    .map((r) => computeDurationMs(r.startedAt, r.finishedAt))
-    .filter((x): x is number => x !== null)
+    .map((r: (typeof runs)[number]) =>
+      computeDurationMs(r.startedAt, r.finishedAt),
+    )
+    .filter((x: number | null): x is number => x !== null)
 
   const avgDurationMs =
     durations.length > 0
-      ? durations.reduce((a, b) => a + b, 0) / durations.length
+      ? durations.reduce((a: number, b: number) => a + b, 0) / durations.length
       : 0
 
   const successRate = total > 0 ? (success / total) * 100 : 0
@@ -67,15 +81,18 @@ export async function getFailureClusters(
 
   const buckets = new Map<string, number>()
 
-  for (const f of failures) {
+  for (const f of failures as { log: string | null }[]) {
     const reason = f.log ?? 'Unknown Error'
-    buckets.set(reason, (buckets.get(reason) ?? 0) + 1)
+    const prev = buckets.get(reason) ?? 0
+    buckets.set(reason, prev + 1)
   }
 
-  return [...buckets.entries()].map(([reason, count]) => ({
-    reason,
-    count,
-  }))
+  return [...buckets.entries()].map(
+    ([reason, count]: [string, number]): FailureCluster => ({
+      reason,
+      count,
+    }),
+  )
 }
 
 export async function getAutomationPerformanceGrid(
@@ -91,17 +108,23 @@ export async function getAutomationPerformanceGrid(
     },
   })
 
-  return automations.map((a) => {
+  return automations.map((a): AutomationRunSummary => {
     const totalRuns = a.runs.length
-    const successCount = a.runs.filter((r) => r.status === 'SUCCESS').length
+
+    const successCount = a.runs.filter(
+      (r: (typeof a.runs)[number]) => r.status === 'SUCCESS',
+    ).length
 
     const durations = a.runs
-      .map((r) => computeDurationMs(r.startedAt, r.finishedAt))
-      .filter((x): x is number => x !== null)
+      .map((r: (typeof a.runs)[number]) =>
+        computeDurationMs(r.startedAt, r.finishedAt),
+      )
+      .filter((x: number | null): x is number => x !== null)
 
     const avgDuration =
       durations.length > 0
-        ? durations.reduce((acc, x) => acc + x, 0) / durations.length
+        ? durations.reduce((acc: number, x: number) => acc + x, 0) /
+        durations.length
         : 0
 
     return {
