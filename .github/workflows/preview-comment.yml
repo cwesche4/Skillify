@@ -1,0 +1,21 @@
+name: Preview Comment Bot
+
+on:
+  deployment_status:
+
+jobs:
+  comment:
+    name: Comment preview URL on PR
+    runs-on: ubuntu-latest
+    if: >
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'Preview'
+
+    steps:
+      - name: Add comment with preview URL
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            🚀 **Preview Ready!**
+            🔗 URL: ${{ github.event.deployment_status.target_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

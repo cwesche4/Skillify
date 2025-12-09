@@ -1,0 +1,14 @@
+name: Auto Delete Stale Branches
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # weekly
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: crs-k/stale-branches@v3
+        with:
+          days: 30
+          github_token: ${{ secrets.GITHUB_TOKEN }}
