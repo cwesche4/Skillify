@@ -90,21 +90,21 @@ async function generateAiCoachAnswer(
   const suggestions: string[] =
     mode === 'insights'
       ? [
-        'Review failure spikes in the last 50 runs.',
-        'Identify automations with the lowest success rate.',
-        'Compare week-over-week reliability trends.',
-      ]
+          'Review failure spikes in the last 50 runs.',
+          'Identify automations with the lowest success rate.',
+          'Compare week-over-week reliability trends.',
+        ]
       : mode === 'optimize'
         ? [
-          'Break large automations into modular sub-flows.',
-          'Add retry logic around external integrations.',
-          'Improve naming of steps to simplify debugging.',
-        ]
+            'Break large automations into modular sub-flows.',
+            'Add retry logic around external integrations.',
+            'Improve naming of steps to simplify debugging.',
+          ]
         : [
-          'Review step-by-step execution logs.',
-          'Verify triggers and conditions match expectations.',
-          'Document intended automation behavior.',
-        ]
+            'Review step-by-step execution logs.',
+            'Verify triggers and conditions match expectations.',
+            'Document intended automation behavior.',
+          ]
 
   return {
     answer: `${intro}\n\n(Prompt preview — real AI integration coming soon):\n\n${prompt}`,
@@ -183,14 +183,14 @@ export async function POST(req: NextRequest) {
   const successRate =
     recentRunCount > 0
       ? Number(
-        (
-          (recentRuns.filter(
-            (r: { status: string }) => r.status === 'SUCCESS',
-          ).length /
-            recentRunCount) *
-          100
-        ).toFixed(1),
-      )
+          (
+            (recentRuns.filter(
+              (r: { status: string }) => r.status === 'SUCCESS',
+            ).length /
+              recentRunCount) *
+            100
+          ).toFixed(1),
+        )
       : null
 
   const context: AiCoachContextSummary = {

@@ -90,16 +90,16 @@ export async function getLiveCoachSnapshot(
 
   const last7Rate = last7.length
     ? (last7.filter((r: (typeof last7)[number]) => r.status === 'SUCCESS')
-      .length /
-      last7.length) *
-    100
+        .length /
+        last7.length) *
+      100
     : successRate
 
   const prev7Rate = prev7.length
     ? (prev7.filter((r: (typeof prev7)[number]) => r.status === 'SUCCESS')
-      .length /
-      prev7.length) *
-    100
+        .length /
+        prev7.length) *
+      100
     : successRate
 
   const trend = last7Rate - prev7Rate
