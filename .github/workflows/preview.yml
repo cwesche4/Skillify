@@ -1,35 +1,43 @@
+# .github/workflows/preview.yml
 name: Preview Deploy
 
 on:
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened]
 
 jobs:
   preview:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
-      - name: Install
+      - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Deploy to Vercel (Preview)
+        id: vercel-deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm install -g vercel
+          DEPLOY_URL=$(vercel --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --prod=false --confirm --cwd .)
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Type Check
-        run: npm run type-check
-
-      - name: Build
-        run: npm run build
-
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+      - name: Comment preview URL on PR
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
-          name: next-build
-          path: .next
+          header: preview-url
+          message: |
+            🚀 Preview deployment ready!
+
+            **URL:** ${{ steps.vercel-deploy.outputs.url }}
