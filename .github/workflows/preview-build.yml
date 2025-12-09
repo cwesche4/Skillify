@@ -1,10 +1,10 @@
-name: Preview Check
+name: Preview Build
 
 on:
   pull_request:
 
 jobs:
-  preview-build:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -12,9 +12,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
-      - run: npm install
+      - name: Install
+        run: npm ci
 
-      - name: Build
+      - name: Build Next.js
         run: npm run build

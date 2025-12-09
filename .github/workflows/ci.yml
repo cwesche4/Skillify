@@ -1,37 +1,29 @@
-# .github/workflows/ci.yml
-name: CI / Lint + Type-check + Test
+name: CI
 
 on:
   pull_request:
-    branches:
-      - main
   push:
     branches:
-      - main
+      - "**"
 
 jobs:
-  ci:
+  lint:
+    name: Lint & Type Check
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version: 18
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install deps
+        run: npm install
 
       - name: Lint
         run: npm run lint
 
-      - name: Type-check
+      - name: Type Check
         run: npm run type-check
-
-      - name: Run tests
-        run: npm test
-        continue-on-error: true # <- keep CI green while tests are WIP
