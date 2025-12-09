@@ -74,9 +74,7 @@ export async function getFailureClusters(
       workspaceId,
       status: 'FAILED',
     },
-    select: {
-      log: true,
-    },
+    select: { log: true },
   })
 
   const buckets = new Map<string, number>()
@@ -108,32 +106,34 @@ export async function getAutomationPerformanceGrid(
     },
   })
 
-  return automations.map((a): AutomationRunSummary => {
-    const totalRuns = a.runs.length
+  return automations.map(
+    (a: (typeof automations)[number]): AutomationRunSummary => {
+      const totalRuns = a.runs.length
 
-    const successCount = a.runs.filter(
-      (r: (typeof a.runs)[number]) => r.status === 'SUCCESS',
-    ).length
+      const successCount = a.runs.filter(
+        (r: (typeof a.runs)[number]) => r.status === 'SUCCESS',
+      ).length
 
-    const durations = a.runs
-      .map((r: (typeof a.runs)[number]) =>
-        computeDurationMs(r.startedAt, r.finishedAt),
-      )
-      .filter((x: number | null): x is number => x !== null)
+      const durations = a.runs
+        .map((r: (typeof a.runs)[number]) =>
+          computeDurationMs(r.startedAt, r.finishedAt),
+        )
+        .filter((x: number | null): x is number => x !== null)
 
-    const avgDuration =
-      durations.length > 0
-        ? durations.reduce((acc: number, x: number) => acc + x, 0) /
+      const avgDuration =
+        durations.length > 0
+          ? durations.reduce((acc: number, x: number) => acc + x, 0) /
           durations.length
-        : 0
+          : 0
 
-    return {
-      automationId: a.id,
-      automationName: a.name,
-      totalRuns,
-      successRate: totalRuns > 0 ? (successCount / totalRuns) * 100 : 0,
-      avgDurationMs: avgDuration,
-      lastRunAt: a.runs[0]?.startedAt ?? null,
-    }
-  })
+      return {
+        automationId: a.id,
+        automationName: a.name,
+        totalRuns,
+        successRate: totalRuns > 0 ? (successCount / totalRuns) * 100 : 0,
+        avgDurationMs: avgDuration,
+        lastRunAt: a.runs[0]?.startedAt ?? null,
+      }
+    },
+  )
 }
