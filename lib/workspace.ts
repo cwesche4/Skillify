@@ -79,7 +79,7 @@ export async function getWorkspaceIfMember(
 /**
  * Ensure workspace exists, throw API 404 otherwise
  */
-export function assertWorkspaceExists(ws: any) {
+export function assertWorkspaceExists(ws: unknown) {
   if (!ws) throw notFound('Workspace not found.')
   return ws
 }
@@ -106,6 +106,8 @@ export async function getWorkspaceStats(slug: string) {
   return {
     membersCount: ws.members.length,
     automationsCount: ws.automations.length,
-    recentRuns: ws.automations.flatMap((a) => a.runs).slice(0, 20),
+    recentRuns: ws.automations
+      .flatMap((a: { runs: unknown[] }) => a.runs)
+      .slice(0, 20),
   }
 }

@@ -1,69 +1,107 @@
-import Link from 'next/link'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { DashboardShell } from '@/components/dashboard/DashboardShell'
+import { Badge } from '@/components/ui/Badge'
 
-export default async function BlogIndexPage() {
-  const posts = await prisma.blogPost.findMany({
-    where: { published: true },
-    orderBy: { publishedAt: 'desc' },
-    take: 20,
+type MembersPageProps = {
+  params: { workspaceSlug: string }
+}
+
+export default async function MembersPage({ params }: MembersPageProps) {
+  const { userId } = auth()
+  if (!userId) return null
+
+  const profile = await prisma.userProfile.findUnique({
+    where: { clerkId: userId },
+  })
+  if (!profile) return null
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { slug: params.workspaceSlug },
+    include: {
+      members: {
+        include: { user: true },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
   })
 
-  return (
-    <main className="bg-white dark:bg-black">
-      <section className="px-6 pb-10 pt-20">
-        <div className="mx-auto max-w-4xl text-center">
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            Automation, AI, and operator playbooks.
-          </h1>
-          <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
-            Short, tactical posts on building reliable automations and
-            AI-assisted operations.
-          </p>
-        </div>
-      </section>
+  if (!workspace) {
+    return (
+      <DashboardShell>
+        <h1 className="h2">Workspace not found</h1>
+      </DashboardShell>
+    )
+  }
 
-      <section className="mx-auto max-w-4xl px-6 pb-24">
-        {posts.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No posts yet. Add some entries to <code>BlogPost</code> in your
-            database.
-          </p>
-        ) : (
-          <div className="space-y-6">
-            {posts.map((post) => (
-              <Link
-                key={post.id}
-                href={`/marketing/blog/${post.slug}`}
-                className="block rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-blue-500/70 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+  const isMember = workspace.members.some(
+    (m: (typeof workspace.members)[number]) => m.userId === profile.id,
+  )
+
+  if (!isMember) {
+    return (
+      <DashboardShell>
+        <h1 className="h2">Access denied</h1>
+        <p className="text-neutral-text-secondary text-sm">
+          You are not a member of this workspace.
+        </p>
+      </DashboardShell>
+    )
+  }
+
+  // Fetch Clerk user objects
+  const clerkUsers = await Promise.all(
+    workspace.members.map((m: (typeof workspace.members)[number]) =>
+      clerkClient.users.getUser(m.user.clerkId),
+    ),
+  )
+
+  const clerkUserMap = new Map<string, any>()
+  clerkUsers.forEach((u: any) => clerkUserMap.set(u.id, u))
+
+  return (
+    <DashboardShell>
+      <h1 className="h2 mb-6">Workspace Members</h1>
+
+      <div className="space-y-4">
+        {workspace.members.map((member: (typeof workspace.members)[number]) => {
+          const clerkUser = clerkUserMap.get(member.user.clerkId)
+
+          const fullName =
+            clerkUser?.firstName || clerkUser?.lastName
+              ? `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
+              : 'Unknown User'
+
+          const email =
+            clerkUser?.primaryEmailAddress?.emailAddress ??
+            clerkUser?.emailAddresses?.[0]?.emailAddress ??
+            'No email'
+
+          return (
+            <div
+              key={member.id}
+              className="flex items-center justify-between border-b border-neutral-border pb-3 last:border-none"
+            >
+              <div>
+                <p className="font-medium">{fullName}</p>
+                <p className="text-neutral-text-secondary text-xs">{email}</p>
+              </div>
+
+              <Badge
+                variant={
+                  member.role === 'OWNER'
+                    ? 'purple'
+                    : member.role === 'ADMIN'
+                      ? 'blue'
+                      : 'gray'
+                }
               >
-                <h2 className="text-lg font-semibold">{post.title}</h2>
-                {post.excerpt && (
-                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                    {post.excerpt}
-                  </p>
-                )}
-                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-500 dark:text-zinc-500">
-                  {post.publishedAt && (
-                    <span>{post.publishedAt.toLocaleDateString()}</span>
-                  )}
-                  {post.tags && post.tags.length > 0 && (
-                    <span className="flex flex-wrap gap-1">
-                      {post.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] dark:bg-zinc-900"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
+                {member.role}
+              </Badge>
+            </div>
+          )
+        })}
+      </div>
+    </DashboardShell>
   )
 }

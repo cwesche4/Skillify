@@ -1,6 +1,5 @@
 // app/dashboard/[workspaceSlug]/settings/page.tsx
 import { auth } from '@clerk/nextjs/server'
-
 import { prisma } from '@/lib/db'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { Card } from '@/components/ui/Card'
@@ -19,17 +18,13 @@ export default async function WorkspaceSettingsPage({
 
   const profile = await prisma.userProfile.findUnique({
     where: { clerkId: userId },
-    include: {
-      subscription: true,
-    },
+    include: { subscription: true },
   })
   if (!profile) return null
 
   const workspace = await prisma.workspace.findUnique({
     where: { slug: params.workspaceSlug },
-    include: {
-      members: true,
-    },
+    include: { members: true },
   })
 
   if (!workspace) {
@@ -40,7 +35,11 @@ export default async function WorkspaceSettingsPage({
     )
   }
 
-  const isMember = workspace.members.some((m) => m.userId === profile.id)
+  // FIX: Explicit type annotation
+  const isMember = workspace.members.some(
+    (m: { userId: string }) => m.userId === profile.id,
+  )
+
   if (!isMember) {
     return (
       <DashboardShell>

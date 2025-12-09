@@ -1,0 +1,34 @@
+# Core app
+app:
+  - 'app/**'
+
+lib:
+  - 'lib/**'
+
+components:
+  - 'components/**'
+
+marketing:
+  - 'app/marketing/**'
+  - 'components/marketing/**'
+  - 'docs/MARKETING.md'
+
+docs:
+  - 'docs/**'
+  - 'README.md'
+
+tests:
+  - 'test/**'
+  - 'tests/**'
+  - 'vitest.*'
+  - 'tsconfig.tests.*'
+
+config:
+  - '.github/**'
+  - '.husky/**'
+  - 'turbo.json'
+  - 'tailwind.config.ts'
+  - 'tsconfig*.json'
+  - 'package.json'
+  - 'prisma.config.ts'
+  - 'prisma/**'

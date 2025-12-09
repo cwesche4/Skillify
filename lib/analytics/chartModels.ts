@@ -27,7 +27,7 @@ export async function getRunsOverTime(workspaceId: string) {
   }
 
   // Assign counts
-  runs.forEach((run) => {
+  runs.forEach((run: { startedAt: Date; _count: number }) => {
     const date = run.startedAt.toISOString().slice(0, 10)
     if (daily[date] !== undefined) {
       daily[date] = run._count
@@ -35,7 +35,7 @@ export async function getRunsOverTime(workspaceId: string) {
   })
 
   return Object.entries(daily)
-    .map(([date, runs]) => ({ date, runs }))
+    .map(([date, count]: [string, number]) => ({ date, runs: count }))
     .reverse()
 }
 
@@ -52,8 +52,14 @@ export async function getSuccessFailBreakdown(workspaceId: string) {
   return [
     {
       name: 'Runs',
-      success: stats.find((s) => s.status === 'SUCCESS')?._count ?? 0,
-      failed: stats.find((s) => s.status === 'FAILED')?._count ?? 0,
+      success:
+        stats.find(
+          (s: { status: string; _count: number }) => s.status === 'SUCCESS',
+        )?._count ?? 0,
+      failed:
+        stats.find(
+          (s: { status: string; _count: number }) => s.status === 'FAILED',
+        )?._count ?? 0,
     },
   ]
 }
@@ -62,8 +68,6 @@ export async function getSuccessFailBreakdown(workspaceId: string) {
 // 3 — RELIABILITY HEATMAP MATRIX (10x10)
 //
 export async function getReliabilityHeatmap(workspaceId: string) {
-  // FIX: durationMs does not exist → compute it manually
-  // FIX: createdAt → startedAt
   const runs = await prisma.automationRun.findMany({
     where: { workspaceId },
     select: { startedAt: true, finishedAt: true },
@@ -72,18 +76,20 @@ export async function getReliabilityHeatmap(workspaceId: string) {
   })
 
   // Compute durations
-  const processed = runs.map((run) => ({
-    durationMs:
-      run.startedAt && run.finishedAt
-        ? run.finishedAt.getTime() - run.startedAt.getTime()
-        : 0,
-  }))
+  const processed = runs.map(
+    (run: { startedAt: Date; finishedAt: Date | null }) => ({
+      durationMs:
+        run.startedAt && run.finishedAt
+          ? run.finishedAt.getTime() - run.startedAt.getTime()
+          : 0,
+    }),
+  )
 
   const matrix = Array.from({ length: 10 }, () =>
     Array.from({ length: 10 }, () => 0),
   )
 
-  processed.forEach((run, i) => {
+  processed.forEach((run: { durationMs: number }, i: number) => {
     const row = Math.floor(i / 10)
     const col = i % 10
 

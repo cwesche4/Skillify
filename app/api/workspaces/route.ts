@@ -1,3 +1,4 @@
+// app/api/workspaces/route.ts
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
@@ -12,5 +13,7 @@ export async function GET() {
     orderBy: { createdAt: 'asc' },
   })
 
-  return NextResponse.json(workspaces.map((w) => w.workspace))
+  const result = workspaces.map((w: (typeof workspaces)[number]) => w.workspace)
+
+  return NextResponse.json(result)
 }

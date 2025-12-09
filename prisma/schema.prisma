@@ -40,6 +40,7 @@ enum CalendarProvider {
   GOOGLE
   OUTLOOK
   CALENDLY
+  MS365
   OTHER
 }
 

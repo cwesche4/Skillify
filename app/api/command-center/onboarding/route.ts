@@ -31,7 +31,11 @@ export async function GET(req: Request) {
   }
 
   const hasAutomation = workspace.automations.length > 0
-  const hasRun = workspace.automations.some((a) => a.runs.length > 0) ?? false
+
+  const hasRun = workspace.automations.some(
+    (a: { runs: unknown[] }) => a.runs.length > 0,
+  )
+
   const hasMembers = workspace.members.length > 1
 
   const checklist: OnboardingItem[] = [

@@ -21,6 +21,7 @@ export default async function BillingPage({ params }: BillingPageProps) {
       subscription: true,
     },
   })
+
   if (!profile) return null
 
   const workspace = await prisma.workspace.findUnique({
@@ -36,7 +37,11 @@ export default async function BillingPage({ params }: BillingPageProps) {
     )
   }
 
-  const isMember = workspace.members.some((m) => m.userId === profile.id)
+  // FIX: Add explicit type for callback parameter
+  const isMember = workspace.members.some(
+    (m: { userId: string }) => m.userId === profile.id,
+  )
+
   if (!isMember) {
     return (
       <DashboardShell>

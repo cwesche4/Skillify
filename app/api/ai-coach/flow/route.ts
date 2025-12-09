@@ -1,7 +1,12 @@
 // app/api/ai-coach/flow/route.ts
 import { NextResponse } from 'next/server'
-
 import { prisma } from '@/lib/db'
+
+interface AutomationLite {
+  id: string
+  name: string | null
+  updatedAt: Date
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -9,8 +14,8 @@ export async function GET(req: Request) {
 
   const where = workspaceId ? { workspaceId } : {}
 
-  // For now, pick the most recently updated automations as "slow candidates".
-  const automations = await prisma.automation.findMany({
+  // Select only needed fields
+  const automations: AutomationLite[] = await prisma.automation.findMany({
     where,
     orderBy: { updatedAt: 'desc' },
     take: 5,
@@ -22,7 +27,7 @@ export async function GET(req: Request) {
   })
 
   return NextResponse.json({
-    slowNodes: automations.map((a) => ({
+    slowNodes: automations.map((a: AutomationLite) => ({
       node: a.name ?? 'Automation',
       duration: 'N/A',
     })),

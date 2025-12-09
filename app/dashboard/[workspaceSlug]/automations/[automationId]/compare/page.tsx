@@ -1,4 +1,4 @@
-// app/dashboard/automations/[automationId]/compare/page.tsx
+// app/dashboard/[workspaceSlug]/automations/[automationId]/compare/page.tsx
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -73,7 +73,7 @@ export default async function CompareRunsPage({
               Select Run A
             </h3>
             <div className="max-h-64 space-y-2 overflow-y-auto">
-              {recentRuns.map((run) => (
+              {recentRuns.map((run: (typeof recentRuns)[number]) => (
                 <Link
                   key={run.id}
                   href={`?a=${run.id}${searchParams.b ? `&b=${searchParams.b}` : ''}`}
@@ -95,7 +95,7 @@ export default async function CompareRunsPage({
               Select Run B
             </h3>
             <div className="max-h-64 space-y-2 overflow-y-auto">
-              {recentRuns.map((run) => (
+              {recentRuns.map((run: (typeof recentRuns)[number]) => (
                 <Link
                   key={run.id}
                   href={`?b=${run.id}${searchParams.a ? `&a=${searchParams.a}` : ''}`}
