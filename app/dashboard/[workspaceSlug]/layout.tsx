@@ -92,8 +92,9 @@ export default function WorkspaceLayout({
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed z-40 h-full transition-transform duration-300 sm:relative ${mobileOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'
-          }`}
+        className={`fixed z-40 h-full transition-transform duration-300 sm:relative ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'
+        }`}
       >
         <SidebarNav
           items={SIDEBAR_ITEMS}

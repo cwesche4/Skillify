@@ -86,13 +86,13 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const avgDurationMs =
     runs.length > 0
       ? Math.round(
-        runs.reduce((acc, r) => {
-          const finishedAt = r.finishedAt ?? r.startedAt
-          const dur =
-            r.durationMs ?? finishedAt.getTime() - r.startedAt.getTime()
-          return acc + (typeof dur === 'number' ? dur : 0)
-        }, 0) / runs.length,
-      )
+          runs.reduce((acc, r) => {
+            const finishedAt = r.finishedAt ?? r.startedAt
+            const dur =
+              r.durationMs ?? finishedAt.getTime() - r.startedAt.getTime()
+            return acc + (typeof dur === 'number' ? dur : 0)
+          }, 0) / runs.length,
+        )
       : 0
 
   const failuresByAutomation = automations

@@ -17,12 +17,13 @@ export default function WorkspaceSuccessRate({ data }: Props) {
     <Card className="p-5">
       <h3 className="text-sm font-medium">Workspace Health</h3>
       <p
-        className={`mt-4 text-3xl font-semibold ${health === 'Excellent'
+        className={`mt-4 text-3xl font-semibold ${
+          health === 'Excellent'
             ? 'text-emerald-400'
             : health === 'Good'
               ? 'text-sky-400'
               : 'text-rose-400'
-          }`}
+        }`}
       >
         {health}
       </p>

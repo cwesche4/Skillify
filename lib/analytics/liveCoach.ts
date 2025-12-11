@@ -80,19 +80,19 @@ export async function getLiveCoachSnapshot(
 
   const last7Rate = last7.length
     ? (last7.filter((r: any) => r.status === 'SUCCESS').length / last7.length) *
-    100
+      100
     : successRate
 
   const prev7Rate = prev7.length
     ? (prev7.filter((r: any) => r.status === 'SUCCESS').length / prev7.length) *
-    100
+      100
     : successRate
 
   const trend = last7Rate - prev7Rate
 
   const avgDurationMs = Math.round(
     withDurations.reduce((sum: any, r: any) => sum + (r.durationMs ?? 0), 0) /
-    total,
+      total,
   )
 
   const totalCostUsd = 0

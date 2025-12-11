@@ -245,7 +245,7 @@ export function SidebarNav({
                             : 'hover:bg-neutral-card-light/8 text-neutral-text-secondary',
                           compact && 'justify-center px-2',
                           isLocked &&
-                          'border border-dashed border-amber-500/40 bg-amber-500/5 text-amber-200/90',
+                            'border border-dashed border-amber-500/40 bg-amber-500/5 text-amber-200/90',
                         )}
                       >
                         <Icon size={18} className="shrink-0" />

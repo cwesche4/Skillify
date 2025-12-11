@@ -33,16 +33,16 @@ export default async function CompareRunsPage({
   // Two run IDs: ?a=run1&b=run2
   const runA = searchParams.a
     ? await prisma.automationRun.findUnique({
-      where: { id: searchParams.a },
-      include: { events: true },
-    })
+        where: { id: searchParams.a },
+        include: { events: true },
+      })
     : null
 
   const runB = searchParams.b
     ? await prisma.automationRun.findUnique({
-      where: { id: searchParams.b },
-      include: { events: true },
-    })
+        where: { id: searchParams.b },
+        include: { events: true },
+      })
     : null
 
   const recentRuns = await prisma.automationRun.findMany({
@@ -85,10 +85,11 @@ export default async function CompareRunsPage({
                 <Link
                   key={run.id}
                   href={`?a=${run.id}${searchParams.b ? `&b=${searchParams.b}` : ''}`}
-                  className={`block rounded-lg border p-2 text-sm transition ${runA?.id === run.id
+                  className={`block rounded-lg border p-2 text-sm transition ${
+                    runA?.id === run.id
                       ? 'bg-brand-primary/10 border-brand-primary'
                       : 'hover:bg-neutral-cardDark/40 border-neutral-border'
-                    }`}
+                  }`}
                 >
                   Run {run.id}
                   <Badge className="ml-2 text-xs">{run.status}</Badge>
@@ -106,10 +107,11 @@ export default async function CompareRunsPage({
                 <Link
                   key={run.id}
                   href={`?b=${run.id}${searchParams.a ? `&a=${searchParams.a}` : ''}`}
-                  className={`block rounded-lg border p-2 text-sm transition ${runB?.id === run.id
+                  className={`block rounded-lg border p-2 text-sm transition ${
+                    runB?.id === run.id
                       ? 'bg-brand-primary/10 border-brand-primary'
                       : 'hover:bg-neutral-cardDark/40 border-neutral-border'
-                    }`}
+                  }`}
                 >
                   Run {run.id}
                   <Badge className="ml-2 text-xs">{run.status}</Badge>

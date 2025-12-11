@@ -150,7 +150,7 @@ export default function WorkspaceDashboardGrid({
             'Suggest an ideal dashboard layout for my Skillify workspace: success, members, recent runs, and AI insights.',
           mode: 'optimize',
         }),
-      }).catch(() => { })
+      }).catch(() => {})
 
       // Simple deterministic “smart order”:
       // 1) AI Coach, 2) Success, 3) Recent Runs, 4) Members
@@ -183,9 +183,9 @@ export default function WorkspaceDashboardGrid({
   const visibleEntries = Object.entries(layout)
     .filter(([_, cfg]) => cfg.visible)
     .sort((a, b) => a[1].order - b[1].order) as [
-      WidgetId,
-      { visible: boolean; order: number },
-    ][]
+    WidgetId,
+    { visible: boolean; order: number },
+  ][]
 
   return (
     <div className="space-y-4">
@@ -231,10 +231,11 @@ export default function WorkspaceDashboardGrid({
                 key={w.id}
                 type="button"
                 onClick={() => toggleVisibility(w.id)}
-                className={`rounded-full border px-2.5 py-0.5 text-[11px] ${layout[w.id]?.visible
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] ${
+                  layout[w.id]?.visible
                     ? 'border-brand-primary/70 bg-brand-primary/10 text-brand-primary'
                     : 'text-neutral-text-secondary border-neutral-border'
-                  }`}
+                }`}
               >
                 {w.label}
               </button>

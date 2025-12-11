@@ -94,8 +94,8 @@ export default async function AutomationsPage({ params }: PageProps) {
                     <p className="text-neutral-text-secondary mt-2 text-xs">
                       {lastRun
                         ? `Last run: ${new Date(
-                          lastRun.startedAt,
-                        ).toLocaleString()}`
+                            lastRun.startedAt,
+                          ).toLocaleString()}`
                         : 'No runs yet'}
                     </p>
                   </div>
