@@ -30,7 +30,7 @@ export default async function BlogIndexPage() {
           </p>
         ) : (
           <div className="space-y-6">
-            {posts.map((post) => (
+            {posts.map((post: any) => (
               <Link
                 key={post.id}
                 href={`/marketing/blog/${post.slug}`}
@@ -48,7 +48,7 @@ export default async function BlogIndexPage() {
                   )}
                   {post.tags && post.tags.length > 0 && (
                     <span className="flex flex-wrap gap-1">
-                      {post.tags.map((tag) => (
+                      {post.tags.map((tag: any) => (
                         <span
                           key={tag}
                           className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] dark:bg-zinc-900"

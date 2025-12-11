@@ -25,7 +25,7 @@ export async function GET(
   })
 
   const map: Record<string, number> = {}
-  events.forEach((e) => {
+  events.forEach((e: any) => {
     map[e.nodeId] = e._count.nodeId
   })
 

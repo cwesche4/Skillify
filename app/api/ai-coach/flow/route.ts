@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   })
 
   return NextResponse.json({
-    slowNodes: automations.map((a) => ({
+    slowNodes: automations.map((a: any) => ({
       node: a.name ?? 'Automation',
       duration: 'N/A',
     })),

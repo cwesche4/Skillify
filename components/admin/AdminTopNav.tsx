@@ -1,4 +1,3 @@
-// components/admin/AdminTopNav.tsx
 'use client'
 
 import Link from 'next/link'
@@ -27,16 +26,30 @@ const ADMIN_LINKS = [
     href: (slug: string) => `/dashboard/${slug}/admin/system`,
   },
   {
+    key: 'users',
+    label: 'Users',
+    href: (slug: string) => `/dashboard/${slug}/admin/users`,
+  },
+  {
+    key: 'upsells',
+    label: 'Upsells',
+    href: (slug: string) => `/dashboard/${slug}/admin/upsells`,
+  },
+  {
     key: 'build-requests',
     label: 'Build Requests',
     href: (slug: string) => `/dashboard/${slug}/admin/build-requests`,
+  },
+  {
+    key: 'enterprise',
+    label: 'Enterprise',
+    href: (slug: string) => `/dashboard/${slug}/admin/enterprise`,
   },
 ]
 
 export function AdminTopNav({ workspace, role }: AdminTopNavProps) {
   const pathname = usePathname()
 
-  // No workspace or not an admin => hide entirely
   if (!workspace || role === 'member') return null
 
   const baseAdminPath = `/dashboard/${workspace.slug}/admin`
@@ -54,7 +67,7 @@ export function AdminTopNav({ workspace, role }: AdminTopNavProps) {
       <nav className="border-neutral-border/60 bg-neutral-card-light/70 dark:bg-neutral-card-dark/70 flex items-center gap-1 rounded-full border px-1 py-0.5 text-xs">
         {ADMIN_LINKS.map((link) => {
           const href = link.href(workspace.slug)
-          const active = pathname === href
+          const active = pathname.startsWith(href)
 
           return (
             <Link

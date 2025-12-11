@@ -1,8 +1,8 @@
 import { currentUser } from '@clerk/nextjs/server'
-import { AutomationStatus, RunStatus } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/db'
+import { AutomationStatus, RunStatus } from '@/lib/prisma/enums'
 
 export async function GET() {
   // Admin guard
@@ -29,11 +29,11 @@ export async function GET() {
     prisma.workspace.count(),
     prisma.automation.count(),
     prisma.automation.count({
-      where: { status: AutomationStatus.ACTIVE },
+      where: { status: 'ACTIVE' satisfies AutomationStatus },
     }),
     prisma.automationRun.count(),
     prisma.automationRun.count({
-      where: { status: RunStatus.FAILED },
+      where: { status: 'FAILED' satisfies RunStatus },
     }),
     prisma.automationRun.count({
       where: { startedAt: { gte: since24h } },

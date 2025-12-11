@@ -1,24 +1,45 @@
-// components/dashboard/DashboardShell.tsx
 'use client'
 
 import type { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 
-type DashboardShellProps = {
+interface DashboardShellProps {
   children: ReactNode
-  /**
-   * Optional sidebar item list – currently accepted but not required.
-   * You can wire this into a Sidebar component later.
-   */
-  sidebarItems?: unknown[]
   title?: string
   description?: string
   actions?: ReactNode
+  className?: string
 }
 
-export function DashboardShell({ children }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  title,
+  description,
+  actions,
+  className,
+}: DashboardShellProps) {
   return (
-    <div className="min-h-screen bg-neutral-light dark:bg-neutral-dark">
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+    <div className={cn('mx-auto w-full max-w-6xl px-4 py-8', className)}>
+      {(title || description || actions) && (
+        <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col">
+            {title && (
+              <h1 className="text-neutral-text-primary text-2xl font-semibold tracking-tight">
+                {title}
+              </h1>
+            )}
+            {description && (
+              <p className="text-neutral-text-secondary text-sm">
+                {description}
+              </p>
+            )}
+          </div>
+
+          {actions && <div className="flex-shrink-0">{actions}</div>}
+        </header>
+      )}
+
+      <div className="min-h-[200px]">{children}</div>
     </div>
   )
 }

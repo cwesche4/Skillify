@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react'
 import { WIDGETS, type WidgetId } from '@/components/dashboard/widgets'
 import { Sparkles, SlidersHorizontal } from 'lucide-react'
+import { ProtectedFeature } from '@/components/permissions/ProtectedFeature'
+import type { Plan } from '@/lib/subscriptions/features'
 
 type LayoutState = Record<
   WidgetId,
@@ -15,6 +17,7 @@ type LayoutState = Record<
 
 interface Props {
   workspaceId: string
+  workspaceSlug: string
   initialLayout: LayoutState
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any
@@ -22,6 +25,7 @@ interface Props {
 
 export default function WorkspaceDashboardGrid({
   workspaceId,
+  workspaceSlug,
   initialLayout,
   data,
 }: Props) {
@@ -30,6 +34,27 @@ export default function WorkspaceDashboardGrid({
   const [saving, setSaving] = useState(false)
   const [showCustomize, setShowCustomize] = useState(false)
   const [aiStatus, setAiStatus] = useState<string | null>(null)
+  const [plan, setPlan] = useState<Plan>('Free')
+
+  //
+  // Fetch subscription plan (client-side, same as layout)
+  //
+  useEffect(() => {
+    async function fetchPlan() {
+      try {
+        const res = await fetch('/api/auth/plan')
+        if (!res.ok) return
+        const json = await res.json()
+        if (json?.plan) {
+          setPlan(json.plan as Plan)
+        }
+      } catch {
+        // swallow — default "Free"
+      }
+    }
+
+    void fetchPlan()
+  }, [])
 
   //
   // Save layout to API (debounced via explicit button)
@@ -125,7 +150,7 @@ export default function WorkspaceDashboardGrid({
             'Suggest an ideal dashboard layout for my Skillify workspace: success, members, recent runs, and AI insights.',
           mode: 'optimize',
         }),
-      }).catch(() => {})
+      }).catch(() => { })
 
       // Simple deterministic “smart order”:
       // 1) AI Coach, 2) Success, 3) Recent Runs, 4) Members
@@ -158,9 +183,9 @@ export default function WorkspaceDashboardGrid({
   const visibleEntries = Object.entries(layout)
     .filter(([_, cfg]) => cfg.visible)
     .sort((a, b) => a[1].order - b[1].order) as [
-    WidgetId,
-    { visible: boolean; order: number },
-  ][]
+      WidgetId,
+      { visible: boolean; order: number },
+    ][]
 
   return (
     <div className="space-y-4">
@@ -206,11 +231,10 @@ export default function WorkspaceDashboardGrid({
                 key={w.id}
                 type="button"
                 onClick={() => toggleVisibility(w.id)}
-                className={`rounded-full border px-2.5 py-0.5 text-[11px] ${
-                  layout[w.id]?.visible
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] ${layout[w.id]?.visible
                     ? 'border-brand-primary/70 bg-brand-primary/10 text-brand-primary'
                     : 'text-neutral-text-secondary border-neutral-border'
-                }`}
+                  }`}
               >
                 {w.label}
               </button>
@@ -250,7 +274,18 @@ export default function WorkspaceDashboardGrid({
               onDrop={() => handleDrop(id)}
               className="cursor-move"
             >
-              <Component workspaceId={workspaceId} data={widgetData} />
+              <ProtectedFeature
+                plan={plan}
+                feature={widget.featureKey}
+                workspaceSlug={workspaceSlug}
+                lockMessage={
+                  id === 'aiCoachInsights'
+                    ? 'AI Coach Insights is a Pro feature. Upgrade to unlock live AI workspace analysis.'
+                    : undefined
+                }
+              >
+                <Component workspaceId={workspaceId} data={widgetData} />
+              </ProtectedFeature>
             </div>
           )
         })}

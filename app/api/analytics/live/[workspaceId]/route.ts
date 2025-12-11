@@ -1,5 +1,7 @@
 // app/api/analytics/live/[workspaceId]/route.ts
 import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import { requirePlan } from '@/lib/auth/route-guard'
 
 export const runtime = 'nodejs'
 
@@ -9,7 +11,14 @@ export async function GET(
 ) {
   const { workspaceId } = params
 
-  let interval: any
+  if (!workspaceId) {
+    return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 })
+  }
+
+  // 🔒 Pro+ only (analytics live metrics)
+  await requirePlan('Pro', workspaceId)
+
+  let interval: ReturnType<typeof setInterval> | null = null
 
   const stream = new ReadableStream({
     start(controller) {
@@ -27,7 +36,7 @@ export async function GET(
         timestamp: new Date().toISOString(),
       })
 
-      // Simple heartbeat – you can later replace with real analytics
+      // Simple heartbeat – can be replaced with real analytics later
       interval = setInterval(() => {
         send({
           type: 'heartbeat',

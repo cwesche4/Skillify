@@ -40,7 +40,7 @@ export default async function WorkspaceSettingsPage({
     )
   }
 
-  const isMember = workspace.members.some((m) => m.userId === profile.id)
+  const isMember = workspace.members.some((m: any) => m.userId === profile.id)
   if (!isMember) {
     return (
       <DashboardShell>

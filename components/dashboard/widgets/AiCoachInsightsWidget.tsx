@@ -1,4 +1,3 @@
-// components/dashboard/widgets/AiCoachInsightsWidget.tsx
 'use client'
 
 import { useState } from 'react'

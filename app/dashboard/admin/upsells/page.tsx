@@ -1,8 +1,9 @@
-// app/dashboard/[workspaceSlug]/admin/upsells/page.tsx
+// app/dashboard/admin/upsells/page.tsx
 
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { requireWorkspaceAdmin } from '@/lib/auth/currentUser'
+import { requirePlan } from '@/lib/auth/route-guard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 
@@ -24,7 +25,11 @@ export default async function UpsellsAdminPage({ params }: PageProps) {
     notFound()
   }
 
+  // Workspace OWNER/ADMIN
   await requireWorkspaceAdmin(workspace.id)
+
+  // Elite plan required for upsell admin
+  await requirePlan('Elite', workspace.id)
 
   const upsells = await prisma.upsellRequest.findMany({
     where: { workspaceId: workspace.id },

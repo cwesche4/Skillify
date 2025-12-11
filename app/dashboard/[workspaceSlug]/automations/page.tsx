@@ -2,17 +2,12 @@
 
 import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
-import type { Automation, AutomationRun, Workspace } from '@prisma/client'
 
 import { prisma } from '@/lib/db'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { BuildRequestCallout } from '@/components/upsell/BuildRequestCallout'
-
-type WorkspaceWithAutomations = Workspace & {
-  automations: (Automation & { runs: AutomationRun[] })[]
-}
 
 type PageProps = {
   params: { workspaceSlug: string }
@@ -22,7 +17,7 @@ export default async function AutomationsPage({ params }: PageProps) {
   const { userId } = auth()
   if (!userId) return null
 
-  const workspace = (await prisma.workspace.findUnique({
+  const workspace = await prisma.workspace.findUnique({
     where: { slug: params.workspaceSlug },
     include: {
       automations: {
@@ -35,7 +30,7 @@ export default async function AutomationsPage({ params }: PageProps) {
         orderBy: { createdAt: 'desc' },
       },
     },
-  })) as WorkspaceWithAutomations | null
+  })
 
   if (!workspace) {
     return (
@@ -73,12 +68,12 @@ export default async function AutomationsPage({ params }: PageProps) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {workspace.automations.map((automation) => {
+          {workspace.automations.map((automation: any) => {
             const runs = automation.runs
             const lastRun = runs[0]
             const totalRuns = runs.length
             const successRuns = runs.filter(
-              (r) => r.status === 'SUCCESS',
+              (r: any) => r.status === 'SUCCESS',
             ).length
             const successRate =
               totalRuns > 0 ? Math.round((successRuns / totalRuns) * 100) : null
@@ -98,7 +93,9 @@ export default async function AutomationsPage({ params }: PageProps) {
 
                     <p className="text-neutral-text-secondary mt-2 text-xs">
                       {lastRun
-                        ? `Last run: ${new Date(lastRun.startedAt).toLocaleString()}`
+                        ? `Last run: ${new Date(
+                          lastRun.startedAt,
+                        ).toLocaleString()}`
                         : 'No runs yet'}
                     </p>
                   </div>
@@ -131,7 +128,6 @@ export default async function AutomationsPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* CTA */}
       <div className="mt-10">
         <BuildRequestCallout workspaceId={workspace.id} />
       </div>

@@ -38,7 +38,7 @@ export default async function MembersPage({ params }: MembersPageProps) {
     )
   }
 
-  const isMember = workspace.members.some((m) => m.userId === profile.id)
+  const isMember = workspace.members.some((m: any) => m.userId === profile.id)
   if (!isMember) {
     return (
       <DashboardShell>
@@ -52,7 +52,9 @@ export default async function MembersPage({ params }: MembersPageProps) {
 
   // Fetch Clerk user objects for each member (for name + email)
   const clerkUsers = await Promise.all(
-    workspace.members.map((m) => clerkClient.users.getUser(m.user.clerkId)),
+    workspace.members.map((m: any) =>
+      clerkClient.users.getUser(m.user.clerkId),
+    ),
   )
 
   const clerkUserMap = new Map<string, any>()
@@ -63,7 +65,7 @@ export default async function MembersPage({ params }: MembersPageProps) {
       <h1 className="h2 mb-6">Workspace Members</h1>
 
       <div className="space-y-4">
-        {workspace.members.map((member) => {
+        {workspace.members.map((member: any) => {
           const clerkUser = clerkUserMap.get(member.user.clerkId)
           const fullName =
             clerkUser?.firstName || clerkUser?.lastName

@@ -1,23 +1,32 @@
 // app/dashboard/[workspaceSlug]/analytics/page.tsx
 
 import { auth } from '@clerk/nextjs/server'
-import type { Automation, AutomationRun } from '@prisma/client'
-
 import { prisma } from '@/lib/db'
+import { requirePlan } from '@/lib/auth/route-guard'
+
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import AiHeatmapInsights from './components/AiHeatmapInsights' // ⬅ NEW CLIENT COMPONENT
+import AiHeatmapInsights from './components/AiHeatmapInsights'
 import { UpsellMicroCard } from '@/components/upsell/UpsellMicroCard'
 import { UpsellEnterpriseConsult } from '@/components/upsell/UpsellEnterpriseConsult'
 import { BuildRequestCallout } from '@/components/upsell/BuildRequestCallout'
 
-type AnalyticsPageProps = {
-  params: { workspaceSlug: string }
+// TYPE
+interface AutomationWithRuns {
+  id: string
+  name: string
+  runs: {
+    id: string
+    status: string
+    startedAt: Date
+    finishedAt: Date | null
+    durationMs: number | null
+  }[]
 }
 
-type AutomationWithRuns = Automation & {
-  runs: AutomationRun[]
+type AnalyticsPageProps = {
+  params: { workspaceSlug: string }
 }
 
 export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
@@ -52,7 +61,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     )
   }
 
-  const isMember = workspace.members.some((m) => m.userId === profile.id)
+  const isMember = workspace.members.some((m: any) => m.userId === profile.id)
   if (!isMember) {
     return (
       <DashboardShell>
@@ -61,7 +70,12 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     )
   }
 
-  const runs = workspace.automations.flatMap((a) => a.runs)
+  // 🔐 PRO/ELITE ONLY
+  await requirePlan('Pro', workspace.id)
+
+  const automations = workspace.automations as AutomationWithRuns[]
+  const runs = automations.flatMap((a) => a.runs)
+
   const totalRuns = runs.length
   const successRuns = runs.filter((r) => r.status === 'SUCCESS')
   const failedRuns = runs.filter((r) => r.status === 'FAILED')
@@ -72,27 +86,26 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const avgDurationMs =
     runs.length > 0
       ? Math.round(
-          runs.reduce((acc, r) => {
-            const finishedAt = r.finishedAt ?? r.startedAt
-            const dur =
-              r.durationMs ?? finishedAt.getTime() - r.startedAt.getTime()
-            return acc + (typeof dur === 'number' ? dur : 0)
-          }, 0) / runs.length,
-        )
+        runs.reduce((acc, r) => {
+          const finishedAt = r.finishedAt ?? r.startedAt
+          const dur =
+            r.durationMs ?? finishedAt.getTime() - r.startedAt.getTime()
+          return acc + (typeof dur === 'number' ? dur : 0)
+        }, 0) / runs.length,
+      )
       : 0
 
-  const failuresByAutomation = workspace.automations
-    .map((a: AutomationWithRuns) => {
+  const failuresByAutomation = automations
+    .map((a) => {
       const failed = a.runs.filter((r) => r.status === 'FAILED')
       const total = a.runs.length
-      const rate =
-        total > 0 ? ((failed.length / total) * 100).toFixed(1) : '0.0'
       return {
         id: a.id,
         name: a.name,
         failedCount: failed.length,
         totalCount: total,
-        failureRate: rate,
+        failureRate:
+          total > 0 ? ((failed.length / total) * 100).toFixed(1) : '0.0',
       }
     })
     .filter((a) => a.totalCount > 0)
@@ -110,10 +123,9 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
         </p>
       </section>
 
-      {/* AI INSIGHTS (CLIENT-SIDE) */}
       <AiHeatmapInsights workspaceId={workspace.id} />
 
-      {/* Top metrics */}
+      {/* METRICS */}
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
         <Card className="p-5">
           <h3 className="text-xs font-medium">Total Runs</h3>
@@ -138,13 +150,13 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
         </Card>
       </div>
 
-      {/* Failure hotspots */}
+      {/* FAILURES */}
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold">Failure hotspots</h2>
         <Card className="p-4">
           {failuresByAutomation.length === 0 ? (
             <p className="text-neutral-text-secondary text-sm">
-              No failure data yet — run more automations to see patterns.
+              No failure data yet — run more automations.
             </p>
           ) : (
             <div className="space-y-3">
@@ -160,7 +172,6 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
                       {a.failureRate}% failure rate
                     </p>
                   </div>
-
                   <Badge variant="red">Watch</Badge>
                 </div>
               ))}
@@ -169,41 +180,36 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
         </Card>
       </section>
 
+      {/* CONSULTING */}
       <section className="mt-10 grid gap-4 md:grid-cols-2">
         <Card className="p-4">
           <h3 className="mb-2 text-sm font-semibold text-slate-100">
-            Need help improving your automation performance?
+            Need help improving automation performance?
           </h3>
           <p className="text-xs text-slate-400">
-            Our team can identify bottlenecks, restructure flows, and optimize
-            AI prompts.
+            Our team can identify bottlenecks and optimize AI prompts.
           </p>
-          <div className="mt-3">
-            <UpsellMicroCard
-              workspaceId={workspace.id}
-              feature="analytics-optimization"
-              title="Fix my performance"
-              description="Quick turnaround performance fixes."
-              priceHint="Most fixes $49–$149"
-            />
-          </div>
+          <UpsellMicroCard
+            workspaceId={workspace.id}
+            feature="analytics-optimization"
+            title="Fix my performance"
+            description="Quick turnaround performance fixes."
+            priceHint="Most fixes $49–$149"
+          />
         </Card>
 
         <Card className="p-4">
           <h3 className="mb-2 text-sm font-semibold text-slate-100">
-            Need a full automation system built?
+            Need a full automation system?
           </h3>
           <p className="text-xs text-slate-400">
-            Our enterprise team can architect + implement an end-to-end workflow
-            for your business.
+            Our team can architect + implement your workflows.
           </p>
-
           <UpsellEnterpriseConsult workspaceId={workspace.id} />
         </Card>
       </section>
 
-      {/* Recent failures list */}
-
+      {/* RECENT FAILURES */}
       <section>
         <h2 className="mb-3 text-sm font-semibold">Recent failed runs</h2>
         <Card className="p-4">
@@ -214,7 +220,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
           ) : (
             <div className="space-y-3">
               {failedRuns.slice(0, 20).map((run) => {
-                const automation = workspace.automations.find((a) =>
+                const automation = automations.find((a) =>
                   a.runs.some((r) => r.id === run.id),
                 )
                 return (
@@ -239,7 +245,6 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
         </Card>
       </section>
 
-      {/* CTA: Full Build Request */}
       <div className="mt-10">
         <BuildRequestCallout workspaceId={workspace.id} />
       </div>

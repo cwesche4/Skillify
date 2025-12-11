@@ -58,7 +58,7 @@ export async function GET(req: Request) {
 
   const workspaces = [
     ...userProfile.ownedWorkspaces,
-    ...userProfile.memberships.map((m) => m.workspace),
+    ...userProfile.memberships.map((m: any) => m.workspace), // <-- FIXED
   ]
 
   const defaultWorkspace = workspaces[0] ?? null
@@ -117,7 +117,7 @@ export async function GET(req: Request) {
   }
 
   /* ============================================================
-     STATIC COMMAND ACTIONS (Create Automation, Open Analytics…)
+     STATIC COMMAND ACTIONS
   ============================================================ */
   COMMAND_ACTIONS.forEach((c) => {
     if (query && !`${c.label} ${c.route}`.toLowerCase().includes(query)) {
@@ -172,8 +172,5 @@ export async function GET(req: Request) {
     },
   })
 
-  /* ============================================================
-     RETURN RESULTS
-  ============================================================ */
   return NextResponse.json({ items })
 }

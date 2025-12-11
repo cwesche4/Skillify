@@ -35,13 +35,13 @@ export default function AutomationPerformanceGrid({
                 <td className="py-2 font-medium">{row.automationName}</td>
                 <td>{row.totalRuns}</td>
                 <td
-                  className={`${
+                  className={
                     row.successRate >= 95
                       ? 'text-emerald-400'
                       : row.successRate >= 80
                         ? 'text-sky-400'
                         : 'text-rose-400'
-                  }`}
+                  }
                 >
                   {row.successRate.toFixed(1)}%
                 </td>

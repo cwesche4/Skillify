@@ -1,19 +1,24 @@
-import { auth } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
-export default async function middleware(req: Request) {
-  const url = new URL(req.url)
-  const pathname = url.pathname
+const isProtectedRoute = createRouteMatcher([
+  '/dashboard(.*)',
+  '/onboarding(.*)',
+  '/workspaces(.*)',
+])
 
-  // Admin section
-  if (pathname.startsWith('/dashboard') && pathname.includes('/admin')) {
-    const { userId } = auth()
-    if (!userId) return NextResponse.redirect(new URL('/sign-in', req.url))
+export default clerkMiddleware((auth, req) => {
+  const { userId } = auth()
+
+  // Allow sign-in + sign-up ALWAYS
+  if (req.nextUrl.pathname.startsWith('/sign-in')) return
+  if (req.nextUrl.pathname.startsWith('/sign-up')) return
+
+  // If protected route → ensure signed in
+  if (isProtectedRoute(req) && !userId) {
+    return auth().redirectToSignIn()
   }
-
-  return NextResponse.next()
-}
+})
 
 export const config = {
-  matcher: ['/dashboard/:path*/admin/:path*'],
+  matcher: ['/((?!_next|static|favicon.ico|sign-in|sign-up|api).*)'],
 }

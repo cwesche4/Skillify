@@ -12,5 +12,5 @@ export async function GET() {
     orderBy: { createdAt: 'asc' },
   })
 
-  return NextResponse.json(workspaces.map((w) => w.workspace))
+  return NextResponse.json(workspaces.map((w: any) => w.workspace)) // <-- FIXED
 }

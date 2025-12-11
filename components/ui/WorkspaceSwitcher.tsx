@@ -1,10 +1,8 @@
-// components/ui/WorkspaceSwitcher.tsx
 'use client'
 
 import { ChevronDown } from 'lucide-react'
-import { usePathname, useSearchParams, useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-
 import { cn } from '@/lib/utils'
 
 interface Workspace {
@@ -13,48 +11,43 @@ interface Workspace {
   slug: string
 }
 
-export function WorkspaceSwitcher() {
+export default function WorkspaceSwitcher() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState<Workspace | null>(null)
 
-  const searchParams = useSearchParams()
-  const router = useRouter()
   const pathname = usePathname()
+  const router = useRouter()
+
+  // Extract slug from current route
+  const match = pathname.match(/^\/dashboard\/([^\/]+)/)
+  const currentSlug = match ? match[1] : null
 
   useEffect(() => {
     fetch('/api/workspaces')
       .then((res) => res.json())
-      .then((data) => {
-        const list: Workspace[] = data.data || []
-        setWorkspaces(list)
-
-        const slugFromUrl = searchParams.get('workspace')
-        if (slugFromUrl) {
-          const found = list.find((w) => w.slug === slugFromUrl)
-          if (found) setActive(found)
-        } else if (list[0]) {
-          setActive(list[0])
-        }
+      .then((wsList) => {
+        setWorkspaces(wsList)
+        const found = wsList.find((ws: Workspace) => ws.slug === currentSlug)
+        setActive(found || wsList[0] || null)
       })
-  }, [searchParams])
+  }, [currentSlug])
 
-  const selectWorkspace = (ws: Workspace) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('workspace', ws.slug)
-
-    router.push(`${pathname}?${params.toString()}`)
+  // Replace current slug with chosen slug
+  const switchWorkspace = (ws: Workspace) => {
+    if (!currentSlug) return
+    const newPath = pathname.replace(
+      `/dashboard/${currentSlug}`,
+      `/dashboard/${ws.slug}`,
+    )
+    router.push(newPath)
     setActive(ws)
     setOpen(false)
   }
 
-  if (!active && workspaces.length === 0) {
+  if (!active) {
     return (
-      <div className="workspace-switcher">
-        <span className="text-neutral-text-secondary text-xs">
-          No workspace
-        </span>
-      </div>
+      <span className="text-neutral-text-secondary text-xs">No workspace</span>
     )
   }
 
@@ -68,9 +61,7 @@ export function WorkspaceSwitcher() {
           open && 'bg-slate-800',
         )}
       >
-        <span className="text-sm font-medium">
-          {active ? active.name : 'Select workspace'}
-        </span>
+        <span className="text-sm font-medium">{active.name}</span>
         <ChevronDown size={16} />
       </button>
 
@@ -83,7 +74,7 @@ export function WorkspaceSwitcher() {
                 'flex w-full items-center justify-between px-4 py-2 text-left text-sm hover:bg-slate-800',
                 active?.id === ws.id && 'bg-slate-800',
               )}
-              onClick={() => selectWorkspace(ws)}
+              onClick={() => switchWorkspace(ws)}
             >
               <span>{ws.name}</span>
               {active?.id === ws.id && (

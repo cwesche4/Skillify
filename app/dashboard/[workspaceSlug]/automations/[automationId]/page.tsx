@@ -1,7 +1,5 @@
 // app/dashboard/[workspaceSlug]/automations/[automationId]/page.tsx
 import { auth } from '@clerk/nextjs/server'
-import type { AutomationRun } from '@prisma/client'
-
 import { prisma } from '@/lib/db'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { Card } from '@/components/ui/Card'
@@ -38,7 +36,7 @@ export default async function AutomationDetailPage({
     )
   }
 
-  const isMember = workspace.members.some((m) => m.userId === profile.id)
+  const isMember = workspace.members.some((m: any) => m.userId === profile.id)
   if (!isMember) {
     return (
       <DashboardShell>
@@ -71,6 +69,8 @@ export default async function AutomationDetailPage({
     )
   }
 
+  // FIX — infer Prisma type from actual query
+  type AutomationRun = (typeof automation.runs)[number]
   const runs: AutomationRun[] = automation.runs
 
   return (
@@ -96,10 +96,7 @@ export default async function AutomationDetailPage({
           runs.map((run) => {
             const finishedAt = run.finishedAt ?? run.startedAt
 
-            // durationMs may or may not exist on older generated types,
-            // so we use a safe access with a ts-expect-error.
             const storedDuration: number | null | undefined = run.durationMs
-
             const durationMs =
               typeof storedDuration === 'number'
                 ? storedDuration

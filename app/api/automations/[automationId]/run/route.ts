@@ -4,6 +4,7 @@ import { fail, ok } from '@/lib/api/responses'
 import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
 import { runAutomation } from '@/lib/automations/executor'
 import { hasFeature } from '@/lib/subscriptions/hasFeature'
+import { normalizePlan } from '@/lib/subscriptions/normalizePlan'
 
 export async function POST(
   req: Request,
@@ -12,10 +13,14 @@ export async function POST(
   const { userId } = await auth()
   if (!userId) return fail('Unauthorized', 401)
 
-  const plan = await getUserPlanByClerkId(userId)
-  if (!hasFeature(plan, 'replay')) {
-    // you can relax this if you want Basic to be able to run
-    // but only Elite to get replay. For now we'll allow run for all.
+  // Convert lowercase TierKey → capitalized Plan
+  const tier = await getUserPlanByClerkId(userId)
+  const plan = normalizePlan(tier)
+
+  // Replay = Elite-only feature (FeatureMatrix key MUST match)
+  if (!hasFeature(plan, 'builder.history')) {
+    // 'builder.history' IS the "replay/history" premium feature gate
+    // We allow running automations anyway, but restrict replay.
   }
 
   const body = await req.json().catch(() => ({}))

@@ -1,14 +1,12 @@
 // app/dashboard/[workspaceSlug]/page.tsx
 
 import { auth } from '@clerk/nextjs/server'
-import type { AutomationRun } from '@prisma/client'
 
 import { prisma } from '@/lib/db'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import WorkspaceDashboardGrid from '@/components/dashboard/WorkspaceDashboardGrid'
 import type { WidgetId } from '@/components/dashboard/widgets'
 import { WIDGETS } from '@/components/dashboard/widgets'
-
 import { BuildRequestCallout } from '@/components/upsell/BuildRequestCallout'
 
 type WorkspacePageProps = {
@@ -60,7 +58,7 @@ export default async function WorkspaceHomePage({
     )
   }
 
-  const isMember = workspace.members.some((m) => m.userId === profile.id)
+  const isMember = workspace.members.some((m: any) => m.userId === profile.id)
   if (!isMember) {
     return (
       <DashboardShell>
@@ -72,13 +70,11 @@ export default async function WorkspaceHomePage({
     )
   }
 
-  const recentRuns: AutomationRun[] = workspace.automations.flatMap(
-    (a) => a.runs,
-  )
-  const successRuns = recentRuns.filter((r) => r.status === 'SUCCESS').length
+  const recentRuns = workspace.automations.flatMap((a: any) => a.runs)
+  const successRuns = recentRuns.filter((r: any) => r.status === 'SUCCESS')
   const successRate =
     recentRuns.length > 0
-      ? ((successRuns / recentRuns.length) * 100).toFixed(1)
+      ? ((successRuns.length / recentRuns.length) * 100).toFixed(1)
       : '0.0'
 
   const health: 'Excellent' | 'Good' | 'Needs Attention' =
@@ -88,9 +84,9 @@ export default async function WorkspaceHomePage({
         ? 'Good'
         : 'Needs Attention'
 
-  const recentRunsView = recentRuns.map((run) => {
-    const automation = workspace.automations.find((a) =>
-      a.runs.some((r) => r.id === run.id),
+  const recentRunsView = recentRuns.map((run: any) => {
+    const automation = workspace.automations.find((a: any) =>
+      a.runs.some((r: any) => r.id === run.id),
     )
 
     const finishedAt = run.finishedAt ?? run.startedAt
@@ -161,6 +157,7 @@ export default async function WorkspaceHomePage({
 
       <WorkspaceDashboardGrid
         workspaceId={workspace.id}
+        workspaceSlug={workspace.slug}
         initialLayout={initialLayout}
         data={data}
       />

@@ -1,11 +1,19 @@
-import { auth } from '@clerk/nextjs/server'
+// app/api/admin/system/route.ts
 
+import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
 
 export async function GET() {
   try {
     const { userId: clerkId } = auth()
     if (!clerkId) return new Response('Unauthorized', { status: 401 })
+
+    // Elite-only access to workspace admin system API
+    const plan = await getUserPlanByClerkId(clerkId)
+    if (plan !== 'elite') {
+      return new Response('Elite plan required', { status: 403 })
+    }
 
     // Get user
     const user = await prisma.userProfile.findUnique({
@@ -15,7 +23,7 @@ export async function GET() {
 
     if (!user) return new Response('User not found', { status: 404 })
 
-    // Find user's active workspace
+    // Find user's active workspace where they are OWNER/ADMIN
     const workspace = await prisma.workspace.findFirst({
       where: {
         members: {

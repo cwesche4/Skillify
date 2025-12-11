@@ -1,8 +1,7 @@
-// app/api/ai-coach/anomalies/route.ts
-import { RunStatus } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/db'
+import { RunStatus } from '@/lib/prisma/enums'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -13,9 +12,9 @@ export async function GET(req: Request) {
   const recentFailed = await prisma.automationRun.findMany({
     where: {
       ...whereBase,
-      status: RunStatus.FAILED,
+      status: 'FAILED' satisfies RunStatus,
       startedAt: {
-        gte: new Date(Date.now() - 1000 * 60 * 60 * 6), // last 6 hours
+        gte: new Date(Date.now() - 1000 * 60 * 60 * 6),
       },
     },
     orderBy: { startedAt: 'desc' },
@@ -25,7 +24,7 @@ export async function GET(req: Request) {
     },
   })
 
-  const anomalies = recentFailed.map((run) => ({
+  const anomalies = recentFailed.map((run: any) => ({
     id: run.id,
     message: `Automation "${run.automation?.name ?? run.automationId}" failed.`,
     severity: 'medium' as const,

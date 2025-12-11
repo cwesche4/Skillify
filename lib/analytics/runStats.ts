@@ -6,11 +6,18 @@ import type {
   FailureCluster,
 } from './types'
 
-// Safely compute duration if finishedAt exists
+/* ------------------------------------------------------------
+   Helpers
+------------------------------------------------------------ */
+
 function computeDurationMs(start: Date, end: Date | null): number | null {
   if (!end) return null
   return end.getTime() - start.getTime()
 }
+
+/* ------------------------------------------------------------
+   1. Workspace Run Stats
+------------------------------------------------------------ */
 
 export async function getWorkspaceRunStats(
   workspaceId: string,
@@ -24,19 +31,22 @@ export async function getWorkspaceRunStats(
     },
   })
 
+  type Run = (typeof runs)[number]
+
   const total = runs.length
-  const success = runs.filter((r) => r.status === 'SUCCESS').length
-  const failed = runs.filter((r) => r.status === 'FAILED').length
-  const running = runs.filter((r) => r.status === 'RUNNING').length
-  const pending = runs.filter((r) => r.status === 'PENDING').length
+
+  const success = runs.filter((r: Run) => r.status === 'SUCCESS').length
+  const failed = runs.filter((r: Run) => r.status === 'FAILED').length
+  const running = runs.filter((r: Run) => r.status === 'RUNNING').length
+  const pending = runs.filter((r: Run) => r.status === 'PENDING').length
 
   const durations = runs
-    .map((r) => computeDurationMs(r.startedAt, r.finishedAt))
-    .filter((x): x is number => x !== null)
+    .map((r: Run) => computeDurationMs(r.startedAt, r.finishedAt))
+    .filter((x: number | null): x is number => x !== null)
 
   const avgDurationMs =
     durations.length > 0
-      ? durations.reduce((a, b) => a + b, 0) / durations.length
+      ? durations.reduce((a: number, b: number) => a + b, 0) / durations.length
       : 0
 
   const successRate = total > 0 ? (success / total) * 100 : 0
@@ -52,6 +62,10 @@ export async function getWorkspaceRunStats(
   }
 }
 
+/* ------------------------------------------------------------
+   2. Failure Clusters
+------------------------------------------------------------ */
+
 export async function getFailureClusters(
   workspaceId: string,
 ): Promise<FailureCluster[]> {
@@ -65,18 +79,26 @@ export async function getFailureClusters(
     },
   })
 
+  type Failure = (typeof failures)[number]
+
   const buckets = new Map<string, number>()
 
-  for (const f of failures) {
+  failures.forEach((f: Failure) => {
     const reason = f.log ?? 'Unknown Error'
     buckets.set(reason, (buckets.get(reason) ?? 0) + 1)
-  }
+  })
 
-  return [...buckets.entries()].map(([reason, count]) => ({
-    reason,
-    count,
-  }))
+  return [...buckets.entries()].map(
+    ([reason, count]: [string, number]): FailureCluster => ({
+      reason,
+      count,
+    }),
+  )
 }
+
+/* ------------------------------------------------------------
+   3. Automation Performance Grid
+------------------------------------------------------------ */
 
 export async function getAutomationPerformanceGrid(
   workspaceId: string,
@@ -91,17 +113,24 @@ export async function getAutomationPerformanceGrid(
     },
   })
 
-  return automations.map((a) => {
+  type Automation = (typeof automations)[number]
+  type Run = Automation['runs'][number]
+
+  return automations.map((a: Automation): AutomationRunSummary => {
     const totalRuns = a.runs.length
-    const successCount = a.runs.filter((r) => r.status === 'SUCCESS').length
+
+    const successCount = a.runs.filter(
+      (r: Run) => r.status === 'SUCCESS',
+    ).length
 
     const durations = a.runs
-      .map((r) => computeDurationMs(r.startedAt, r.finishedAt))
-      .filter((x): x is number => x !== null)
+      .map((r: Run) => computeDurationMs(r.startedAt, r.finishedAt))
+      .filter((x: number | null): x is number => x !== null)
 
     const avgDuration =
       durations.length > 0
-        ? durations.reduce((acc, x) => acc + x, 0) / durations.length
+        ? durations.reduce((acc: number, x: number) => acc + x, 0) /
+        durations.length
         : 0
 
     return {

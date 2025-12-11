@@ -1,5 +1,7 @@
 // components/dashboard/sidebar-items.ts
 
+import type { Plan } from '@/lib/subscriptions/features'
+
 export type SidebarIcon =
   | 'dashboard'
   | 'automations'
@@ -12,102 +14,68 @@ export type SidebarIcon =
 
 export interface SidebarItem {
   label: string
-  href: string
+  href: string // TEMPLATE: /dashboard/:workspace/...
   icon: SidebarIcon
-  section?: string // Grouping inside sidebar
-  roles?: ('OWNER' | 'ADMIN' | 'MEMBER')[] // Role-gated items
-  keywords?: string[] // Command Center search indexing
-  hotkey?: string // Command Center quick-access
+  section?: string
+  roles?: ('OWNER' | 'ADMIN' | 'MEMBER')[]
+  keywords?: string[]
+  hotkey?: string
+  requiredPlan?: Plan // NEW – if set, treat as premium
 }
 
 export const SIDEBAR_ITEMS: SidebarItem[] = [
-  // ===============================
-  // OVERVIEW
-  // ===============================
   {
     section: 'Overview',
     label: 'Dashboard',
-    href: '/dashboard',
+    href: '/dashboard/:workspace',
     icon: 'dashboard',
-    keywords: ['home', 'overview', 'metrics', 'summary'],
-    hotkey: '⌘ ⇧ D',
   },
-
-  // ===============================
-  // AUTOMATION SYSTEM
-  // ===============================
   {
     section: 'Automation',
     label: 'Automations',
-    href: '/dashboard/automations',
+    href: '/dashboard/:workspace/automations',
     icon: 'automations',
-    keywords: ['flows', 'builder', 'workflow', 'logic', 'n8n'],
-    hotkey: '⌘ ⇧ A',
   },
-
   {
     section: 'Automation',
     label: 'Analytics',
-    href: '/dashboard/analytics',
+    href: '/dashboard/:workspace/analytics',
     icon: 'analytics',
-    keywords: ['charts', 'runs', 'insights', 'failures', 'metrics'],
+    requiredPlan: 'Pro', // premium analytics
   },
-
-  // ===============================
-  // TEAM & MANAGEMENT
-  // ===============================
   {
     section: 'Team',
     label: 'Members',
-    href: '/dashboard/workspaces/members',
+    href: '/dashboard/:workspace/members',
     icon: 'team',
     roles: ['OWNER', 'ADMIN'],
-    keywords: ['members', 'team', 'roles', 'permissions', 'workspace'],
+    requiredPlan: 'Basic',
   },
-
-  // ===============================
-  // BILLING
-  // ===============================
   {
     section: 'Billing',
     label: 'Billing & Plans',
-    href: '/dashboard/settings/billing',
+    href: '/dashboard/:workspace/billing',
     icon: 'billing',
     roles: ['OWNER'],
-    keywords: ['payment', 'subscriptions', 'plan', 'tier', 'invoice'],
+    requiredPlan: 'Basic',
   },
-
-  // ===============================
-  // AI SYSTEM
-  // ===============================
   {
     section: 'AI',
     label: 'AI Coach',
-    href: '/dashboard/ai',
+    href: '/dashboard/:workspace/ai',
     icon: 'ai',
-    keywords: ['coach', 'sse', 'optimization', 'ai insights', 'live'],
+    requiredPlan: 'Pro',
   },
-
-  // ===============================
-  // SETTINGS
-  // ===============================
   {
     section: 'Settings',
     label: 'Settings',
-    href: '/dashboard/settings',
+    href: '/dashboard/:workspace/settings',
     icon: 'settings',
-    keywords: ['preferences', 'workspace settings', 'configuration'],
   },
-
-  // ===============================
-  // HELP
-  // ===============================
   {
     section: 'Support',
     label: 'Help & Docs',
-    href: '/dashboard/help',
+    href: '/dashboard/:workspace/help',
     icon: 'help',
-    keywords: ['documentation', 'support', 'faq'],
-    hotkey: '⌘ ⇧ H',
   },
 ]

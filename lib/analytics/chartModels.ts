@@ -27,7 +27,7 @@ export async function getRunsOverTime(workspaceId: string) {
   }
 
   // Assign counts
-  runs.forEach((run) => {
+  runs.forEach((run: any) => {
     const date = run.startedAt.toISOString().slice(0, 10)
     if (daily[date] !== undefined) {
       daily[date] = run._count
@@ -52,8 +52,8 @@ export async function getSuccessFailBreakdown(workspaceId: string) {
   return [
     {
       name: 'Runs',
-      success: stats.find((s) => s.status === 'SUCCESS')?._count ?? 0,
-      failed: stats.find((s) => s.status === 'FAILED')?._count ?? 0,
+      success: stats.find((s: any) => s.status === 'SUCCESS')?._count ?? 0,
+      failed: stats.find((s: any) => s.status === 'FAILED')?._count ?? 0,
     },
   ]
 }
@@ -72,7 +72,7 @@ export async function getReliabilityHeatmap(workspaceId: string) {
   })
 
   // Compute durations
-  const processed = runs.map((run) => ({
+  const processed = runs.map((run: any) => ({
     durationMs:
       run.startedAt && run.finishedAt
         ? run.finishedAt.getTime() - run.startedAt.getTime()
@@ -83,7 +83,7 @@ export async function getReliabilityHeatmap(workspaceId: string) {
     Array.from({ length: 10 }, () => 0),
   )
 
-  processed.forEach((run, i) => {
+  processed.forEach((run: any, i: any) => {
     const row = Math.floor(i / 10)
     const col = i % 10
 

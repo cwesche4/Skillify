@@ -1,3 +1,4 @@
+// app/api/workspaces/bootstrap/route.ts
 import { auth } from '@clerk/nextjs/server'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
@@ -7,7 +8,7 @@ import {
   AutomationStatus,
   RunStatus,
   WorkspaceMemberRole,
-} from '@prisma/client'
+} from '@/lib/prisma/enums'
 
 type Tier = 'starter' | 'pro' | 'elite'
 
@@ -65,7 +66,6 @@ async function getOrCreateOnboardingProgress(userId: string, tier: Tier) {
 }
 
 async function getOrCreateWorkspace(ownerId: string) {
-  // For now, 1 primary workspace per owner
   let workspace = await prisma.workspace.findFirst({
     where: { ownerId },
   })
@@ -79,7 +79,6 @@ async function getOrCreateWorkspace(ownerId: string) {
       data: {
         ownerId,
         name: 'Skillify HQ',
-        // simple unique slug based on owner id
         slug: `workspace-${ownerId}`,
         members: {
           create: {
@@ -99,20 +98,13 @@ async function seedDemoForTier(
   userId: string,
   workspaceId: string,
 ) {
-  // Only seed if no automations yet
   const existing = await prisma.automation.count({
     where: { workspaceId },
   })
   if (existing > 0) return
 
-  // Common baseline flow (ReactFlow-style JSON placeholder)
-  const baseFlow = {
-    nodes: [],
-    edges: [],
-    meta: { version: 1 },
-  }
+  const baseFlow = { nodes: [], edges: [], meta: { version: 1 } }
 
-  // Helper to create an automation with some runs
   async function createAutomation(
     name: string,
     description: string,
@@ -130,9 +122,8 @@ async function seedDemoForTier(
       },
     })
 
-    // Create a few successful + failed runs
     const runsData = Array.from({ length: runCount }).map((_, idx) => {
-      const success = idx % 4 !== 3 // ~75% success
+      const success = idx % 4 !== 3
       const started = new Date(Date.now() - (idx + 1) * 60 * 60 * 1000)
 
       return {
@@ -141,14 +132,18 @@ async function seedDemoForTier(
         status: success ? RunStatus.SUCCESS : RunStatus.FAILED,
         startedAt: started,
         finishedAt: new Date(started.getTime() + 5 * 60 * 1000),
-        log: success ? 'Run completed successfully' : 'Run failed: demo error',
+        log: success ? 'Run completed successfully' : 'Run failed (demo)',
+      } satisfies {
+        automationId: string
+        workspaceId: string
+        status: RunStatus
+        startedAt: Date
+        finishedAt: Date
+        log: string
       }
     })
 
-    const createdRuns = await prisma.automationRun.createMany({
-      data: runsData,
-    })
-
+    await prisma.automationRun.createMany({ data: runsData })
     return automation
   }
 
@@ -172,31 +167,30 @@ async function seedDemoForTier(
 
     await createAutomation(
       'Lead Nurture Drip',
-      'Time-delayed messages after a new lead comes in.',
+      'Delayed messages after a new lead arrives.',
       AutomationStatus.PAUSED,
       4,
     )
     return
   }
 
-  // elite
   await createAutomation(
     'AI Call Summary → CRM',
-    'Summarize calls via AI and push into your CRM.',
+    'Summarize calls via AI and sync to CRM.',
     AutomationStatus.ACTIVE,
     10,
   )
 
   await createAutomation(
     'AI Intent Classifier',
-    'Classify inbound messages by intent and priority.',
+    'Classify inbound messages automatically.',
     AutomationStatus.ACTIVE,
     7,
   )
 
   await createAutomation(
     'VIP Escalation Flow',
-    'Escalate high-value customers directly to your best reps.',
+    'Escalate VIP messages quickly.',
     AutomationStatus.ACTIVE,
     6,
   )
@@ -213,13 +207,12 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json()
   } catch {
-    // ignore, no body is fine
+    // no body is fine
   }
 
   const requestedTier = normalizeTier(body?.tier)
   const profile = await ensureUserProfile(clerkUserId)
 
-  // Sync onboarding progress + store chosen plan (hybrid flow: plan or skip)
   const progress = await getOrCreateOnboardingProgress(
     profile.id,
     requestedTier,
@@ -231,18 +224,12 @@ export async function POST(req: NextRequest) {
 
   const { workspace, bootstrap } = await getOrCreateWorkspace(profile.id)
 
-  // Seed demo automations only on first bootstrap
   if (bootstrap) {
     await seedDemoForTier(effectiveTier, profile.id, workspace.id)
   }
 
-  return NextResponse.json({
-    workspace: {
-      id: workspace.id,
-      slug: workspace.slug,
-      name: workspace.name,
-    },
-    tier: effectiveTier,
-    bootstrap,
-  })
+  return NextResponse.redirect(
+    new URL(`/dashboard/${workspace.slug}`, req.url),
+    { status: 303 },
+  )
 }

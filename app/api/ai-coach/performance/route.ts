@@ -1,55 +1,73 @@
-// app/api/ai-coach/performance/route.ts
-import { RunStatus } from '@prisma/client'
+import { currentUser } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-
 import { prisma } from '@/lib/db'
 
-export async function GET(req: Request) {
-  const url = new URL(req.url)
-  const workspaceId = url.searchParams.get('workspaceId')
+export async function GET() {
+  const user = await currentUser()
+  const role = (user?.publicMetadata as any)?.role
 
-  const where = workspaceId ? { workspaceId } : {}
+  if (!user || role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
-  const [totalRuns, successfulRuns, failedRuns, recentRuns] =
-    await prisma.$transaction([
-      prisma.automationRun.count({ where }),
-      prisma.automationRun.count({
-        where: { ...where, status: RunStatus.SUCCESS },
-      }),
-      prisma.automationRun.count({
-        where: { ...where, status: RunStatus.FAILED },
-      }),
-      prisma.automationRun.findMany({
-        where,
-        orderBy: { startedAt: 'desc' },
-        take: 50,
-        select: { startedAt: true, finishedAt: true },
-      }),
-    ])
+  const now = Date.now()
+  const since24h = new Date(now - 24 * 60 * 60 * 1000)
 
-  const successRate = totalRuns === 0 ? 0 : (successfulRuns / totalRuns) * 100
+  const [
+    userCount,
+    workspaceCount,
+    automationCount,
+    activeAutomationCount,
+    runCount,
+    failedRunCount,
+    runsLast24h,
+  ] = await prisma.$transaction([
+    prisma.userProfile.count(),
+    prisma.workspace.count(),
+    prisma.automation.count(),
+    prisma.automation.count({
+      where: { status: 'ACTIVE' }, // 🔥 FIXED — string literal
+    }),
+    prisma.automationRun.count(),
+    prisma.automationRun.count({
+      where: { status: 'FAILED' }, // 🔥 FIXED
+    }),
+    prisma.automationRun.count({
+      where: { startedAt: { gte: since24h } },
+    }),
+  ])
 
-  const durations = recentRuns
-    .map((r) =>
-      r.finishedAt ? r.finishedAt.getTime() - r.startedAt.getTime() : null,
-    )
-    .filter((v): v is number => v !== null)
+  const recentRuns = await prisma.automationRun.findMany({
+    take: 10,
+    orderBy: { startedAt: 'desc' },
+    include: {
+      automation: {
+        select: {
+          name: true,
+          workspace: { select: { name: true, slug: true } },
+        },
+      },
+    },
+  })
 
-  const avgDurationMs =
-    durations.length === 0
-      ? null
-      : Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-
-  const healthScore = Math.max(
-    0,
-    Math.min(100, Math.round(successRate - failedRuns * 0.5)),
-  )
+  const failureRate = runCount === 0 ? 0 : (failedRunCount / runCount) * 100
 
   return NextResponse.json({
-    healthScore,
-    successRate,
-    avgDurationMs,
-    totalRuns,
-    failedRuns,
+    userCount,
+    workspaceCount,
+    automationCount,
+    activeAutomationCount,
+    runCount,
+    failedRunCount,
+    runsLast24h,
+    failureRate,
+    recentRuns: recentRuns.map((r: any) => ({
+      id: r.id,
+      automationName: r.automation?.name ?? 'Unknown',
+      workspaceName: r.automation?.workspace?.name ?? 'Unknown',
+      workspaceSlug: r.automation?.workspace?.slug ?? '',
+      status: r.status,
+      startedAt: r.startedAt.toISOString(),
+    })),
   })
 }

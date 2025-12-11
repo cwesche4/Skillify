@@ -1,6 +1,11 @@
 // lib/automations/executor.ts
-import { RunStatus, AutomationStatus } from '@prisma/client'
+
 import { prisma } from '@/lib/db'
+
+/* ------------------------------ Local Enums (Prisma 7) ------------------------------ */
+
+export type RunStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED'
+export type AutomationStatus = 'INACTIVE' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED'
 
 /* ------------------------------ Types ------------------------------ */
 
@@ -125,7 +130,7 @@ export async function runAutomation(
   })
 
   if (!automation) throw new Error('Automation not found')
-  if (automation.status !== AutomationStatus.ACTIVE) {
+  if (automation.status !== 'ACTIVE') {
     throw new Error('Automation is not active')
   }
 
@@ -140,7 +145,7 @@ export async function runAutomation(
     data: {
       automationId: automation.id,
       workspaceId: automation.workspaceId,
-      status: RunStatus.RUNNING,
+      status: 'RUNNING',
       log: '',
       userProfileId: userProfileId ?? null,
     },
@@ -166,7 +171,7 @@ export async function runAutomation(
         runId: run.id,
         nodeId: node.id,
         nodeType: node.type ?? 'unknown',
-        status: RunStatus.RUNNING,
+        status: 'RUNNING',
         message: result.log,
         path: result.output?.path ?? null,
       },
@@ -185,7 +190,7 @@ export async function runAutomation(
     await prisma.automationRun.update({
       where: { id: run.id },
       data: {
-        status: RunStatus.SUCCESS,
+        status: 'SUCCESS',
         finishedAt: new Date(),
         log: logLines.join('\n'),
       },
@@ -198,7 +203,7 @@ export async function runAutomation(
     await prisma.automationRun.update({
       where: { id: run.id },
       data: {
-        status: RunStatus.FAILED,
+        status: 'FAILED',
         finishedAt: new Date(),
         log: logLines.join('\n'),
       },

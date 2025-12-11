@@ -106,6 +106,6 @@ export async function getWorkspaceStats(slug: string) {
   return {
     membersCount: ws.members.length,
     automationsCount: ws.automations.length,
-    recentRuns: ws.automations.flatMap((a) => a.runs).slice(0, 20),
+    recentRuns: ws.automations.flatMap((a: any) => a.runs).slice(0, 20),
   }
 }

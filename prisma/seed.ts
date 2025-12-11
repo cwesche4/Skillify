@@ -1,26 +1,21 @@
-// prisma/seed.ts
 import 'dotenv/config'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/db'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
 
-// ----------------------------------------------------
-// Initialize Prisma 7 with PG adapter
-// ----------------------------------------------------
+// PG pool setup (required for standalone seed execution)
 const url = process.env.DATABASE_URL
+if (!url) throw new Error('❌ Missing DATABASE_URL')
 
-if (!url) {
-  throw new Error(
-    '❌ Missing DATABASE_URL in environment (.env not loaded or value missing)',
-  )
-}
+const pool = new pg.Pool({ connectionString: url })
 
-const pool = new pg.Pool({
-  connectionString: url,
-})
-
-const prisma = new PrismaClient({
-  adapter: new PrismaPg(pool),
+// ----------------------------------------------------
+// Override Prisma client adapter for seed environment
+// ----------------------------------------------------
+prisma.$extends({
+  client: {
+    adapter: new PrismaPg(pool),
+  },
 })
 
 // ----------------------------------------------------
@@ -29,9 +24,9 @@ const prisma = new PrismaClient({
 async function main() {
   const devClerkId = 'dev_clerk_user'
 
-  // -------------------------------------------
+  // --------------------------
   // 1. USER
-  // -------------------------------------------
+  // --------------------------
   let user = await prisma.userProfile.findUnique({
     where: { clerkId: devClerkId },
   })
@@ -45,9 +40,9 @@ async function main() {
     })
   }
 
-  // -------------------------------------------
+  // --------------------------
   // 2. WORKSPACE
-  // -------------------------------------------
+  // --------------------------
   let workspace = await prisma.workspace.findFirst({
     where: { ownerId: user.id },
   })
@@ -61,28 +56,28 @@ async function main() {
         members: {
           create: {
             userId: user.id,
-            role: 'OWNER', // WorkspaceMemberRole enum
+            role: 'OWNER', // string enum
           },
         },
       },
     })
   }
 
-  // -------------------------------------------
+  // --------------------------
   // 3. AUTOMATION + RUNS
-  // -------------------------------------------
-  const existing = await prisma.automation.count({
+  // --------------------------
+  const exists = await prisma.automation.count({
     where: { workspaceId: workspace.id },
   })
 
-  if (existing === 0) {
+  if (exists === 0) {
     const automation = await prisma.automation.create({
       data: {
         userId: user.id,
         workspaceId: workspace.id,
         name: 'Dev Demo Flow',
         description: 'A simple demo automation for local testing.',
-        status: 'ACTIVE', // AutomationStatus enum
+        status: 'ACTIVE',
         flow: { nodes: [], edges: [], meta: { version: 1 } },
       },
     })
@@ -92,7 +87,7 @@ async function main() {
         {
           automationId: automation.id,
           workspaceId: workspace.id,
-          status: 'SUCCESS', // RunStatus enum
+          status: 'SUCCESS',
           startedAt: new Date(Date.now() - 60 * 60 * 1000),
           finishedAt: new Date(),
           log: 'Demo run success.',
@@ -100,7 +95,7 @@ async function main() {
         {
           automationId: automation.id,
           workspaceId: workspace.id,
-          status: 'FAILED', // RunStatus enum
+          status: 'FAILED',
           startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
           finishedAt: new Date(),
           log: 'Demo run failed.',

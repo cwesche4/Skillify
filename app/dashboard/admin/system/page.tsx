@@ -1,5 +1,7 @@
-// app/dashboard/[workspaceSlug]/admin/system/page.tsx
+// app/dashboard/admin/system/page.tsx
+
 import { requireWorkspaceAdmin } from '@/lib/auth/requireWorkspaceAdmin'
+import { requirePlan } from '@/lib/auth/route-guard'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { Card } from '@/components/ui/Card'
 
@@ -9,6 +11,9 @@ type PageProps = {
 
 export default async function AdminSystemPage({ params }: PageProps) {
   const { workspace } = await requireWorkspaceAdmin(params.workspaceSlug)
+
+  // Elite-only admin system page
+  await requirePlan('Elite', workspace.id)
 
   return (
     <DashboardShell>

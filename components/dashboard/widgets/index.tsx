@@ -1,5 +1,7 @@
 // components/dashboard/widgets/index.tsx
 
+import type { FeatureKey } from '@/lib/subscriptions/features'
+
 import WorkspaceSuccessRate from './WorkspaceSuccessRate'
 import WorkspaceMembers from './WorkspaceMembers'
 import RecentRunsWidget from './RecentRunsWidget'
@@ -16,6 +18,7 @@ export interface WidgetConfig {
   label: string
   defaultVisible: boolean
   defaultOrder: number
+  featureKey: FeatureKey
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: React.ComponentType<{ workspaceId: string; data: any }>
 }
@@ -27,6 +30,8 @@ export const WIDGETS: Record<WidgetId, WidgetConfig> = {
     component: WorkspaceSuccessRate,
     defaultVisible: true,
     defaultOrder: 1,
+    // available to everyone
+    featureKey: 'dashboard.widgets',
   },
   members: {
     id: 'members',
@@ -34,6 +39,7 @@ export const WIDGETS: Record<WidgetId, WidgetConfig> = {
     component: WorkspaceMembers,
     defaultVisible: true,
     defaultOrder: 2,
+    featureKey: 'dashboard.widgets',
   },
   recentRuns: {
     id: 'recentRuns',
@@ -41,6 +47,7 @@ export const WIDGETS: Record<WidgetId, WidgetConfig> = {
     component: RecentRunsWidget,
     defaultVisible: true,
     defaultOrder: 3,
+    featureKey: 'dashboard.activity',
   },
   aiCoachInsights: {
     id: 'aiCoachInsights',
@@ -48,5 +55,7 @@ export const WIDGETS: Record<WidgetId, WidgetConfig> = {
     component: AiCoachInsightsWidget,
     defaultVisible: true,
     defaultOrder: 4,
+    // this one is gated (Pro / Elite)
+    featureKey: 'coach.explain',
   },
 }

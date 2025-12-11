@@ -292,18 +292,20 @@ model DashboardPreference {
 }
 
 model UpsellRequest {
-  id           String   @id @default(cuid())
-  workspaceId  String
-  userId       String
-  automationId String?
-  type         String
-  description  String
-  status       String   @default("pending")
-  createdAt    DateTime @default(now())
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
-  workspace  Workspace   @relation(fields: [workspaceId], references: [id])
-  user       UserProfile @relation(fields: [userId], references: [id])
-  automation Automation? @relation(fields: [automationId], references: [id])
+  userId String
+  user   UserProfile @relation(fields: [userId], references: [id])
+
+  automationId String?
+  automation   Automation? @relation(fields: [automationId], references: [id])
+
+  description String
+  status      String
+  type        String
+  createdAt   DateTime @default(now())
 }
 
 model BuildRequest {
