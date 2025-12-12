@@ -1,5 +1,5 @@
 // app/api/workspaces/bootstrap/route.ts
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
@@ -21,6 +21,13 @@ function normalizeTier(raw?: string | null): Tier {
 }
 
 async function ensureUserProfile(clerkId: string) {
+  const clerkUser = await clerkClient.users.getUser(clerkId)
+  const fullName =
+    clerkUser.fullName ||
+    `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() ||
+    null
+  const email = clerkUser.primaryEmailAddress?.emailAddress ?? null
+
   let profile = await prisma.userProfile.findUnique({
     where: { clerkId },
   })
@@ -30,6 +37,16 @@ async function ensureUserProfile(clerkId: string) {
       data: {
         clerkId,
         role: 'user',
+        fullName,
+        email,
+      },
+    })
+  } else if (!profile.fullName || !profile.email) {
+    profile = await prisma.userProfile.update({
+      where: { clerkId },
+      data: {
+        fullName: profile.fullName || fullName,
+        email: profile.email || email,
       },
     })
   }
@@ -37,21 +54,16 @@ async function ensureUserProfile(clerkId: string) {
   return profile
 }
 
-async function getOrCreateOnboardingProgress(userId: string, tier: Tier) {
+async function getOrCreateOnboardingProgress(userId: string) {
   const existing = await prisma.onboardingProgress.findUnique({
     where: { userId },
   })
-
-  const stepsJson: any = existing?.steps ?? {}
-  if (!stepsJson.plan) {
-    stepsJson.plan = tier
-  }
 
   if (!existing) {
     return prisma.onboardingProgress.create({
       data: {
         userId,
-        steps: stepsJson,
+        steps: [],
         completed: false,
       },
     })
@@ -60,7 +72,7 @@ async function getOrCreateOnboardingProgress(userId: string, tier: Tier) {
   return prisma.onboardingProgress.update({
     where: { userId },
     data: {
-      steps: stepsJson,
+      steps: existing.steps ?? [],
     },
   })
 }
@@ -207,20 +219,15 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json()
   } catch {
-    // no body is fine
+    // no body is fine (form POST)
   }
 
   const requestedTier = normalizeTier(body?.tier)
   const profile = await ensureUserProfile(clerkUserId)
 
-  const progress = await getOrCreateOnboardingProgress(
-    profile.id,
-    requestedTier,
-  )
+  const progress = await getOrCreateOnboardingProgress(profile.id)
 
-  const effectiveTier = normalizeTier(
-    (progress.steps as any)?.plan ?? requestedTier,
-  )
+  const effectiveTier = requestedTier
 
   const { workspace, bootstrap } = await getOrCreateWorkspace(profile.id)
 
@@ -228,8 +235,6 @@ export async function POST(req: NextRequest) {
     await seedDemoForTier(effectiveTier, profile.id, workspace.id)
   }
 
-  return NextResponse.redirect(
-    new URL(`/dashboard/${workspace.slug}`, req.url),
-    { status: 303 },
-  )
+  // Redirect to the workspace dashboard
+  return NextResponse.redirect(new URL(`/dashboard/${workspace.slug}`, req.url))
 }

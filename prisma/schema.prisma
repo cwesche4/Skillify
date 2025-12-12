@@ -69,9 +69,11 @@ enum EnterpriseStatus {
 //
 
 model UserProfile {
-  id      String @id @default(cuid())
-  clerkId String @unique
-  role    String @default("user")
+  id       String @id @default(cuid())
+  clerkId  String @unique
+  fullName String?
+  email    String?
+  role     String @default("user")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -257,11 +259,13 @@ model Subscription {
   userId String      @unique
   user   UserProfile @relation(fields: [userId], references: [id])
 
+  subscriberName  String?
+  subscriberEmail String?
+  plan            String
+  status          String
+
   stripeCustomerId String?
   stripeSubId      String?
-
-  plan   String
-  status String
 
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime

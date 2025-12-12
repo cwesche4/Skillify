@@ -1,4 +1,5 @@
 // app/layout.tsx
+import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 
@@ -9,11 +10,7 @@ export const metadata: Metadata = {
   description: 'Automation & analytics for modern teams',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider>
       <html lang="en">

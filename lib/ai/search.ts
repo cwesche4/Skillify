@@ -1,12 +1,15 @@
 // lib/ai/search.ts
 import OpenAI from 'openai'
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-})
+// If no API key is configured, fall back to returning items unchanged.
+const openAiApiKey = process.env.OPENAI_API_KEY
+const client = openAiApiKey
+  ? new OpenAI({ apiKey: openAiApiKey })
+  : null
 
 export async function semanticSearch(query: string, items: any[]) {
   if (!query.trim()) return items
+  if (!client) return items
 
   // 1. Embed the query
   const embedding = await client.embeddings.create({

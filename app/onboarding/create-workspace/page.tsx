@@ -1,17 +1,29 @@
 // app/onboarding/create-workspace/page.tsx
 import { redirect } from 'next/navigation'
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 
 export default async function CreateWorkspacePage() {
   const { userId } = auth()
   if (!userId) redirect('/sign-in')
 
-  const profile = await prisma.userProfile.findUnique({
+  // Ensure the user has a profile record; new sign-ins may not have one yet
+  let profile = await prisma.userProfile.findUnique({
     where: { clerkId: userId },
   })
 
-  if (!profile) redirect('/sign-in')
+  if (!profile) {
+    const clerkUser = await clerkClient.users.getUser(userId)
+    const fullName =
+      clerkUser.fullName ||
+      `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() ||
+      null
+    const email = clerkUser.primaryEmailAddress?.emailAddress ?? null
+
+    profile = await prisma.userProfile.create({
+      data: { clerkId: userId, role: 'user', fullName, email },
+    })
+  }
 
   // If user already has a workspace, send them there
   const membership = await prisma.workspaceMember.findFirst({

@@ -47,6 +47,10 @@ export async function POST(req: Request) {
   if (type === 'user.created') {
     const clerkId = data.id
     const email = data.email_addresses?.[0]?.email_address ?? 'unknown'
+    const fullName =
+      data.first_name || data.last_name
+        ? `${data.first_name ?? ''} ${data.last_name ?? ''}`.trim()
+        : data.username ?? null
 
     // 1) Avoid duplicate creation on Clerk retries
     let user = await prisma.userProfile.findUnique({
@@ -58,6 +62,16 @@ export async function POST(req: Request) {
         data: {
           clerkId,
           role: 'user',
+          fullName,
+          email: email === 'unknown' ? null : email,
+        },
+      })
+    } else if (!user.fullName || !user.email) {
+      user = await prisma.userProfile.update({
+        where: { clerkId },
+        data: {
+          fullName: user.fullName || fullName,
+          email: user.email || (email === 'unknown' ? null : email),
         },
       })
     }

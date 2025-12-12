@@ -6,9 +6,12 @@ import { prisma } from '@/lib/db'
 export default async function DashboardIndexPage() {
   const { userId } = auth()
 
-  if (!userId) redirect('/sign-in')
+  // Not signed in → Clerk sign in
+  if (!userId) {
+    redirect('/sign-in')
+  }
 
-  // Load user profile
+  // Find user profile & memberships
   const profile = await prisma.userProfile.findUnique({
     where: { clerkId: userId },
     include: {
@@ -19,14 +22,22 @@ export default async function DashboardIndexPage() {
     },
   })
 
-  // No profile → return sign-in
-  if (!profile) redirect('/sign-in')
+  // No profile yet → force onboarding (which will create workspace via bootstrap)
+  if (!profile) {
+    redirect('/onboarding/create-workspace')
+  }
 
-  // If user has no workspace → onboarding
+  // Profile exists but no workspaces → onboarding
   if (!profile.memberships.length) {
     redirect('/onboarding/create-workspace')
   }
 
-  // Redirect to first workspace
-  redirect(`/dashboard/${profile.memberships[0].workspace.slug}`)
+  // Redirect to first workspace dashboard
+  const firstWs = profile.memberships[0]?.workspace
+  if (!firstWs) {
+    // Safety fallback: go to onboarding
+    redirect('/onboarding/create-workspace')
+  }
+
+  redirect(`/dashboard/${firstWs.slug}`)
 }
