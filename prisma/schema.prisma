@@ -69,11 +69,11 @@ enum EnterpriseStatus {
 //
 
 model UserProfile {
-  id       String @id @default(cuid())
-  clerkId  String @unique
+  id       String  @id @default(cuid())
+  clerkId  String  @unique
   fullName String?
   email    String?
-  role     String @default("user")
+  role     String  @default("user")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -98,6 +98,7 @@ model UserProfile {
   bookingTypesAssigned BookingType[]     @relation("BookingTypeAssignedUser")
   bookingsScheduledFor Booking[]         @relation("BookingScheduledFor")
   bookingsCreated      Booking[]         @relation("BookingCreatedBy")
+  auditLogs            AuditLog[]
 
   @@index([clerkId])
 }
@@ -144,6 +145,9 @@ model Workspace {
   bookings                  Booking[]
   reminderSequences         ReminderSequence[]
   externalCalendarEvents    ExternalCalendarEvent[]
+  integrations              Integration[]
+  externalRecords           ExternalRecord[]
+  auditLogs                 AuditLog[]
 
   @@index([ownerId])
   @@index([slug])
@@ -596,4 +600,80 @@ model BlogPost {
 
   @@index([slug])
   @@index([published])
+}
+
+//
+// INTEGRATIONS (CRM)
+//
+
+model Integration {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+
+  provider     String   // hubspot | salesforce | pipedrive
+  status       String   // connected | disconnected | error
+  metadata     Json?
+
+  credentials  IntegrationCredential[]
+  externalRefs ExternalRecord[]
+
+  createdAt    DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([provider])
+  @@unique([workspaceId, provider])
+}
+
+model IntegrationCredential {
+  id             String      @id @default(cuid())
+  integrationId  String
+  integration    Integration @relation(fields: [integrationId], references: [id])
+
+  accessToken    String
+  refreshToken   String?
+  expiresAt      DateTime?
+
+  createdAt      DateTime @default(now())
+
+  @@index([integrationId])
+}
+
+model ExternalRecord {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  integrationId String?
+  integration   Integration? @relation(fields: [integrationId], references: [id])
+
+  provider      String   // hubspot | salesforce | pipedrive
+  objectType    String   // contact | deal | company
+  externalId    String
+
+  localType     String?  // AutomationRun, UpsellRequest, etc.
+  localId       String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([integrationId])
+  @@index([provider, objectType])
+  @@unique([workspaceId, provider, objectType, externalId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  action      String
+  targetType  String
+  targetId    String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id])
+  actor     UserProfile? @relation(fields: [actorId], references: [id])
+
+  @@index([workspaceId])
+  @@index([action])
 }

@@ -1,7 +1,3 @@
-/**
- * Backfill Subscription.subscriberName/subscriberEmail from the linked UserProfile.
- * Usage: npx tsx scripts/backfill-subscription-contact.ts
- */
 import 'dotenv/config'
 import { prisma } from '@/lib/db'
 
@@ -10,33 +6,21 @@ async function main() {
     include: { user: true },
   })
 
-  console.log(`Found ${subs.length} subscriptions to check`)
+  console.log(`Found ${subs.length} subscriptions`)
 
-  for (const sub of subs) {
-    const name = sub.subscriberName || sub.user.fullName || null
-    const email = sub.subscriberEmail || sub.user.email || null
-
-    if (sub.subscriberName === name && sub.subscriberEmail === email) {
-      continue
-    }
-
+  for (const s of subs) {
     await prisma.subscription.update({
-      where: { id: sub.id },
+      where: { id: s.id },
       data: {
-        subscriberName: name,
-        subscriberEmail: email,
+        subscriberName: s.user.fullName,
+        subscriberEmail: s.user.email,
       },
     })
 
-    console.log(`Updated subscription ${sub.id} (${sub.userId})`)
+    console.log(`Updated sub ${s.id}`)
   }
+
+  console.log('Done.')
 }
 
 main()
-  .catch((err) => {
-    console.error(err)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })

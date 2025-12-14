@@ -1,14 +1,9 @@
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
-// Public routes that should never trigger Clerk redirects (prevents sign-in loop)
-const isPublicRoute = createRouteMatcher([
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/',
-])
+const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)', '/'])
 
-// Routes that require auth
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
   '/onboarding(.*)',
@@ -16,18 +11,26 @@ const isProtectedRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware((auth, req) => {
-  // Skip protection for public routes (including Clerk auth pages)
+  const { userId } = auth()
+
+  // Always attach pathname so Server Components (like protected-layout) can read it
+  const headers = new Headers(req.headers)
+  headers.set('x-pathname', req.nextUrl.pathname)
+
+  // 1) Allow all public routes (including Clerk auth pages)
   if (isPublicRoute(req)) {
-    return
+    return NextResponse.next({ request: { headers } })
   }
 
-  // Enforce auth for protected areas — Clerk handles redirect to /sign-in
-  if (isProtectedRoute(req)) {
-    auth().protect()
+  // 2) Protect dashboard / onboarding / workspaces
+  if (isProtectedRoute(req) && !userId) {
+    return auth().redirectToSignIn()
   }
+
+  // 3) Continue
+  return NextResponse.next({ request: { headers } })
 })
 
 export const config = {
-  // Recommended matcher from Clerk for App Router
   matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/(api|trpc)(.*)'],
 }

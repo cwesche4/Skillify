@@ -30,8 +30,11 @@ import {
   type BuilderNodeType,
   type NodeData,
 } from '@/lib/builder/node-types'
+import { getBuilderCRMTemplates } from '@/lib/integrations/templates/builder'
+import type { CRMTemplate } from '@/lib/integrations/templates'
 
 import { cn } from '@/lib/utils'
+import TemplateSetupModal from './components/TemplateSetupModal'
 
 interface BuilderInnerProps {
   automationId: string
@@ -113,6 +116,8 @@ export default function BuilderInner({
 
   const reactFlow = useReactFlow()
   const history = useMemo(() => new HistoryStack(), [])
+  const [pendingTemplate, setPendingTemplate] = useState<CRMTemplate | null>(null)
+  const [templateConfig, setTemplateConfig] = useState<Record<string, any>>({})
 
   /* -------------------------------------------------
      PUSH STATE TO HISTORY
@@ -228,6 +233,64 @@ export default function BuilderInner({
       } satisfies PaletteItem
     })
   }, [plan])
+
+  const templates = useMemo(() => getBuilderCRMTemplates(), [])
+
+  const handleApplyTemplate = useCallback(
+    (tpl: CRMTemplate, config: Record<string, any>) => {
+      const requiresElite = tpl.requiredPlan.toLowerCase() === 'elite'
+      const requiresPro = tpl.requiredPlan.toLowerCase() === 'pro'
+      if (requiresElite && plan !== 'elite') return
+      if (requiresPro && plan === 'basic') return
+
+      const idMap = new Map<string, string>()
+      const newNodes: Node[] = (tpl.nodes ?? []).map((n, idx) => {
+        const newId = crypto.randomUUID()
+        idMap.set(n.id, newId)
+        const data: any = { ...(n.data ?? {}) }
+
+        // Apply template-specific configuration
+        if (tpl.id === 'hubspot-sync-contacts') {
+          data.integrationId = config.integrationId ?? data.integrationId
+          if (data?.payload?.properties) {
+            data.payload.properties.lifecycle_stage =
+              config.lifecycleStage ?? data.payload.properties.lifecycle_stage
+          }
+        }
+        if (tpl.id === 'hubspot-update-deal-on-success') {
+          data.integrationId = config.integrationId ?? data.integrationId
+          if (data?.payload) {
+            if (config.dealId) data.payload.externalId = config.dealId
+            if (data.payload.properties) {
+              data.payload.properties.dealstage =
+                config.targetStage ?? data.payload.properties.dealstage
+            }
+          }
+        }
+
+        return {
+          id: newId,
+          type: n.type as BuilderNodeType,
+          position: {
+            x: 200 + idx * 80,
+            y: 160 + idx * 40,
+          },
+          data,
+        }
+      })
+
+      const newEdges: Edge[] = (tpl.edges ?? []).map((e) => ({
+        id: crypto.randomUUID(),
+        source: idMap.get(e.source) ?? e.source,
+        target: idMap.get(e.target) ?? e.target,
+        type: 'smoothstep',
+      }))
+
+      setNodes((prev) => [...prev, ...newNodes])
+      setEdges((prev) => [...prev, ...newEdges])
+    },
+    [plan, setNodes, setEdges],
+  )
 
   /* -------------------------------------------------
      DRAG TO ADD NODE
@@ -357,6 +420,26 @@ export default function BuilderInner({
         canRedo={history.canRedo()}
         planLabel={planLabel}
         onGenerateTemplate={handleGenerateTemplate}
+        templates={templates.map((tpl) => {
+          const requiresElite = tpl.requiredPlan.toLowerCase() === 'elite'
+          const requiresPro = tpl.requiredPlan.toLowerCase() === 'pro'
+          const blocked =
+            (requiresElite && plan !== 'elite') || (requiresPro && plan === 'basic')
+          const blockReason = requiresElite
+            ? 'Elite required for inbound webhooks'
+            : requiresPro
+              ? 'Pro or Elite required'
+              : undefined
+          return {
+            id: tpl.id,
+            name: tpl.name,
+            description: tpl.description,
+            requiredPlan: tpl.requiredPlan === 'Elite' ? 'Elite' : 'Pro',
+            blocked,
+            blockReason,
+            onSelect: () => setPendingTemplate(tpl),
+          }
+        })}
       />
 
       {/* UPSIZE CARD */}
@@ -429,6 +512,25 @@ export default function BuilderInner({
         workspaceId={workspaceId}
         automationId={automationId}
         feature="builder-dfy"
+      />
+
+      <TemplateSetupModal
+        open={!!pendingTemplate}
+        template={pendingTemplate}
+        workspaceId={workspaceId}
+        plan={plan}
+        onCancel={() => {
+          setPendingTemplate(null)
+          setTemplateConfig({})
+        }}
+        onConfirm={(config) => {
+          if (pendingTemplate) {
+            setTemplateConfig(config)
+            handleApplyTemplate(pendingTemplate, config)
+          }
+          setPendingTemplate(null)
+          setTemplateConfig({})
+        }}
       />
     </div>
   )

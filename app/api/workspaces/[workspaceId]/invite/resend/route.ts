@@ -1,29 +1,35 @@
 import { auth } from '@clerk/nextjs/server'
-
-import { fail, ok } from '@/lib/api/responses'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { canManageWorkspace } from '@/lib/permissions/workspace'
+import { requireWorkspaceRole } from '@/lib/auth/requireWorkspaceRole'
+import { WorkspaceMemberRole } from '@/lib/prisma/enums'
+import crypto from 'crypto'
 
-export async function POST(req: Request, { params }: any) {
-  const { userId } = await auth()
-  if (!userId) return fail('Unauthorized', 401)
+export async function POST(
+  req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
+  const { userId } = auth()
+  if (!userId) return NextResponse.json({}, { status: 401 })
 
-  const { workspaceId } = params
-  const { inviteId } = await req.json()
+  await requireWorkspaceRole(userId, params.workspaceId, [
+    WorkspaceMemberRole.OWNER,
+    WorkspaceMemberRole.ADMIN,
+  ])
 
-  const requester = await prisma.workspaceMember.findFirst({
-    where: { workspaceId, user: { clerkId: userId } },
+  const { email, role } = await req.json()
+
+  const invite = await prisma.workspaceInvite.create({
+    data: {
+      workspaceId: params.workspaceId,
+      email,
+      role,
+      token: crypto.randomUUID(),
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+    },
   })
 
-  if (!requester || !canManageWorkspace(requester.role)) {
-    return fail('Not allowed', 403)
-  }
+  // TODO: send email via Resend / Postmark
 
-  const invite = await prisma.workspaceInvite.findUnique({
-    where: { id: inviteId },
-  })
-
-  if (!invite) return fail('Invite not found', 404)
-
-  return ok({ resent: true })
+  return NextResponse.json(invite)
 }

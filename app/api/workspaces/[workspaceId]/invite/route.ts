@@ -1,86 +1,215 @@
+import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+import { prisma } from '@/lib/db'
+import { WorkspaceMemberRole } from '@/lib/prisma/enums'
+import { logAudit } from '@/lib/audit/log'
 import crypto from 'crypto'
 
-import { auth } from '@clerk/nextjs/server'
+function isManager(role: WorkspaceMemberRole) {
+  return (
+    role === WorkspaceMemberRole.OWNER || role === WorkspaceMemberRole.ADMIN
+  )
+}
 
-import { fail, ok } from '@/lib/api/responses'
-import { prisma } from '@/lib/db'
-import { canManageWorkspace } from '@/lib/permissions/workspace'
-import { inviteUserSchema } from '@/lib/validations/workspace'
+function makeToken() {
+  return crypto.randomBytes(24).toString('hex')
+}
 
-// Create a Workspace Invite
+export async function GET(
+  _req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
+  const { userId: clerkId } = auth()
+  if (!clerkId)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const profile = await prisma.userProfile.findUnique({ where: { clerkId } })
+  if (!profile)
+    return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+
+  const membership = await prisma.workspaceMember.findUnique({
+    where: {
+      userId_workspaceId: {
+        userId: profile.id,
+        workspaceId: params.workspaceId,
+      },
+    },
+  })
+  if (!membership)
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const invites = await prisma.workspaceInvite.findMany({
+    where: { workspaceId: params.workspaceId },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return NextResponse.json({
+    invites: invites.map((i) => ({
+      id: i.id,
+      email: i.email,
+      role: i.role,
+      token: i.token, // keep for now; later you can omit once emailing is live
+      expiresAt: i.expiresAt,
+      acceptedAt: i.acceptedAt,
+      createdAt: i.createdAt,
+    })),
+  })
+}
+
 export async function POST(
   req: Request,
   { params }: { params: { workspaceId: string } },
 ) {
-  const { userId } = await auth()
-  if (!userId) return fail('Unauthorized', 401)
+  const { userId: clerkId } = auth()
+  if (!clerkId)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { workspaceId } = params
+  const profile = await prisma.userProfile.findUnique({ where: { clerkId } })
+  if (!profile)
+    return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
-  // Validate body
-  const body = await req.json()
-  const parsed = inviteUserSchema.safeParse(body)
-  if (!parsed.success) return fail('Invalid invite data', 400)
-
-  const email = parsed.data.email.toLowerCase().trim()
-  const role = parsed.data.role
-
-  // 1. Ensure requester is a member
-  const requesterMembership = await prisma.workspaceMember.findFirst({
+  const actor = await prisma.workspaceMember.findUnique({
     where: {
-      workspaceId,
-      user: { clerkId: userId },
-    },
-    include: {
-      user: true,
+      userId_workspaceId: {
+        userId: profile.id,
+        workspaceId: params.workspaceId,
+      },
     },
   })
-
-  if (!requesterMembership)
-    return fail('Workspace not found or unauthorized', 403)
-
-  // 2. Ensure requester has permission to invite users
-  if (!canManageWorkspace(requesterMembership.role)) {
-    return fail('Only workspace OWNER or ADMIN can invite members', 403)
+  if (!actor || !isManager(actor.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // 3. Ensure user is not already a member
-  const existingMember = await prisma.workspaceMember.findFirst({
-    where: { workspaceId, user: { clerkId: email } },
-  })
+  const body = (await req.json()) as {
+    email: string
+    role?: WorkspaceMemberRole
+    resendToken?: string
+  }
+  const email = body.email?.trim().toLowerCase()
+  if (!email)
+    return NextResponse.json({ error: 'Email required' }, { status: 400 })
 
-  if (existingMember) {
-    return fail('User is already a member of this workspace', 400)
+  const role = body.role ?? WorkspaceMemberRole.MEMBER
+
+  // If user already a member (by matching UserProfile.email), block
+  const existingUser = await prisma.userProfile.findFirst({ where: { email } })
+  if (existingUser) {
+    const already = await prisma.workspaceMember.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId: existingUser.id,
+          workspaceId: params.workspaceId,
+        },
+      },
+    })
+    if (already)
+      return NextResponse.json(
+        { error: 'User already a member' },
+        { status: 409 },
+      )
   }
 
-  // 4. Ensure invite does not already exist
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+  // Resend if pending invite exists
   const existingInvite = await prisma.workspaceInvite.findFirst({
-    where: { workspaceId, email },
+    where: {
+      workspaceId: params.workspaceId,
+      email,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
   })
 
-  if (existingInvite && !existingInvite.acceptedAt) {
-    return fail('An active invite already exists for this email', 400)
-  }
+  if (existingInvite) {
+    const updated = await prisma.workspaceInvite.update({
+      where: { id: existingInvite.id },
+      data: {
+        role,
+        token: makeToken(),
+        expiresAt,
+      },
+    })
 
-  // 5. Create a secure invite token
-  const token = crypto.randomUUID()
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 2) // 2 days
+    await logAudit({
+      workspaceId: params.workspaceId,
+      actorId: profile.id,
+      action: 'INVITE_SENT',
+      targetType: 'WorkspaceInvite',
+      targetId: updated.id,
+      meta: { email, role, action: 'resent' },
+    })
+
+    return NextResponse.json({ ok: true, invite: updated, action: 'resent' })
+  }
 
   const invite = await prisma.workspaceInvite.create({
     data: {
+      workspaceId: params.workspaceId,
       email,
       role,
-      workspaceId,
-      token,
+      token: makeToken(),
       expiresAt,
     },
   })
 
-  return ok({
-    id: invite.id,
-    email: invite.email,
-    role: invite.role,
-    expiresAt: invite.expiresAt,
-    token: invite.token,
+  await logAudit({
+    workspaceId: params.workspaceId,
+    actorId: profile.id,
+    action: 'INVITE_SENT',
+    targetType: 'WorkspaceInvite',
+    targetId: invite.id,
+    meta: { email, role, action: 'created' },
   })
+
+  // NOTE: email sending can be added later (Resend/Postmark/etc). For now return token.
+  return NextResponse.json({ ok: true, invite, action: 'created' })
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
+  const { userId: clerkId } = auth()
+  if (!clerkId)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const profile = await prisma.userProfile.findUnique({ where: { clerkId } })
+  if (!profile)
+    return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+
+  const actor = await prisma.workspaceMember.findUnique({
+    where: {
+      userId_workspaceId: {
+        userId: profile.id,
+        workspaceId: params.workspaceId,
+      },
+    },
+  })
+  if (!actor || !isManager(actor.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const url = new URL(req.url)
+  const inviteId = url.searchParams.get('inviteId')
+  if (!inviteId)
+    return NextResponse.json({ error: 'inviteId required' }, { status: 400 })
+
+  const invite = await prisma.workspaceInvite.findUnique({
+    where: { id: inviteId },
+  })
+  if (!invite || invite.workspaceId !== params.workspaceId) {
+    return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
+  }
+
+  if (invite.acceptedAt) {
+    return NextResponse.json(
+      { error: 'Invite already accepted' },
+      { status: 409 },
+    )
+  }
+
+  await prisma.workspaceInvite.delete({ where: { id: inviteId } })
+  return NextResponse.json({ ok: true })
 }

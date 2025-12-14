@@ -36,12 +36,13 @@ npm install
 
 ## ⚙️ Environment Variables
 
-Create a `.env` file and include:
+Create a `.env`/`.env.local` and include:
 
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/skillify?schema=public"
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=""
-CLERK_SECRET_KEY=""
-OPENAI_API_KEY=""
+- Core: `DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `OPENAI_API_KEY`
+- CRM (HubSpot) when integrations are enabled (see `docs/INTEGRATIONS_ENV.md`):
+  - `INTEGRATIONS_ENCRYPTION_KEY` — **base64-encoded 32 bytes** (`openssl rand -base64 32`)
+  - `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET`, `HUBSPOT_REDIRECT_URI`
+  - Quick test + webhook simulator steps: see `docs/CRM_QUICK_TEST.md`
 
 ---
 

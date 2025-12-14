@@ -1,26 +1,49 @@
 // app/api/webhooks/clerk/route.ts
+
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { Webhook } from 'svix'
-
 import { prisma } from '@/lib/db'
 
-const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
+// ----------------------------------------
+// ENV CHECK
+// ----------------------------------------
+const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET as string
+if (!WEBHOOK_SECRET || WEBHOOK_SECRET.length === 0) {
+  throw new Error('❌ Missing CLERK_WEBHOOK_SECRET in environment')
+}
 
-function slugify(name: string) {
-  return name
+// ----------------------------------------
+// HELPERS
+// ----------------------------------------
+function slugify(str: string) {
+  return str
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
 }
 
-export async function POST(req: Request) {
-  if (!WEBHOOK_SECRET) {
-    console.error('Missing CLERK_WEBHOOK_SECRET')
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
-  }
+async function generateWorkspaceSlug(base: string) {
+  const raw = slugify(base)
+  let slug = raw
+  let counter = 1
 
-  const payload = await req.json()
+  // Ensure uniqueness
+  while (true) {
+    const exists = await prisma.workspace.findUnique({
+      where: { slug },
+    })
+    if (!exists) return slug
+    counter++
+    slug = `${raw}-${counter}`
+  }
+}
+
+// ----------------------------------------
+// WEBHOOK HANDLER
+// ----------------------------------------
+export async function POST(req: Request) {
+  const payload = await req.text()
   const h = headers()
 
   const svixHeaders = {
@@ -29,30 +52,31 @@ export async function POST(req: Request) {
     'svix-signature': h.get('svix-signature') ?? '',
   }
 
-  const wh = new Webhook(WEBHOOK_SECRET)
-
-  let evt: any
+  let event: any
   try {
-    evt = wh.verify(JSON.stringify(payload), svixHeaders)
+    const wh = new Webhook(WEBHOOK_SECRET)
+    event = wh.verify(payload, svixHeaders)
   } catch (err) {
-    console.error('❌ Clerk webhook signature failed', err)
+    console.error('❌ Webhook signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  const { type, data } = evt
+  const { type, data } = event
 
   // ---------------------------------------------------------
-  // USER CREATED → Create UserProfile + Default Workspace
+  // USER CREATED
   // ---------------------------------------------------------
   if (type === 'user.created') {
     const clerkId = data.id
-    const email = data.email_addresses?.[0]?.email_address ?? 'unknown'
+
+    const email = data.email_addresses?.[0]?.email_address ?? null
+
     const fullName =
       data.first_name || data.last_name
         ? `${data.first_name ?? ''} ${data.last_name ?? ''}`.trim()
-        : data.username ?? null
+        : (data.username ?? null)
 
-    // 1) Avoid duplicate creation on Clerk retries
+    // 1️⃣ Create or update UserProfile safely
     let user = await prisma.userProfile.findUnique({
       where: { clerkId },
     })
@@ -62,32 +86,32 @@ export async function POST(req: Request) {
         data: {
           clerkId,
           role: 'user',
-          fullName,
-          email: email === 'unknown' ? null : email,
+          fullName: fullName || null,
+          email,
         },
       })
-    } else if (!user.fullName || !user.email) {
-      user = await prisma.userProfile.update({
-        where: { clerkId },
-        data: {
-          fullName: user.fullName || fullName,
-          email: user.email || (email === 'unknown' ? null : email),
-        },
-      })
+    } else {
+      // Only fill missing fields
+      const updateData: any = {}
+      if (!user.fullName && fullName) updateData.fullName = fullName
+      if (!user.email && email) updateData.email = email
+
+      if (Object.keys(updateData).length > 0) {
+        user = await prisma.userProfile.update({
+          where: { clerkId },
+          data: updateData,
+        })
+      }
     }
 
-    // 2) Create default workspace if not created already
-    const existingWorkspace = await prisma.workspace.findFirst({
+    // 2️⃣ Ensure default workspace exists
+    const existing = await prisma.workspace.findFirst({
       where: { ownerId: user.id },
     })
 
-    if (!existingWorkspace) {
-      const baseName = data.first_name
-        ? `${data.first_name}'s Workspace`
-        : 'My Workspace'
-
-      const slugBase = slugify(baseName)
-      const slug = `${slugBase}-${user.id.slice(0, 6)}`
+    if (!existing) {
+      const baseName = fullName ? `${fullName}'s Workspace` : 'My Workspace'
+      const slug = await generateWorkspaceSlug(baseName)
 
       await prisma.workspace.create({
         data: {
@@ -104,10 +128,12 @@ export async function POST(req: Request) {
       })
     }
 
-    console.log(`✅ Workspace + UserProfile created for ${email}`)
+    console.log(`✅ User + Workspace synced for ${email ?? clerkId}`)
   }
 
-  // (Optional later: user.updated, user.deleted)
+  // ---------------------------------------------------------
+  // (Optional: handle 'user.updated' in future)
+  // ---------------------------------------------------------
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ success: true })
 }

@@ -10,6 +10,7 @@ import AiClassifierNode from './AiClassifierNode'
 import AiSplitterNode from './AiSplitterNode'
 import OrPathNode from './OrPathNode'
 import GroupNode from './GroupNode'
+import CRMNode from './CRMNode'
 
 export type BuilderNodeType =
   | 'trigger'
@@ -20,6 +21,8 @@ export type BuilderNodeType =
   | 'ai-splitter'
   | 'or-path'
   | 'group'
+  | 'crm-trigger'
+  | 'crm-action'
 
 export type PlanId = 'basic' | 'pro' | 'elite'
 
@@ -64,6 +67,13 @@ export interface NodeData {
 
   // Logic / OR path
   conditions?: any[]
+
+  // CRM
+  provider?: string
+  integrationId?: string
+  objectType?: string
+  action?: string
+  payload?: Record<string, any>
 
   // Anything else
   [key: string]: any
@@ -111,6 +121,35 @@ export const NODE_DEFINITIONS: Record<BuilderNodeType, NodeDefinition> = {
       method: 'POST',
       url: '',
       auth: 'none',
+    },
+  },
+  'crm-trigger': {
+    type: 'crm-trigger',
+    label: 'CRM Trigger',
+    category: 'Integrations',
+    description:
+      'Start automations from CRM events (contact created, deal stage changed).',
+    proFeature: true,
+    defaultData: {
+      provider: 'hubspot',
+      objectType: 'contact',
+      event: 'contact.created',
+      integrationId: '',
+    },
+  },
+  'crm-action': {
+    type: 'crm-action',
+    label: 'CRM Action',
+    category: 'Integrations',
+    description:
+      'Create/update CRM records, log notes, or change deal stages from automations.',
+    enterpriseFeature: true,
+    defaultData: {
+      provider: 'hubspot',
+      objectType: 'contact',
+      action: 'contact.update',
+      integrationId: '',
+      payload: {},
     },
   },
   'ai-llm': {
@@ -180,6 +219,8 @@ export const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
   delay: DelayNode,
   webhook: WebhookNode,
+  'crm-trigger': CRMNode,
+  'crm-action': CRMNode,
   'ai-llm': AiLLMNode,
   'ai-classifier': AiClassifierNode,
   'ai-splitter': AiSplitterNode,

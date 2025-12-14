@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 
 import { fail, ok } from '@/lib/api/responses'
 import { prisma } from '@/lib/db'
+import { logAudit } from '@/lib/audit/log'
 
 export async function GET() {
   const { userId } = await auth()
@@ -44,6 +45,15 @@ export async function POST(req: Request) {
       workspaceId,
       status: 'INACTIVE',
     },
+  })
+
+  await logAudit({
+    workspaceId,
+    actorId: user.id,
+    action: 'AUTOMATION_CREATED',
+    targetType: 'Automation',
+    targetId: automation.id,
+    meta: { name },
   })
 
   return ok(automation)

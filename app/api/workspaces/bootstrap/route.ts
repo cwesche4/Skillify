@@ -21,18 +21,19 @@ function normalizeTier(raw?: string | null): Tier {
 }
 
 async function ensureUserProfile(clerkId: string) {
-  const clerkUser = await clerkClient.users.getUser(clerkId)
-  const fullName =
-    clerkUser.fullName ||
-    `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() ||
-    null
-  const email = clerkUser.primaryEmailAddress?.emailAddress ?? null
-
   let profile = await prisma.userProfile.findUnique({
     where: { clerkId },
   })
 
   if (!profile) {
+    // Pull basic identity from Clerk
+    const user = await clerkClient.users.getUser(clerkId)
+    const fullName =
+      user.fullName ||
+      `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() ||
+      null
+    const email = user.primaryEmailAddress?.emailAddress ?? null
+
     profile = await prisma.userProfile.create({
       data: {
         clerkId,
@@ -41,20 +42,13 @@ async function ensureUserProfile(clerkId: string) {
         email,
       },
     })
-  } else if (!profile.fullName || !profile.email) {
-    profile = await prisma.userProfile.update({
-      where: { clerkId },
-      data: {
-        fullName: profile.fullName || fullName,
-        email: profile.email || email,
-      },
-    })
   }
 
   return profile
 }
 
-async function getOrCreateOnboardingProgress(userId: string) {
+// NOTE: steps is a string[] now – no JSON plan object
+async function getOrCreateOnboardingProgress(userId: string, tier: Tier) {
   const existing = await prisma.onboardingProgress.findUnique({
     where: { userId },
   })
@@ -63,17 +57,21 @@ async function getOrCreateOnboardingProgress(userId: string) {
     return prisma.onboardingProgress.create({
       data: {
         userId,
-        steps: [],
+        steps: [`plan:${tier}`], // safe string marker
         completed: false,
       },
     })
   }
 
+  // Ensure we at least have a plan marker; keep everything as string[]
+  const steps = existing.steps ?? []
+  if (!steps.some((s) => s.startsWith('plan:'))) {
+    steps.push(`plan:${tier}`)
+  }
+
   return prisma.onboardingProgress.update({
     where: { userId },
-    data: {
-      steps: existing.steps ?? [],
-    },
+    data: { steps },
   })
 }
 
@@ -219,22 +217,20 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json()
   } catch {
-    // no body is fine (form POST)
+    // no body is fine
   }
 
   const requestedTier = normalizeTier(body?.tier)
   const profile = await ensureUserProfile(clerkUserId)
 
-  const progress = await getOrCreateOnboardingProgress(profile.id)
-
-  const effectiveTier = requestedTier
+  await getOrCreateOnboardingProgress(profile.id, requestedTier)
 
   const { workspace, bootstrap } = await getOrCreateWorkspace(profile.id)
 
   if (bootstrap) {
-    await seedDemoForTier(effectiveTier, profile.id, workspace.id)
+    await seedDemoForTier(requestedTier, profile.id, workspace.id)
   }
 
-  // Redirect to the workspace dashboard
+  // IMPORTANT: keep this redirect – it’s what you had and it works
   return NextResponse.redirect(new URL(`/dashboard/${workspace.slug}`, req.url))
 }

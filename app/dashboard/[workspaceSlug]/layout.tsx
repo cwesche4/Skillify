@@ -23,7 +23,9 @@ import { getWorkspaceRole } from '@/lib/auth/getWorkspaceRole'
 // --- API HELPERS ---
 async function fetchWorkspaces() {
   const res = await fetch('/api/workspaces')
-  return res.ok ? res.json() : []
+  if (!res.ok) return []
+  const data = (await res.json()) as Workspace[]
+  return data
 }
 
 async function fetchMetrics(workspaceId: string) {
@@ -33,7 +35,7 @@ async function fetchMetrics(workspaceId: string) {
 
 async function fetchPlan() {
   const res = await fetch('/api/auth/plan')
-  const data = res.ok ? await res.json() : {}
+  const data = res.ok ? ((await res.json()) as { plan?: 'Free' | 'Basic' | 'Pro' | 'Elite' }) : {}
   return data.plan ?? 'Free'
 }
 

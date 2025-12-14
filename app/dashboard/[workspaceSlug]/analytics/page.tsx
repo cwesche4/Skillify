@@ -2,8 +2,6 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
-import { requirePlan } from '@/lib/auth/route-guard'
-
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -70,8 +68,12 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
     )
   }
 
-  // 🔐 PRO/ELITE ONLY
-  await requirePlan('Pro', workspace.id)
+  const subscription = await prisma.subscription.findUnique({
+    where: { userId: profile.id },
+    select: { plan: true },
+  })
+  const planLabel = subscription?.plan ?? 'Free'
+  const needsUpgrade = planLabel !== 'Elite' && planLabel !== 'Pro'
 
   const automations = workspace.automations as AutomationWithRuns[]
   const runs = automations.flatMap((a) => a.runs)
@@ -121,6 +123,12 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
         <p className="text-neutral-text-secondary text-xs">
           High-level performance of automations in this workspace.
         </p>
+        {needsUpgrade && (
+          <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            <Badge variant="yellow">Upgrade</Badge>
+            <span>This section is fully unlocked on Pro & Elite plans.</span>
+          </div>
+        )}
       </section>
 
       <AiHeatmapInsights workspaceId={workspace.id} />

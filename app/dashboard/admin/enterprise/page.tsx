@@ -2,10 +2,11 @@
 
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
+import Link from 'next/link'
 import { requireWorkspaceAdmin } from '@/lib/auth/currentUser'
-import { requirePlan } from '@/lib/auth/route-guard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 
 interface PageProps {
   params: { workspaceSlug: string }
@@ -21,10 +22,35 @@ export default async function EnterpriseAdminPage({ params }: PageProps) {
   }
 
   // Workspace OWNER/ADMIN
-  await requireWorkspaceAdmin(workspace.id)
+  const { user } = await requireWorkspaceAdmin(workspace.id)
 
-  // Elite plan required for enterprise admin
-  await requirePlan('Elite', workspace.id)
+  const subscription = await prisma.subscription.findUnique({
+    where: { userId: user.id },
+    select: { plan: true },
+  })
+  const planLabel = subscription?.plan ?? 'Free'
+  const isElite = planLabel === 'Elite'
+
+  if (!isElite) {
+    return (
+      <Card className="space-y-3 border-amber-500/30 bg-amber-500/5 p-5 text-sm text-amber-100">
+        <div className="flex items-center gap-2">
+          <Badge variant="yellow">Upgrade</Badge>
+          <span className="font-semibold">
+            Enterprise admin is Elite-only.
+          </span>
+        </div>
+        <p className="text-amber-100/80">
+          Upgrade to Elite to view and manage enterprise consult requests.
+        </p>
+        <Button asChild size="sm" variant="primary">
+          <Link href={`/dashboard/${params.workspaceSlug}/upsell?need=Elite`}>
+            View Elite benefits
+          </Link>
+        </Button>
+      </Card>
+    )
+  }
 
   const consults = await prisma.enterpriseConsultRequest.findMany({
     where: { workspaceId: workspace.id },

@@ -18,6 +18,7 @@ export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon'
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: ButtonSize
+  asChild?: boolean
   fullWidth?: boolean
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
@@ -31,6 +32,7 @@ export function Button({
   leftIcon,
   rightIcon,
   loading,
+  asChild,
   className,
   children,
   disabled,

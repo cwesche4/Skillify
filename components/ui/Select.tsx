@@ -7,10 +7,16 @@ import { cn } from '@/lib/utils'
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   error?: string
+  onValueChange?: (value: string) => void
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, error, children, ...props }, ref) => {
+  ({ className, error, children, onValueChange, onChange, ...props }, ref) => {
+    const handleChange: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
+      onChange?.(e)
+      onValueChange?.(e.target.value)
+    }
+
     return (
       <div className="space-y-1">
         <select
@@ -20,6 +26,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             'focus:border-brand-primary/70 focus:ring-brand-primary/60 border-slate-700 focus:ring-1',
             className,
           )}
+          onChange={handleChange}
           {...props}
         >
           {children}

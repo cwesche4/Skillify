@@ -1,9 +1,12 @@
-import DashboardPage from '@/app/dashboard/page'
 import { describe, expect, it } from 'vitest'
 
 describe('DashboardPage module', () => {
   it('exports a component', () => {
-    expect(DashboardPage).toBeDefined()
-    expect(typeof DashboardPage).toBe('function')
+    process.env.DATABASE_URL =
+      process.env.DATABASE_URL ?? 'postgresql://user:pass@localhost:5432/skillify'
+    return import('@/app/dashboard/page').then((mod) => {
+      expect(mod.default).toBeDefined()
+      expect(typeof mod.default).toBe('function')
+    })
   })
 })

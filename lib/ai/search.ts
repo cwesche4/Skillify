@@ -3,9 +3,7 @@ import OpenAI from 'openai'
 
 // If no API key is configured, fall back to returning items unchanged.
 const openAiApiKey = process.env.OPENAI_API_KEY
-const client = openAiApiKey
-  ? new OpenAI({ apiKey: openAiApiKey })
-  : null
+const client = openAiApiKey ? new OpenAI({ apiKey: openAiApiKey }) : null
 
 export async function semanticSearch(query: string, items: any[]) {
   if (!query.trim()) return items

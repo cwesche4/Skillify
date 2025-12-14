@@ -10,6 +10,9 @@ export async function GET(req: Request) {
   if (!workspaceId) {
     return NextResponse.json({ error: 'Missing workspaceId' })
   }
+  if (!workspaceId.trim()) {
+    return NextResponse.json({ error: 'Invalid workspaceId' })
+  }
 
   // 🔒 Protect analytics SSE – Pro+ only
   await requirePlan('Pro', workspaceId)
@@ -24,7 +27,7 @@ export async function GET(req: Request) {
         try {
           const runsToday = await prisma.automationRun.count({
             where: {
-              workspaceId,
+              workspaceId: workspaceId!,
               startedAt: {
                 gte: new Date(new Date().setHours(0, 0, 0, 0)),
               },
@@ -32,11 +35,11 @@ export async function GET(req: Request) {
           })
 
           const failed = await prisma.automationRun.count({
-            where: { workspaceId, status: 'FAILED' },
+            where: { workspaceId: workspaceId!, status: 'FAILED' },
           })
 
           const success = await prisma.automationRun.count({
-            where: { workspaceId, status: 'SUCCESS' },
+            where: { workspaceId: workspaceId!, status: 'SUCCESS' },
           })
 
           const total = success + failed

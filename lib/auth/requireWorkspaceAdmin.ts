@@ -13,6 +13,10 @@ type RequireAdminResult = {
     id: string
     clerkId: string
   }
+  user: {
+    id: string
+    clerkId: string
+  }
 }
 
 /**
@@ -68,6 +72,10 @@ export async function requireWorkspaceAdmin(
       name: workspace.name,
     },
     profile: {
+      id: profile!.id,
+      clerkId: profile!.clerkId,
+    },
+    user: {
       id: profile!.id,
       clerkId: profile!.clerkId,
     },

@@ -30,6 +30,15 @@ interface NodePaletteProps {
   planLabel: string
 
   onGenerateTemplate?: () => void
+  templates?: {
+    id: string
+    name: string
+    description: string
+    requiredPlan: 'Pro' | 'Elite'
+    blocked: boolean
+    blockReason?: string
+    onSelect: () => void
+  }[]
 }
 
 export default function NodePalette({
@@ -45,6 +54,7 @@ export default function NodePalette({
   canRedo,
   planLabel,
   onGenerateTemplate,
+  templates = [],
 }: NodePaletteProps) {
   const grouped = items.reduce<Record<string, PaletteItem[]>>((acc, item) => {
     const cat = item.category ?? 'Other'
@@ -76,6 +86,55 @@ export default function NodePalette({
 
       {/* Node Groups */}
       <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+        {templates.length > 0 && (
+          <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                CRM Templates
+              </span>
+              <Badge size="xs" variant="purple">
+                Beta
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {templates.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="rounded-lg border border-slate-800/70 bg-slate-950/80 p-2 text-[11px]"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{tpl.name}</span>
+                    <Badge size="xs" variant="blue">
+                      {tpl.requiredPlan}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    {tpl.description}
+                  </p>
+                  <Button
+                    size="xs"
+                    variant={tpl.blocked ? 'subtle' : 'primary'}
+                    className="mt-2"
+                    onClick={() => {
+                      if (tpl.blocked) return
+                      tpl.onSelect()
+                    }}
+                    title={tpl.blockReason}
+                    disabled={tpl.blocked}
+                  >
+                    Use template
+                  </Button>
+                  {tpl.blocked && tpl.blockReason && (
+                    <p className="mt-1 text-[10px] text-amber-400">
+                      {tpl.blockReason}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {Object.entries(grouped).map(([cat, nodes]) => (
           <div key={cat} className="space-y-1.5">
             <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">

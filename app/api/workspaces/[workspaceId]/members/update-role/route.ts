@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { fail, ok } from '@/lib/api/responses'
 import { prisma } from '@/lib/db'
 import { canManageWorkspace } from '@/lib/permissions/workspace'
+import { logAudit } from '@/lib/audit/log'
 
 export async function POST(req: Request, { params }: any) {
   const { userId } = await auth()
@@ -27,6 +28,15 @@ export async function POST(req: Request, { params }: any) {
   const updated = await prisma.workspaceMember.update({
     where: { id: memberId },
     data: { role },
+  })
+
+  await logAudit({
+    workspaceId,
+    actorId: requester.userId,
+    action: 'MEMBER_ROLE_CHANGED',
+    targetType: 'WorkspaceMember',
+    targetId: memberId,
+    meta: { role },
   })
 
   return ok(updated)

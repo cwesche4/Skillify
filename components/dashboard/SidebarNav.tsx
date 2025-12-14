@@ -28,7 +28,6 @@ import { SidebarTooltip } from '@/components/ui/SidebarTooltip'
 import { useSidebarSettings } from '@/components/dashboard/useSidebarSettings'
 import type { Plan } from '@/lib/subscriptions/features'
 import { planAtLeast } from '@/lib/subscriptions/features'
-import { UpsellDFYModal } from '@/components/upsell/UpsellDFYModal'
 
 // ICON SET
 const ICONS: Record<string, any> = {
@@ -77,9 +76,6 @@ export function SidebarNav({
     runsToday: null,
     isLive: false,
   })
-
-  const [upsellOpen, setUpsellOpen] = useState(false)
-  const [upsellFeature, setUpsellFeature] = useState<string | null>(null)
 
   // --- Live SSE metrics hook ---
   useEffect(() => {
@@ -154,11 +150,6 @@ export function SidebarNav({
   const runsTodayLabel =
     metrics.runsToday != null ? metrics.runsToday.toString() : '—'
 
-  const handleLockedClick = (label: string) => {
-    setUpsellFeature(label)
-    setUpsellOpen(true)
-  }
-
   return (
     <>
       <aside
@@ -230,6 +221,12 @@ export function SidebarNav({
                   const isLocked =
                     item.requiredPlan &&
                     !planAtLeast(currentPlan, item.requiredPlan)
+                  const lockBadge = isLocked ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-300">
+                      <Lock className="h-3 w-3" />
+                      {item.requiredPlan}
+                    </span>
+                  ) : null
 
                   const row = (
                     <AnimatePresence>
@@ -252,30 +249,18 @@ export function SidebarNav({
                         {!compact && (
                           <span className="flex items-center gap-1">
                             {item.label}
-                            {isLocked && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-300">
-                                <Lock className="h-3 w-3" />
-                                {item.requiredPlan}
-                              </span>
-                            )}
+                            {lockBadge}
                           </span>
                         )}
                       </motion.div>
                     </AnimatePresence>
                   )
 
-                  // If locked, we use a button that opens upsell
-                  const inner = isLocked ? (
-                    <button
-                      type="button"
-                      onClick={() => handleLockedClick(item.label)}
-                      className="w-full text-left"
-                    >
-                      {row}
-                    </button>
-                  ) : (
-                    <Link href={item.href}>{row}</Link>
-                  )
+                  const targetHref = isLocked
+                    ? `/dashboard/${workspaceSlug}/upsell?need=${item.requiredPlan ?? 'Pro'}`
+                    : item.href
+
+                  const inner = <Link href={targetHref}>{row}</Link>
 
                   return (
                     <div key={item.href}>
@@ -379,13 +364,6 @@ export function SidebarNav({
         </div>
       </aside>
 
-      {/* Upsell DFY modal triggered from locked sidebar items */}
-      <UpsellDFYModal
-        open={upsellOpen}
-        onClose={() => setUpsellOpen(false)}
-        workspaceId={workspaceSlug}
-        feature={upsellFeature ?? 'nav.premium-items'}
-      />
     </>
   )
 }
