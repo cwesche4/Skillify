@@ -29,7 +29,7 @@ export function BuilderShell({
       )}
     >
       {/* Top bar */}
-      <header className="flex items-center justify-between border-b border-slate-800/80 bg-slate-950/95 px-4 py-2">
+      <header className="flex items-center justify-between border-b border-slate-800/80 bg-slate-950/95 px-4 py-2 shadow-sm backdrop-blur">
         <div className="flex items-center gap-3">
           <Link
             href={`/dashboard/${workspaceId}/automations`}

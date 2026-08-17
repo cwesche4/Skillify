@@ -1,0 +1,161 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`detectOnboardingSignals snapshots > detects ai ignored using ai heatmap fallback 1`] = `
+[
+  {
+    "count": 5,
+    "type": "ai_ignored",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots > detects ai ignored using aiRates 1`] = `
+[
+  {
+    "count": 7,
+    "type": "ai_ignored",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots > detects mixed signals deterministically 1`] = `
+[
+  {
+    "count": 5,
+    "type": "ai_ignored",
+  },
+  {
+    "type": "presets_underused",
+  },
+  {
+    "severity": "medium",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots > detects presets underused when saved but not applied 1`] = `
+[
+  {
+    "type": "presets_underused",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots > detects validation struggle severity high 1`] = `
+[
+  {
+    "severity": "high",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots > detects validation struggle severity low 1`] = `
+[
+  {
+    "severity": "low",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots > detects validation struggle severity medium 1`] = `
+[
+  {
+    "severity": "medium",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots > handles partial analytics input 1`] = `
+[
+  {
+    "severity": "low",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots > returns empty array for empty analytics 1`] = `[]`;
+
+exports[`detectOnboardingSignals snapshots detects ai ignored using ai heatmap fallback 1`] = `
+[
+  {
+    "count": 5,
+    "type": "ai_ignored",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots detects ai ignored using aiRates 1`] = `
+[
+  {
+    "count": 7,
+    "type": "ai_ignored",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots detects mixed signals deterministically 1`] = `
+[
+  {
+    "count": 5,
+    "type": "ai_ignored",
+  },
+  {
+    "type": "presets_underused",
+  },
+  {
+    "severity": "medium",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots detects presets underused when saved but not applied 1`] = `
+[
+  {
+    "type": "presets_underused",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots detects validation struggle severity high 1`] = `
+[
+  {
+    "severity": "high",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots detects validation struggle severity low 1`] = `
+[
+  {
+    "severity": "low",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots detects validation struggle severity medium 1`] = `
+[
+  {
+    "severity": "medium",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots handles partial analytics input 1`] = `
+[
+  {
+    "severity": "low",
+    "type": "validation_struggle",
+  },
+]
+`;
+
+exports[`detectOnboardingSignals snapshots returns empty array for empty analytics 1`] = `[]`;

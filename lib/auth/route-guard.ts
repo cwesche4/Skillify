@@ -30,10 +30,13 @@ export async function requirePlan(required: Plan, workspaceId: string) {
   }
 }
 
-export async function requireAdmin(workspaceId: string) {
-  const role = await getWorkspaceRole(workspaceId)
+export async function requireAdmin(workspaceSlug: string) {
+  const { userId } = auth()
+  if (!userId) redirect('/sign-in')
+
+  const role = await getWorkspaceRole({ workspaceSlug, clerkId: userId })
 
   if (role !== 'owner' && role !== 'admin') {
-    redirect(`/dashboard/${workspaceId}`)
+    redirect(`/dashboard/${workspaceSlug}`)
   }
 }

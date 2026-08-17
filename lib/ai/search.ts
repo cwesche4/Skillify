@@ -1,40 +1,67 @@
-// lib/ai/search.ts
-import OpenAI from 'openai'
+import {
+  aiEmbeddingProviderRegistry,
+  type AIEmbeddingProviderRegistry,
+} from '@/lib/ai/providers/aiProviderLayer'
 
-// If no API key is configured, fall back to returning items unchanged.
-const openAiApiKey = process.env.OPENAI_API_KEY
-const client = openAiApiKey ? new OpenAI({ apiKey: openAiApiKey }) : null
+export type SemanticSearchItem = {
+  label?: string
+}
 
-export async function semanticSearch(query: string, items: any[]) {
+export type SemanticSearchOptions = {
+  embeddingProviders?: AIEmbeddingProviderRegistry
+  providerId?: string
+}
+
+export async function semanticSearch<TItem extends SemanticSearchItem>(
+  query: string,
+  items: TItem[],
+  {
+    embeddingProviders = aiEmbeddingProviderRegistry,
+    providerId,
+  }: SemanticSearchOptions = {},
+): Promise<Array<TItem & { score?: number }>> {
   if (!query.trim()) return items
-  if (!client) return items
 
-  // 1. Embed the query
-  const embedding = await client.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: query,
+  const provider = embeddingProviders.get(providerId)
+  if (!provider) return items
+
+  const labels = items.map((item) => item.label ?? '')
+  const embedding = await provider.embed({
+    id: 'semantic-search-query',
+    input: [query],
   })
-
-  const queryVector = embedding.data[0].embedding
-
-  // 2. Embed each item label
-  const itemEmbeddings = await client.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: items.map((item) => item.label),
+  const itemEmbeddings = await provider.embed({
+    id: 'semantic-search-items',
+    input: labels,
   })
+  const queryVector = embedding.embeddings[0] ?? []
 
-  // 3. Calculate cosine similarity
-  const scored = items.map((item, i) => {
-    const vec = itemEmbeddings.data[i].embedding
+  return items
+    .map((item, index) => ({
+      ...item,
+      score: cosineSimilarity(
+        queryVector,
+        itemEmbeddings.embeddings[index] ?? [],
+      ),
+    }))
+    .sort((first, second) => (second.score ?? 0) - (first.score ?? 0))
+}
 
-    let score = 0
-    for (let j = 0; j < vec.length; j++) {
-      score += vec[j] * queryVector[j]
-    }
+export function cosineSimilarity(first: number[], second: number[]) {
+  const length = Math.min(first.length, second.length)
+  if (length === 0) return 0
 
-    return { ...item, score }
-  })
+  let dot = 0
+  let firstMagnitude = 0
+  let secondMagnitude = 0
+  for (let index = 0; index < length; index += 1) {
+    const firstValue = first[index] ?? 0
+    const secondValue = second[index] ?? 0
+    dot += firstValue * secondValue
+    firstMagnitude += firstValue ** 2
+    secondMagnitude += secondValue ** 2
+  }
 
-  // 4. Rank by semantic similarity
-  return scored.sort((a, b) => b.score - a.score)
+  if (firstMagnitude === 0 || secondMagnitude === 0) return 0
+  return dot / (Math.sqrt(firstMagnitude) * Math.sqrt(secondMagnitude))
 }

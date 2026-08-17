@@ -7,28 +7,157 @@
     --brand-indigo: #6366f1;
     --brand-teal: #0ea5e9;
 
-    --neutral-light: #f5f7fa;
+    --app-background: #f7faff;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-muted: #f1f5fb;
+    --surface-hover: #eaf2ff;
+
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+
+    --border: #d9e2ef;
+    --border-strong: #b9c7db;
+
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --info: #0284c7;
+    --ai: #7c3aed;
+    --opportunity: #9333ea;
+
+    --chart-text: #1e293b;
+    --chart-text-muted: #64748b;
+    --chart-grid: #d8e2ef;
+    --chart-axis: #94a3b8;
+    --chart-track: #e7eef8;
+    --chart-surface: #ffffff;
+    --chart-surface-raised: #ffffff;
+    --chart-tooltip-surface: #ffffff;
+    --chart-tooltip-text: #0f172a;
+
+    --metric-surface: #ffffff;
+    --metric-surface-hover: #f1f7ff;
+    --metric-border: #d8e2ef;
+    --metric-text: #0f172a;
+    --metric-muted: #475569;
+
+    --insight-surface: #ffffff;
+    --insight-surface-hover: #f1f7ff;
+    --insight-border: #d8e2ef;
+    --insight-text: #0f172a;
+    --insight-muted: #475569;
+
+    --recommendation-surface: #ffffff;
+    --recommendation-surface-hover: #f1f7ff;
+    --recommendation-border: #d8e2ef;
+
+    --drawer-surface: #ffffff;
+    --drawer-header-surface: rgba(255, 255, 255, 0.94);
+    --drawer-panel-surface: #f8fbff;
+    --drawer-panel-muted: #f1f5fb;
+    --drawer-border: #d8e2ef;
+
+    --status-info-surface: #eaf7ff;
+    --status-success-surface: #ecfdf3;
+    --status-warning-surface: #fff7e6;
+    --status-danger-surface: #fff1f2;
+    --status-violet-surface: #f5f1ff;
+
+    --shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.08);
+    --shadow-card: 0 18px 44px rgba(15, 23, 42, 0.12);
+
+    --neutral-light: var(--app-background);
     --neutral-dark: #0d0f12;
 
-    --neutral-card-light: #ffffff;
-    --neutral-card-dark: #111315;
+    --neutral-card-light: var(--surface);
+    --neutral-card-dark: var(--surface-raised);
 
-    --neutral-border: #e5e7eb;
+    --neutral-border: var(--border);
 
-    --neutral-text-primary: #1f2937;
-    --neutral-text-secondary: #4b5563;
+    --neutral-text-primary: var(--text-primary);
+    --neutral-text-secondary: var(--text-secondary);
 
     --accent-soft-purple: #e0d7ff;
     --accent-sky-blue: #bae6fd;
     --accent-mint: #a0f0e3;
+
+    --dashboard-top-bar-height: 3.5rem;
   }
 
   .dark {
-    --neutral-light: #0d0f12;
-    --neutral-card-light: #111315;
+    --app-background: #020617;
+    --surface: #070a12;
+    --surface-raised: #0b1220;
+    --surface-muted: #101827;
+    --surface-hover: #162238;
 
-    --neutral-text-primary: #f9fafb;
-    --neutral-text-secondary: #e5e7eb;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+
+    --border: rgba(148, 163, 184, 0.18);
+    --border-strong: rgba(148, 163, 184, 0.32);
+
+    --primary: #3b82f6;
+    --primary-hover: #60a5fa;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #f43f5e;
+    --info: #38bdf8;
+    --ai: #a78bfa;
+    --opportunity: #c084fc;
+
+    --chart-text: #e2e8f0;
+    --chart-text-muted: #94a3b8;
+    --chart-grid: rgba(148, 163, 184, 0.18);
+    --chart-axis: rgba(148, 163, 184, 0.42);
+    --chart-track: #1e293b;
+    --chart-surface: #0b1220;
+    --chart-surface-raised: #101827;
+    --chart-tooltip-surface: #020617;
+    --chart-tooltip-text: #e2e8f0;
+
+    --metric-surface: #0b1220;
+    --metric-surface-hover: #101827;
+    --metric-border: rgba(148, 163, 184, 0.18);
+    --metric-text: #f8fafc;
+    --metric-muted: #cbd5e1;
+
+    --insight-surface: #0b1220;
+    --insight-surface-hover: #101827;
+    --insight-border: rgba(148, 163, 184, 0.18);
+    --insight-text: #f8fafc;
+    --insight-muted: #cbd5e1;
+
+    --recommendation-surface: #0b1220;
+    --recommendation-surface-hover: #101827;
+    --recommendation-border: rgba(148, 163, 184, 0.18);
+
+    --drawer-surface: #020617;
+    --drawer-header-surface: rgba(2, 6, 23, 0.95);
+    --drawer-panel-surface: rgba(15, 23, 42, 0.45);
+    --drawer-panel-muted: rgba(15, 23, 42, 0.35);
+    --drawer-border: rgba(148, 163, 184, 0.18);
+
+    --status-info-surface: rgba(56, 189, 248, 0.1);
+    --status-success-surface: rgba(34, 197, 94, 0.1);
+    --status-warning-surface: rgba(245, 158, 11, 0.1);
+    --status-danger-surface: rgba(244, 63, 94, 0.1);
+    --status-violet-surface: rgba(167, 139, 250, 0.1);
+
+    --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --shadow-card: 0 18px 45px rgba(0, 0, 0, 0.45);
+
+    --neutral-light: var(--app-background);
+    --neutral-card-light: var(--surface-raised);
+    --neutral-card-dark: var(--surface-raised);
+
+    --neutral-text-primary: var(--text-primary);
+    --neutral-text-secondary: var(--text-secondary);
   }
 }
 
@@ -43,6 +172,75 @@
    3. CUSTOM COLOR UTILITIES
 ------------------------------------------------------------ */
 @layer utilities {
+  .bg-skillify-auth {
+    background:
+      radial-gradient(
+        circle at 18% 18%,
+        rgba(99, 102, 241, 0.28),
+        transparent 32%
+      ),
+      radial-gradient(
+        circle at 82% 18%,
+        rgba(14, 165, 233, 0.18),
+        transparent 28%
+      ),
+      linear-gradient(135deg, #020617 0%, #111827 48%, #1e1b4b 100%);
+  }
+
+  .bg-skillify-blueprint {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .bg-skillify-hero-grid {
+    background:
+      radial-gradient(
+        circle at 12% 12%,
+        rgba(37, 99, 235, 0.14),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at 88% 20%,
+        rgba(99, 102, 241, 0.12),
+        transparent 30%
+      ),
+      linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+    background-size:
+      auto,
+      auto,
+      40px 40px,
+      40px 40px;
+  }
+
+  .bg-skillify-dashboard-soft {
+    background:
+      radial-gradient(
+        circle at 0% 0%,
+        color-mix(in srgb, var(--primary) 12%, transparent),
+        transparent 32%
+      ),
+      radial-gradient(
+        circle at 100% 10%,
+        color-mix(in srgb, var(--ai) 10%, transparent),
+        transparent 30%
+      ),
+      linear-gradient(180deg, var(--surface-muted), var(--app-background));
+  }
+
+  .bg-skillify-node-pattern {
+    background-image:
+      radial-gradient(circle, rgba(125, 211, 252, 0.16) 0 2px, transparent 2px),
+      linear-gradient(120deg, rgba(125, 211, 252, 0.075), transparent 36%),
+      linear-gradient(60deg, transparent 58%, rgba(129, 140, 248, 0.06));
+    background-size:
+      132px 132px,
+      260px 260px,
+      300px 300px;
+  }
+
   .bg-neutral-card-dark {
     background-color: var(--neutral-card-dark);
   }
@@ -56,15 +254,141 @@
     background-color: var(--neutral-dark);
   }
 
+  .bg-app-background {
+    background-color: var(--app-background);
+  }
+  .bg-app-surface {
+    background-color: var(--surface);
+  }
+  .bg-app-surface-raised {
+    background-color: var(--surface-raised);
+  }
+  .bg-app-surface-muted {
+    background-color: var(--surface-muted);
+  }
+  .bg-app-surface-hover {
+    background-color: var(--surface-hover);
+  }
+
   .text-neutral-text-primary {
     color: var(--neutral-text-primary);
   }
   .text-neutral-text-secondary {
     color: var(--neutral-text-secondary);
   }
+  .text-app-primary {
+    color: var(--text-primary);
+  }
+  .text-app-secondary {
+    color: var(--text-secondary);
+  }
+  .text-app-muted {
+    color: var(--text-muted);
+  }
 
   .border-neutral-border {
     border-color: var(--neutral-border);
+  }
+  .border-app {
+    border-color: var(--border);
+  }
+  .border-app-strong {
+    border-color: var(--border-strong);
+  }
+  .text-chart {
+    color: var(--chart-text);
+  }
+  .text-chart-muted {
+    color: var(--chart-text-muted);
+  }
+  .bg-chart-surface {
+    background-color: var(--chart-surface);
+  }
+  .border-chart-grid {
+    border-color: var(--chart-grid);
+  }
+  .bg-chart-track {
+    background-color: var(--chart-track);
+  }
+  .bg-chart-surface-raised {
+    background-color: var(--chart-surface-raised);
+  }
+  .metric-card-surface {
+    background: var(--metric-surface);
+    border-color: var(--metric-border);
+    color: var(--metric-text);
+    box-shadow: var(--shadow-soft);
+  }
+  .metric-card-surface:hover {
+    background: var(--metric-surface-hover);
+  }
+  .text-metric {
+    color: var(--metric-text);
+  }
+  .text-metric-muted {
+    color: var(--metric-muted);
+  }
+  .insight-card-surface {
+    background: var(--insight-surface);
+    border-color: var(--insight-border);
+    color: var(--insight-text);
+  }
+  .insight-card-surface:hover {
+    background: var(--insight-surface-hover);
+  }
+  .text-insight {
+    color: var(--insight-text);
+  }
+  .text-insight-muted {
+    color: var(--insight-muted);
+  }
+  .recommendation-card-surface {
+    background: var(--recommendation-surface);
+    border-color: var(--recommendation-border);
+    color: var(--text-primary);
+  }
+  .recommendation-card-surface:hover {
+    background: var(--recommendation-surface-hover);
+    border-color: color-mix(
+      in srgb,
+      var(--primary) 36%,
+      var(--recommendation-border)
+    );
+  }
+  .drawer-surface {
+    background: var(--drawer-surface);
+    border-color: var(--drawer-border);
+    color: var(--text-primary);
+  }
+  .drawer-header-surface {
+    background: var(--drawer-header-surface);
+    border-color: var(--drawer-border);
+    color: var(--text-primary);
+  }
+  .drawer-panel-surface {
+    background: var(--drawer-panel-surface);
+    border-color: var(--drawer-border);
+    color: var(--text-primary);
+  }
+  .drawer-panel-muted {
+    background: var(--drawer-panel-muted);
+    border-color: var(--drawer-border);
+    color: var(--text-primary);
+  }
+  .bg-status-info-surface {
+    background-color: var(--status-info-surface);
+  }
+  .bg-status-success-surface {
+    background-color: var(--status-success-surface);
+  }
+  .bg-status-warning-surface {
+    background-color: var(--status-warning-surface);
+  }
+  .bg-status-danger-surface {
+    background-color: var(--status-danger-surface);
+  }
+  .bg-status-violet-surface {
+    background-color: var(--status-violet-surface);
   }
 }
 
@@ -92,11 +416,17 @@ html.dark {
   color-scheme: dark;
 }
 
+html.theme-light {
+  color-scheme: light;
+}
+
 /* ------------------------------------------------------------
    5. GLOBAL THEME + TYPOGRAPHY
 ------------------------------------------------------------ */
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  background: var(--app-background);
+  color: var(--text-primary);
+  @apply antialiased;
 }
 
 .page-transition {
@@ -104,7 +434,12 @@ body {
 }
 
 a {
-  @apply text-indigo-400 transition-colors hover:text-indigo-300;
+  color: var(--primary);
+  @apply transition-colors;
+}
+
+a:hover {
+  color: var(--primary-hover);
 }
 
 .h1 {
@@ -136,7 +471,10 @@ a {
 input,
 textarea,
 select {
-  @apply rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 outline-none;
+  border-color: var(--border);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  @apply rounded-lg border px-3 py-2 outline-none;
 }
 
 input:focus,
@@ -155,13 +493,29 @@ select:focus {
   @apply bg-brand-primary text-white hover:bg-blue-600 active:scale-[0.98];
 }
 .btn-secondary {
-  @apply bg-neutral-card-dark text-neutral-text-primary border border-neutral-border hover:bg-slate-800;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border);
+  @apply border;
+}
+.btn-secondary:hover {
+  background: var(--surface-hover);
 }
 .btn-ghost {
-  @apply text-neutral-text-secondary rounded-xl hover:bg-slate-800 hover:text-white;
+  color: var(--text-secondary);
+  @apply rounded-xl;
+}
+.btn-ghost:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 .btn-outline {
-  @apply text-neutral-text-primary border border-neutral-border hover:bg-slate-800;
+  color: var(--text-primary);
+  border-color: var(--border);
+  @apply border;
+}
+.btn-outline:hover {
+  background: var(--surface-hover);
 }
 .btn-danger {
   @apply bg-red-600 text-white hover:bg-red-700;
@@ -178,17 +532,105 @@ select:focus {
    9. CARD SYSTEM
 ------------------------------------------------------------ */
 .card {
-  @apply rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-soft backdrop-blur;
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  border-color: var(--border);
+  box-shadow: var(--shadow-soft);
+  @apply rounded-2xl border p-6 backdrop-blur;
 }
 
 .card-hover {
   @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card;
 }
 .card-stat {
-  @apply flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-900 p-4;
+  background: var(--surface-raised);
+  border-color: var(--border);
+  @apply flex flex-col gap-2 rounded-xl border p-4;
+}
+
+.app-panel {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-soft);
+  @apply rounded-2xl border;
+}
+
+.app-panel-muted {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text-primary);
+  @apply rounded-xl border;
+}
+
+.app-option-card {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text-primary);
+  @apply rounded-xl border;
+}
+
+.app-option-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.app-option-card-selected {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border));
+}
+
+.app-drawer {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+}
+
+.app-popover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+  @apply rounded-2xl border;
+}
+
+.app-popover-item {
+  color: var(--text-secondary);
+  @apply rounded-xl transition;
+}
+
+.app-popover-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.skillify-backdrop {
+  background: color-mix(in srgb, var(--app-background) 74%, transparent);
+  @apply fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm;
+}
+
+.skillify-modal {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+  @apply rounded-2xl border p-5;
+}
+
+.modal-header {
+  border-color: var(--border);
+  @apply mb-4 flex items-start justify-between gap-4 border-b pb-3;
+}
+
+.modal-title {
+  color: var(--text-primary);
+  @apply text-base font-semibold;
 }
 .card-analytics {
-  @apply rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-card;
+  background: var(--surface-raised);
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+  @apply rounded-2xl border p-6;
 }
 
 /* ------------------------------------------------------------
@@ -203,25 +645,42 @@ select:focus {
 }
 
 .workspace-switcher {
-  @apply flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 hover:bg-slate-800;
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text-primary);
+  @apply flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-2;
+}
+.workspace-switcher:hover {
+  background: var(--surface-hover);
 }
 
 .profile-menu {
-  @apply flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 hover:bg-slate-800;
+  color: var(--text-secondary);
+  @apply flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5;
+}
+.profile-menu:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 /* ------------------------------------------------------------
    11. MODALS
 ------------------------------------------------------------ */
 .modal {
-  @apply animate-fadeIn w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-8 shadow-2xl;
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text-primary);
+  @apply animate-fadeIn w-full max-w-lg rounded-2xl border p-8 shadow-2xl;
 }
 
 /* ------------------------------------------------------------
    12. TOAST SYSTEM
 ------------------------------------------------------------ */
 .skillify-toast {
-  @apply rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-slate-50 shadow-lg;
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text-primary);
+  @apply rounded-lg border px-4 py-3 shadow-lg;
 }
 
 .toast-success {
@@ -318,4 +777,93 @@ select:focus {
   text-align: left;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   user-select: none;
+}
+
+.react-flow__node.workflow-node-active > div {
+  border-color: rgba(56, 189, 248, 0.34);
+}
+
+.react-flow__node.workflow-node-inactive {
+  opacity: 0.66;
+  filter: grayscale(0.16) saturate(0.7);
+}
+
+.react-flow__node.workflow-node-inactive > div {
+  border-color: rgba(100, 116, 139, 0.38);
+}
+
+.react-flow__node.workflow-node-inactive::after {
+  content: 'Inactive';
+  position: absolute;
+  top: -12px;
+  right: 10px;
+  border: 1px solid rgba(100, 116, 139, 0.42);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  padding: 3px 6px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.react-flow__node.workflow-node-inactive.selected {
+  opacity: 1;
+  filter: none;
+}
+
+.react-flow__node.workflow-node-inactive.selected::after {
+  display: none;
+}
+
+.react-flow__node.workflow-node-warning::after,
+.react-flow__node.workflow-node-error::after {
+  position: absolute;
+  top: -12px;
+  right: 10px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  padding: 3px 6px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.react-flow__node.workflow-node-warning::after {
+  content: 'Needs review';
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(120, 53, 15, 0.88);
+  color: rgba(254, 243, 199, 0.96);
+}
+
+.react-flow__node.workflow-node-error::after {
+  content: 'Blocked';
+  border: 1px solid rgba(251, 113, 133, 0.5);
+  background: rgba(76, 5, 25, 0.9);
+  color: rgba(255, 228, 230, 0.96);
+}
+
+.workflow-canvas-selecting .react-flow__pane,
+.workflow-canvas-selecting .react-flow__renderer,
+.workflow-canvas-selecting .react-flow__selectionpane {
+  cursor: crosshair !important;
+}
+
+.workflow-canvas-selecting .react-flow__selection {
+  border: 1px solid rgba(103, 232, 249, 0.7);
+  background: rgba(14, 165, 233, 0.12);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.5);
+}
+
+.react-flow__node.selected > div {
+  border-color: rgba(103, 232, 249, 0.64);
+  box-shadow:
+    0 0 0 2px rgba(103, 232, 249, 0.58),
+    0 0 24px rgba(34, 211, 238, 0.18),
+    0 18px 45px rgba(2, 6, 23, 0.58);
 }

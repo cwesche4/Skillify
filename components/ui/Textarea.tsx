@@ -16,8 +16,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           className={cn(
-            'text-neutral-text-primary placeholder:text-neutral-text-secondary/70 w-full rounded-xl border bg-slate-950/80 px-3 py-2 text-sm shadow-sm outline-none transition-colors',
-            'focus:border-brand-primary/70 focus:ring-brand-primary/60 border-slate-700 focus:ring-1',
+            'bg-app-surface-raised text-app-primary placeholder:text-app-muted w-full rounded-xl border px-3 py-2 text-sm shadow-sm outline-none transition-colors',
+            'focus:border-brand-primary/70 focus:ring-brand-primary/60 border-app focus:ring-1',
             'min-h-[120px] resize-y',
             error &&
               'border-rose-500/70 focus:border-rose-500 focus:ring-rose-500/60',

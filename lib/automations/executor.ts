@@ -4,15 +4,26 @@ import { prisma } from '@/lib/db'
 import { logAudit } from '@/lib/audit/log'
 import { ensureIntegrationAdapters } from '@/lib/integrations/register-default'
 import { getIntegrationAdapter } from '@/lib/integrations/registry'
-import type { IntegrationProvider, IntegrationActionResult } from '@/lib/integrations/types'
+import type {
+  IntegrationProvider,
+  IntegrationActionResult,
+} from '@/lib/integrations/types'
 import { upsertExternalRecord } from '@/lib/integrations/externalRecords'
 import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
 import { decryptToken } from '@/lib/integrations/crypto'
-import { recordFailure, resetBreakerIfNeeded, isBreakerOpen } from '@/lib/integrations/circuit'
+import {
+  recordFailure,
+  resetBreakerIfNeeded,
+  isBreakerOpen,
+} from '@/lib/integrations/circuit'
 import { normalizeCRMAuditMeta } from '@/lib/integrations/auditMeta'
 import { classifyCRMError } from '@/lib/integrations/failureCategory'
 import { shouldDeferCRMAction, buildDeferMeta } from '@/lib/integrations/defer'
 import { classifyFailureSource } from '@/lib/automations/failureAttribution'
+import {
+  executeSchedulingWorkflowAction,
+  isSchedulingRuntimeNode,
+} from '@/lib/workflows/schedulingRuntime'
 // Debug flag (env); default off. Never include raw CRM payloads.
 const DEBUG_MODE = process.env.AUTOMATION_DEBUG_MODE === 'true'
 import { classifyAutomationFailureSource } from '@/lib/automations/failure'
@@ -84,6 +95,20 @@ export async function executeNode(
   data: any,
   context: NodeExecutionContext,
 ): Promise<NodeExecutionResult> {
+  const registryNodeId =
+    typeof data?.__registryNodeId === 'string' ? data.__registryNodeId : type
+  if (isSchedulingRuntimeNode(registryNodeId)) {
+    const result = await executeSchedulingWorkflowAction({
+      registryNodeId,
+      data: data ?? {},
+      context,
+    })
+    return {
+      output: result.output,
+      log: result.log,
+    }
+  }
+
   switch (type) {
     case 'trigger':
       return {
@@ -304,25 +329,30 @@ export async function executeNode(
         }
       }
 
-    try {
-      const timeoutMs = 8000
-      const execPromise = adapter.executeAction(ctx, data?.action, data?.payload ?? {})
-      const defer = shouldDeferCRMAction({
-        timeoutMs,
-        expectedMs: (data?.payload as any)?.expectedMs,
-      })
-      const res = await Promise.race([
-        execPromise,
-        new Promise<IntegrationActionResult>((resolve) =>
-          setTimeout(
-            () => resolve({ ok: false, error: 'CRM_EXECUTION_TIMEOUT' }),
+      try {
+        const timeoutMs = 8000
+        const execPromise = adapter.executeAction(
+          ctx,
+          data?.action,
+          data?.payload ?? {},
+        )
+        const defer = shouldDeferCRMAction({
+          timeoutMs,
+          expectedMs: (data?.payload as any)?.expectedMs,
+        })
+        const res = await Promise.race([
+          execPromise,
+          new Promise<IntegrationActionResult>((resolve) =>
+            setTimeout(
+              () => resolve({ ok: false, error: 'CRM_EXECUTION_TIMEOUT' }),
               timeoutMs,
             ),
           ),
         ])
         const externalId =
           data?.payload?.externalId ||
-          (res.ok && (res.data?.id || res.data?.objectId || res.data?.externalId))
+          (res.ok &&
+            (res.data?.id || res.data?.objectId || res.data?.externalId))
 
         if (externalId) {
           await upsertExternalRecord({
@@ -336,42 +366,42 @@ export async function executeNode(
           })
         }
 
-      if (res.ok) {
-        await logAudit({
-          workspaceId: context.workspaceId!,
-          actorId: context.userProfileId ?? undefined,
-          action: 'CRM_ACTION_EXECUTED',
-          targetType: 'Automation',
-          targetId: context.automationId,
-          meta: normalizeCRMAuditMeta({
-            provider,
-            action: data?.action,
-            objectType: data?.objectType,
-            integrationId,
-            automationId: context.automationId,
-            externalId: externalId ? String(externalId) : undefined,
-            ...(defer
-              ? buildDeferMeta({
-                  reason: 'Expected long-running CRM action',
-                  expectedMs: (data?.payload as any)?.expectedMs,
-                })
-              : {}),
-            failureCategory: 'unknown',
-            failureSource: classifyFailureSource('crm-action'),
-            ...(DEBUG_MODE
-              ? {
-                  debug: {
-                    // Only include IDs/summary; never raw CRM payloads.
-                    nodeType: 'crm-action',
-                    action: data?.action,
-                    objectType: data?.objectType,
-                    integrationId,
-                    automationId: context.automationId,
-                  },
-                }
-              : {}),
-          }),
-        })
+        if (res.ok) {
+          await logAudit({
+            workspaceId: context.workspaceId!,
+            actorId: context.userProfileId ?? undefined,
+            action: 'CRM_ACTION_EXECUTED',
+            targetType: 'Automation',
+            targetId: context.automationId,
+            meta: normalizeCRMAuditMeta({
+              provider,
+              action: data?.action,
+              objectType: data?.objectType,
+              integrationId,
+              automationId: context.automationId,
+              externalId: externalId ? String(externalId) : undefined,
+              ...(defer
+                ? buildDeferMeta({
+                    reason: 'Expected long-running CRM action',
+                    expectedMs: (data?.payload as any)?.expectedMs,
+                  })
+                : {}),
+              failureCategory: 'unknown',
+              failureSource: classifyFailureSource('crm-action'),
+              ...(DEBUG_MODE
+                ? {
+                    debug: {
+                      // Only include IDs/summary; never raw CRM payloads.
+                      nodeType: 'crm-action',
+                      action: data?.action,
+                      objectType: data?.objectType,
+                      integrationId,
+                      automationId: context.automationId,
+                    },
+                  }
+                : {}),
+            }),
+          })
           if (integrationId && integration) {
             await prisma.integration.update({
               where: { id: integrationId },
@@ -384,86 +414,91 @@ export async function executeNode(
               },
             })
           }
-      } else {
-        if (res.error === 'CRM_EXECUTION_TIMEOUT') {
+        } else {
+          if (res.error === 'CRM_EXECUTION_TIMEOUT') {
+            await logAudit({
+              workspaceId: context.workspaceId!,
+              actorId: context.userProfileId ?? undefined,
+              action: 'CRM_EXECUTION_TIMEOUT',
+              targetType: 'Automation',
+              targetId: context.automationId,
+              meta: normalizeCRMAuditMeta({
+                provider,
+                action: data?.action,
+                objectType: data?.objectType,
+                integrationId,
+                automationId: context.automationId,
+                timeoutMs,
+                failureCategory: classifyCRMError(res.error),
+                ...(defer
+                  ? buildDeferMeta({
+                      reason: 'Expected long-running CRM action',
+                      expectedMs: (data?.payload as any)?.expectedMs,
+                    })
+                  : {}),
+                failureSource: classifyFailureSource('crm-action'),
+                ...(DEBUG_MODE
+                  ? {
+                      debug: {
+                        nodeType: 'crm-action',
+                        action: data?.action,
+                        objectType: data?.objectType,
+                        integrationId,
+                        automationId: context.automationId,
+                        hint: 'timeout',
+                      },
+                    }
+                  : {}),
+              }),
+            })
+          }
           await logAudit({
             workspaceId: context.workspaceId!,
             actorId: context.userProfileId ?? undefined,
-            action: 'CRM_EXECUTION_TIMEOUT',
+            action: 'CRM_ACTION_FAILED',
             targetType: 'Automation',
             targetId: context.automationId,
-          meta: normalizeCRMAuditMeta({
-            provider,
-            action: data?.action,
-            objectType: data?.objectType,
-            integrationId,
-            automationId: context.automationId,
-            timeoutMs,
-            failureCategory: classifyCRMError(res.error),
-            ...(defer
-              ? buildDeferMeta({
-                  reason: 'Expected long-running CRM action',
-                  expectedMs: (data?.payload as any)?.expectedMs,
-                })
-              : {}),
-            failureSource: classifyFailureSource('crm-action'),
-            ...(DEBUG_MODE
-              ? {
-                  debug: {
-                    nodeType: 'crm-action',
-                    action: data?.action,
-                    objectType: data?.objectType,
-                    integrationId,
-                    automationId: context.automationId,
-                    hint: 'timeout',
-                  },
-                }
-              : {}),
-          }),
-        })
-      }
-      await logAudit({
-        workspaceId: context.workspaceId!,
-          actorId: context.userProfileId ?? undefined,
-          action: 'CRM_ACTION_FAILED',
-          targetType: 'Automation',
-          targetId: context.automationId,
-          meta: normalizeCRMAuditMeta({
-            provider,
-            action: data?.action,
-            objectType: data?.objectType,
-            integrationId,
-            automationId: context.automationId,
-            error: res.error,
-            failureCategory: classifyCRMError(res.error),
-            ...(defer
-              ? buildDeferMeta({
-                  reason: 'Expected long-running CRM action',
-                  expectedMs: (data?.payload as any)?.expectedMs,
-                })
-              : {}),
-            failureSource: classifyFailureSource('crm-action'),
-            ...(DEBUG_MODE
-              ? {
-                  debug: {
-                    nodeType: 'crm-action',
-                    action: data?.action,
-                    objectType: data?.objectType,
-                    integrationId,
-                    automationId: context.automationId,
-                    hint: 'fail',
-                  },
-                }
-              : {}),
-          }),
-        })
-        if (integrationId) {
-          await recordFailure(integrationId, context.workspaceId!, provider, res.error)
+            meta: normalizeCRMAuditMeta({
+              provider,
+              action: data?.action,
+              objectType: data?.objectType,
+              integrationId,
+              automationId: context.automationId,
+              error: res.error,
+              failureCategory: classifyCRMError(res.error),
+              ...(defer
+                ? buildDeferMeta({
+                    reason: 'Expected long-running CRM action',
+                    expectedMs: (data?.payload as any)?.expectedMs,
+                  })
+                : {}),
+              failureSource: classifyFailureSource('crm-action'),
+              ...(DEBUG_MODE
+                ? {
+                    debug: {
+                      nodeType: 'crm-action',
+                      action: data?.action,
+                      objectType: data?.objectType,
+                      integrationId,
+                      automationId: context.automationId,
+                      hint: 'fail',
+                    },
+                  }
+                : {}),
+            }),
+          })
+          if (integrationId) {
+            await recordFailure(
+              integrationId,
+              context.workspaceId!,
+              provider,
+              res.error,
+            )
+          }
         }
-      }
 
         return {
-          output: res.ok ? res.data ?? {} : { error: res.error },
+          output: res.ok ? (res.data ?? {}) : { error: res.error },
           log: res.ok
             ? `CRM action executed (${provider} • ${data?.action ?? 'unknown'})`
             : `CRM action failed: ${res.error ?? 'unknown error'}`,
@@ -485,7 +520,12 @@ export async function executeNode(
           }),
         })
         if (integrationId) {
-          await recordFailure(integrationId, context.workspaceId!, provider, err?.message)
+          await recordFailure(
+            integrationId,
+            context.workspaceId!,
+            provider,
+            err?.message,
+          )
         }
 
         return {

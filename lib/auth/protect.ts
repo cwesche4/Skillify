@@ -1,6 +1,7 @@
 // lib/auth/protect.ts
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
 
 // Plan ranking
 const PLAN_RANK = {
@@ -20,6 +21,7 @@ export async function requireAuth() {
 }
 
 export async function getWorkspace(workspaceSlug: string) {
+  if (!workspaceSlug) return null
   return prisma.workspace.findUnique({
     where: { slug: workspaceSlug },
   })
@@ -77,8 +79,8 @@ export async function protectRoute(
   const role = await getUserRole(userId, workspace.id)
   if (!role) return { allowed: false, redirect: '/dashboard' }
 
-  // 4. User's subscription tier
-  const plan = await getUserPlan(userId)
+  // 4. Effective workspace plan (workspace -> owner -> user)
+  const plan = await getWorkspacePlan(workspace.id, userId)
 
   // 5. Role requirement?
   if (rules?.role && !requireRole(rules.role, role)) {
@@ -87,7 +89,11 @@ export async function protectRoute(
 
   // 6. Plan requirement?
   if (rules?.require && !requirePlan(rules.require, plan)) {
-    return { allowed: false, redirect: `/dashboard/${workspaceSlug}/upsell` }
+    const need = rules.require
+    return {
+      allowed: false,
+      redirect: `/dashboard/${workspaceSlug}/upsell?need=${need}&feature=Gated`,
+    }
   }
 
   return {

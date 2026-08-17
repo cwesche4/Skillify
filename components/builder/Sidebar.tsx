@@ -20,7 +20,6 @@ export default function Sidebar() {
       <NodePalette
         fullscreen={fullscreen}
         onToggleFullscreen={toggleFullscreen}
-        onAutoLayout={() => {}}
         onGroupSelected={() => {}}
         onUndo={() => {}}
         onRedo={() => {}}

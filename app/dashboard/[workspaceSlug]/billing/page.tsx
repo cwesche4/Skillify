@@ -6,6 +6,10 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
+import { PlanUpgradeControls } from '@/components/billing/PlanUpgradeControls'
+import { planAtLeast } from '@/lib/subscriptions/features'
+import { redirect } from 'next/navigation'
 
 type BillingPageProps = {
   params: { workspaceSlug: string }
@@ -49,8 +53,24 @@ export default async function BillingPage({ params }: BillingPageProps) {
   }
 
   const sub = profile.subscription
-  const planLabel = sub?.plan ?? 'Free'
-  const statusLabel = sub?.status ?? 'inactive'
+  const planLabel = await getWorkspacePlan(workspace.id, userId)
+  const statusLabel = sub?.status ?? 'active'
+  const isOwner = workspace.ownerId === profile.id
+  if (!planAtLeast(planLabel, 'Basic')) {
+    redirect(
+      `/dashboard/${params.workspaceSlug}/upsell?need=Basic&feature=Billing`,
+    )
+  }
+  if (!isOwner) {
+    return (
+      <DashboardShell>
+        <h1 className="h2 mb-2">Billing</h1>
+        <p className="text-neutral-text-secondary text-sm">
+          Billing settings are available to workspace owners.
+        </p>
+      </DashboardShell>
+    )
+  }
 
   return (
     <DashboardShell>
@@ -85,9 +105,13 @@ export default async function BillingPage({ params }: BillingPageProps) {
         </p>
 
         <div className="flex flex-wrap gap-3 pt-2">
-          <Button size="sm">Upgrade plan</Button>
-          <Button variant="outline" size="sm">
-            Open billing portal
+          <PlanUpgradeControls
+            workspaceId={workspace.id}
+            currentPlan={planLabel}
+            canManage={isOwner}
+          />
+          <Button variant="outline" size="sm" disabled>
+            Billing portal (coming soon)
           </Button>
         </div>
 

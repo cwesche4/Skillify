@@ -1,38 +1,42 @@
 const verticals = [
   {
-    name: 'Marketing & Growth Agencies',
-    outcome: 'Capture, qualify, and book more clients on autopilot.',
+    name: 'Lawn & Landscaping',
+    outcome:
+      'Keep leads, estimates, recurring services, crews, and jobs organized.',
     bullets: [
-      'Lead capture → auto nurture sequences',
-      'Missed call → SMS + booking link',
-      'Cold outbound follow-ups on schedule',
+      'New inquiry -> estimate or site visit',
+      'Convert accepted work to a customer record',
+      'Schedule recurring or one-time jobs',
     ],
   },
   {
-    name: 'Coaches & Consultants',
-    outcome: 'Spend more time coaching, less time chasing reschedules.',
+    name: 'Plumbing & HVAC',
+    outcome:
+      'Move calls from inquiry to scheduled service without losing follow-ups.',
     bullets: [
-      'New lead → discovery call booking',
-      'No-show → automated reschedule flow',
-      'Onboarding → welcome + prep materials',
+      'New lead -> customer',
+      'Diagnostic or estimate visit',
+      'Schedule technician and follow-up',
     ],
   },
   {
-    name: 'Studios, Salons & Local Services',
-    outcome: 'Keep calendars full without manually texting clients.',
+    name: 'Electrical & Home Services',
+    outcome:
+      'Track customers, jobs, scheduling, and next steps from one workspace.',
     bullets: [
-      'Appointment reminders and confirmations',
-      'Review and referral requests post-visit',
-      'Win-back campaigns for inactive clients',
+      'Customer request -> job scope',
+      'Assign the right team member',
+      'Keep notes, tasks, and status connected',
     ],
   },
   {
-    name: 'Productized Services & Ops Teams',
-    outcome: 'Orchestrate async work across tools and channels.',
+    name: 'Cleaning & Field Services',
+    outcome:
+      'Manage repeat customers, recurring jobs, assignments, and schedules.',
     bullets: [
-      'Webhook triggers from your app/CRM',
-      'Task routing to the right team member',
-      'Slack alerts for failures or VIP events',
+      'Repeat customer -> recurring service',
+      'Route work by team or location',
+      'Track job completion and follow-up',
     ],
   },
 ]
@@ -43,12 +47,13 @@ export default function SolutionsPage() {
       <section className="px-6 pb-10 pt-20">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            Built for operators across industries.
+            Built for service businesses that run on customers, crews, and
+            schedules.
           </h1>
           <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
-            Skillify works wherever you have clients, calendars, and follow-ups.
-            Plug it into your stack and design flows around your exact
-            operations.
+            Skillify helps local and field-service teams manage customer
+            requests, scheduled work, recurring services, assignments, and
+            operational follow-up from one workspace.
           </p>
         </div>
       </section>
@@ -57,7 +62,7 @@ export default function SolutionsPage() {
         {verticals.map((v) => (
           <div
             key={v.name}
-            className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-md shadow-slate-200/60 transition hover:border-blue-200 hover:bg-blue-50/20 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none dark:hover:border-blue-500/30"
           >
             <h2 className="text-lg font-semibold">{v.name}</h2>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">

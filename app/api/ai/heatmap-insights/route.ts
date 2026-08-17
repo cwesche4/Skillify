@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requirePlan } from '@/lib/auth/route-guard'
+import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
 
 export async function POST(req: Request) {
   const { workspaceId } = await req.json()
@@ -9,6 +10,9 @@ export async function POST(req: Request) {
   if (!workspaceId) {
     return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 })
   }
+
+  const aiGuard = await assertAiActionsEnabled(workspaceId)
+  if (aiGuard) return aiGuard
 
   // 🔒 Pro+ only (analytics.heatmap)
   await requirePlan('Pro', workspaceId)

@@ -1,0 +1,383 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`inspectorAggregates > getInspectorAIEventCounts snapshot 1`] = `
+[
+  {
+    "applied": 1,
+    "bucket": "2023-01-01",
+    "failed": 1,
+    "key": "ws-1|action|config|unknown|2023-01-01",
+    "nodeType": "action",
+    "shown": 2,
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorAIEventCounts snapshot 2`] = `
+[
+  {
+    "applied": 1,
+    "bucket": "2023-01-01",
+    "failed": 1,
+    "key": "ws-1|action|config|unknown|2023-01-01",
+    "nodeType": "action",
+    "shown": 2,
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorAIHeatmap snapshot 1`] = `
+[
+  {
+    "bucket": "2023-01-01",
+    "count": 4,
+    "event": "unknown",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorAIHeatmap snapshot 2`] = `
+[
+  {
+    "bucket": "2023-01-01",
+    "count": 4,
+    "event": "unknown",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorAISuggestionRates snapshot 1`] = `
+[
+  [
+    "ws-1|action|config|unknown|2023-01-01",
+    {
+      "applied": 1,
+      "failed": 1,
+      "shown": 2,
+    },
+  ],
+]
+`;
+
+exports[`inspectorAggregates > getInspectorAISuggestionRates snapshot 2`] = `
+[
+  [
+    "ws-1|action|config|unknown|2023-01-01",
+    {
+      "applied": 1,
+      "failed": 1,
+      "shown": 2,
+    },
+  ],
+]
+`;
+
+exports[`inspectorAggregates > getInspectorPresetHeatmap snapshot 1`] = `
+[
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_preset_applied",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_preset_deleted",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_preset_saved",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorPresetHeatmap snapshot 2`] = `
+[
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_preset_applied",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_preset_deleted",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_preset_saved",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorPresetUsage snapshot 1`] = `
+[
+  [
+    "ws-1|action|config|inspector_preset_applied|2023-01-01",
+    {
+      "applied": 1,
+      "deleted": 0,
+      "saved": 0,
+    },
+  ],
+  [
+    "ws-1|action|config|inspector_preset_deleted|2023-01-01",
+    {
+      "applied": 0,
+      "deleted": 1,
+      "saved": 0,
+    },
+  ],
+  [
+    "ws-1|action|config|inspector_preset_saved|2023-01-01",
+    {
+      "applied": 0,
+      "deleted": 0,
+      "saved": 1,
+    },
+  ],
+]
+`;
+
+exports[`inspectorAggregates > getInspectorPresetUsage snapshot 2`] = `
+[
+  [
+    "ws-1|action|config|inspector_preset_applied|2023-01-01",
+    {
+      "applied": 1,
+      "deleted": 0,
+      "saved": 0,
+    },
+  ],
+  [
+    "ws-1|action|config|inspector_preset_deleted|2023-01-01",
+    {
+      "applied": 0,
+      "deleted": 1,
+      "saved": 0,
+    },
+  ],
+  [
+    "ws-1|action|config|inspector_preset_saved|2023-01-01",
+    {
+      "applied": 0,
+      "deleted": 0,
+      "saved": 1,
+    },
+  ],
+]
+`;
+
+exports[`inspectorAggregates > getInspectorTabHeatmap snapshot 1`] = `
+[
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "unknown",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "unknown",
+    "count": 1,
+    "event": "unknown",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "unknown",
+    "nodeType": "action",
+    "tab": "logs",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-02",
+    "count": 1,
+    "event": "unknown",
+    "nodeType": "trigger",
+    "tab": "config",
+    "workspaceId": "ws-2",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorTabHeatmap snapshot 2`] = `
+[
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "unknown",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "unknown",
+    "count": 1,
+    "event": "unknown",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "unknown",
+    "nodeType": "action",
+    "tab": "logs",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-02",
+    "count": 1,
+    "event": "unknown",
+    "nodeType": "trigger",
+    "tab": "config",
+    "workspaceId": "ws-2",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorTabUsage snapshot 1`] = `
+[
+  [
+    "ws-1|action|config|unknown|2023-01-01",
+    1,
+  ],
+  [
+    "ws-1|action|config|unknown|unknown",
+    1,
+  ],
+  [
+    "ws-1|action|logs|unknown|2023-01-01",
+    1,
+  ],
+  [
+    "ws-2|trigger|config|unknown|2023-01-02",
+    1,
+  ],
+]
+`;
+
+exports[`inspectorAggregates > getInspectorTabUsage snapshot 2`] = `
+[
+  [
+    "ws-1|action|config|unknown|2023-01-01",
+    1,
+  ],
+  [
+    "ws-1|action|config|unknown|unknown",
+    1,
+  ],
+  [
+    "ws-1|action|logs|unknown|2023-01-01",
+    1,
+  ],
+  [
+    "ws-2|trigger|config|unknown|2023-01-02",
+    1,
+  ],
+]
+`;
+
+exports[`inspectorAggregates > getInspectorValidationFrequency snapshot 1`] = `
+[
+  [
+    "ws-1|action|config|inspector_validation_cleared|2023-01-01",
+    1,
+  ],
+  [
+    "ws-1|action|config|inspector_validation_failed|2023-01-01",
+    1,
+  ],
+]
+`;
+
+exports[`inspectorAggregates > getInspectorValidationFrequency snapshot 2`] = `
+[
+  [
+    "ws-1|action|config|inspector_validation_cleared|2023-01-01",
+    1,
+  ],
+  [
+    "ws-1|action|config|inspector_validation_failed|2023-01-01",
+    1,
+  ],
+]
+`;
+
+exports[`inspectorAggregates > getInspectorValidationHeatmap snapshot 1`] = `
+[
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_validation_cleared",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_validation_failed",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+]
+`;
+
+exports[`inspectorAggregates > getInspectorValidationHeatmap snapshot 2`] = `
+[
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_validation_cleared",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+  {
+    "bucket": "2023-01-01",
+    "count": 1,
+    "event": "inspector_validation_failed",
+    "nodeType": "action",
+    "tab": "config",
+    "workspaceId": "ws-1",
+  },
+]
+`;

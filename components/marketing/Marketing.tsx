@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
-import { UserButton, SignedIn, SignedOut } from '@clerk/nextjs'
+import { SignedIn, SignedOut } from '@clerk/nextjs'
+
+import { SkillifyUserMenu } from '@/components/auth/SkillifyUserMenu'
 
 export default function MarketingNav() {
   const [open, setOpen] = useState(false)
@@ -39,7 +41,7 @@ export default function MarketingNav() {
               href="/sign-up"
               className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
             >
-              Start free
+              Start 14-day free trial
             </Link>
           </SignedOut>
 
@@ -50,7 +52,7 @@ export default function MarketingNav() {
             >
               Go to dashboard
             </Link>
-            <UserButton afterSignOutUrl="/" />
+            <SkillifyUserMenu compact />
           </SignedIn>
         </div>
 
@@ -79,7 +81,7 @@ export default function MarketingNav() {
                 href="/sign-up"
                 className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
               >
-                Start free
+                Start 14-day free trial
               </Link>
             </SignedOut>
 
@@ -90,7 +92,7 @@ export default function MarketingNav() {
               >
                 Go to dashboard
               </Link>
-              <UserButton afterSignOutUrl="/" />
+              <SkillifyUserMenu />
             </SignedIn>
           </div>
         </nav>

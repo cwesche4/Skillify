@@ -3,6 +3,8 @@
 import type { BuilderNodeType } from '@/lib/builder/node-types'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { getWorkflowNodeIcon } from '@/lib/workflows/nodeIcons'
+import { LayoutTemplate, Sparkles } from 'lucide-react'
 
 export interface PaletteItem {
   id: string
@@ -11,6 +13,10 @@ export interface PaletteItem {
   category?: string
   locked?: boolean
   lockReason?: string
+  description?: string
+  favorite?: boolean
+  iconKey?: string
+  requiredPlan?: 'Pro' | 'Elite'
 }
 
 interface NodePaletteProps {
@@ -18,7 +24,6 @@ interface NodePaletteProps {
   fullscreen: boolean
   onToggleFullscreen: () => void
 
-  onAutoLayout: () => void
   onGroupSelected: () => void
   onUndo: () => void
   onRedo: () => void
@@ -28,8 +33,11 @@ interface NodePaletteProps {
   canRedo: boolean
 
   planLabel: string
+  onAddNode?: (type: BuilderNodeType, registryNodeId?: string) => void
 
-  onGenerateTemplate?: () => void
+  onGenerateWithAi?: () => void
+  onBrowseTemplates?: () => void
+  onAutoLayout?: () => void
   templates?: {
     id: string
     name: string
@@ -45,7 +53,6 @@ export default function NodePalette({
   items,
   fullscreen,
   onToggleFullscreen,
-  onAutoLayout,
   onGroupSelected,
   onUndo,
   onRedo,
@@ -53,7 +60,10 @@ export default function NodePalette({
   canUndo,
   canRedo,
   planLabel,
-  onGenerateTemplate,
+  onAddNode,
+  onGenerateWithAi,
+  onBrowseTemplates,
+  onAutoLayout,
   templates = [],
 }: NodePaletteProps) {
   const grouped = items.reduce<Record<string, PaletteItem[]>>((acc, item) => {
@@ -64,7 +74,12 @@ export default function NodePalette({
   }, {})
 
   return (
-    <div className="flex w-72 flex-col gap-4 border-r border-slate-800 bg-slate-950/95 p-4">
+    <div
+      className="flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto overscroll-contain border-r border-slate-800 bg-slate-950/95 p-3"
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div>
@@ -84,8 +99,33 @@ export default function NodePalette({
         </div>
       </div>
 
+      {(onGenerateWithAi || onBrowseTemplates) && (
+        <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-800/70 bg-slate-900/45 p-2">
+          {onGenerateWithAi && (
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<Sparkles className="h-4 w-4" />}
+              onClick={onGenerateWithAi}
+            >
+              Generate AI
+            </Button>
+          )}
+          {onBrowseTemplates && (
+            <Button
+              variant="subtle"
+              size="sm"
+              leftIcon={<LayoutTemplate className="h-4 w-4" />}
+              onClick={onBrowseTemplates}
+            >
+              Templates
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Node Groups */}
-      <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+      <div className="space-y-3 pr-1">
         {templates.length > 0 && (
           <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
             <div className="flex items-center justify-between">
@@ -141,62 +181,106 @@ export default function NodePalette({
               {cat}
             </span>
 
-            {nodes.map((node) => (
-              <div
-                key={node.type}
-                draggable={!node.locked}
-                onDragStart={(e) => {
-                  if (node.locked) return e.preventDefault()
-                  e.dataTransfer.setData('application/reactflow', node.type)
-                }}
-                className={`rounded-lg border px-3 py-2 text-sm transition-all ${
-                  node.locked
-                    ? 'cursor-not-allowed border-slate-800 bg-slate-900/50 text-slate-600'
-                    : 'cursor-grab border-slate-700 bg-slate-900 text-slate-100 hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-800 active:cursor-grabbing'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px]">{node.label}</span>
+            {nodes.map((node) =>
+              (() => {
+                const Icon = getWorkflowNodeIcon(node.iconKey)
+                return (
+                  <div
+                    key={node.id}
+                    draggable={!node.locked}
+                    onDragStart={(e) => {
+                      if (node.locked) return e.preventDefault()
+                      e.dataTransfer.effectAllowed = 'move'
+                      e.dataTransfer.setData('application/reactflow', node.type)
+                      e.dataTransfer.setData(
+                        'application/workflow-node-id',
+                        node.id,
+                      )
+                      // Fallback for browsers that ignore custom MIME keys
+                      e.dataTransfer.setData('text/plain', node.type)
+                    }}
+                    onClick={() => {
+                      if (node.locked) {
+                        if (process.env.NODE_ENV !== 'production') {
+                          console.warn(
+                            `[Workflow Builder] Node "${node.label}" is locked and cannot be added: ${node.lockReason ?? 'plan gated'}`,
+                          )
+                        }
+                        return
+                      }
+                      onAddNode?.(node.type, node.id)
+                    }}
+                    title={
+                      node.locked
+                        ? (node.lockReason ??
+                          'This node is not available on your plan.')
+                        : `Add ${node.label}`
+                    }
+                    className={`rounded-lg border px-3 py-2 text-sm transition-all ${
+                      node.locked
+                        ? 'cursor-not-allowed border-slate-800 bg-slate-900/50 text-slate-600'
+                        : 'cursor-grab border-slate-700 bg-slate-900 text-slate-100 hover:-translate-y-0.5 hover:border-slate-500 hover:bg-slate-800 active:cursor-grabbing'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-700/70 bg-slate-950/80 text-slate-300">
+                          <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
+                        </span>
+                        <span className="min-w-0 truncate text-[11px]">
+                          {node.label}
+                        </span>
+                      </div>
 
-                  {node.locked && (
-                    <span className="text-[9px] uppercase text-amber-500">
-                      Upgrade
-                    </span>
-                  )}
-                </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {node.locked && (
+                          <span className="text-[9px] uppercase text-amber-500">
+                            Locked
+                          </span>
+                        )}
+                        {node.requiredPlan && !node.locked && (
+                          <Badge size="xs" variant="blue">
+                            {node.requiredPlan}
+                          </Badge>
+                        )}
+                        {node.favorite && !node.locked && (
+                          <span className="text-[9px] uppercase text-emerald-400">
+                            Favorite
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                {node.locked && node.lockReason && (
-                  <p className="mt-1 text-[9px] text-slate-500">
-                    {node.lockReason}
-                  </p>
-                )}
-              </div>
-            ))}
+                    {node.locked && node.lockReason && (
+                      <p className="mt-1 text-[9px] text-slate-500">
+                        {node.lockReason}
+                      </p>
+                    )}
+                    {node.description ? (
+                      <p className="mt-1 line-clamp-2 pl-9 text-[10px] text-slate-500">
+                        {node.description}
+                      </p>
+                    ) : null}
+                  </div>
+                )
+              })(),
+            )}
           </div>
         ))}
       </div>
 
       {/* Actions */}
-      <div className="space-y-2 border-t border-slate-800 pt-3">
-        {onGenerateTemplate && (
+      <div className="shrink-0 space-y-2 border-t border-slate-800 pt-3">
+        {onAutoLayout && (
           <Button
-            variant="primary"
+            variant="subtle"
             size="sm"
             className="w-full"
-            onClick={onGenerateTemplate}
+            onClick={onAutoLayout}
           >
-            ⚡ Generate AI Template
+            Auto Layout
           </Button>
         )}
-
-        <Button
-          variant="subtle"
-          size="sm"
-          className="w-full"
-          onClick={onAutoLayout}
-        >
-          Auto Layout
-        </Button>
 
         <Button
           variant="subtle"

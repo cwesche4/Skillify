@@ -1,132 +1,187 @@
 // app/dashboard/admin/enterprise/page.tsx
 
-import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
-import Link from 'next/link'
-import { requireWorkspaceAdmin } from '@/lib/auth/currentUser'
-import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { AdminForbidden } from '@/components/admin/AdminForbidden'
+import {
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminSection,
+  AdminStatCard,
+  AdminStatsGrid,
+  AdminTable,
+  adminTableCellClass,
+  adminTableHeadClass,
+  adminTableHeaderClass,
+  adminTableRowClass,
+} from '@/components/admin/AdminPage'
+import { getGlobalAdminProfile } from '@/lib/auth/getGlobalAdminProfile'
 
-interface PageProps {
-  params: { workspaceSlug: string }
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat('en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
 }
 
-export default async function EnterpriseAdminPage({ params }: PageProps) {
-  const workspace = await prisma.workspace.findUnique({
-    where: { slug: params.workspaceSlug },
-  })
+function enterpriseStatusVariant(status: string) {
+  if (status === 'CLOSED') return 'green'
+  if (status === 'QUALIFIED') return 'blue'
+  if (status === 'CONTACTED') return 'purple'
+  return 'yellow'
+}
 
-  if (!workspace) {
-    notFound()
+export default async function EnterpriseAdminPage() {
+  const admin = await getGlobalAdminProfile()
+
+  if (!admin) {
+    return <AdminForbidden />
   }
 
-  // Workspace OWNER/ADMIN
-  const { user } = await requireWorkspaceAdmin(workspace.id)
-
-  const subscription = await prisma.subscription.findUnique({
-    where: { userId: user.id },
-    select: { plan: true },
-  })
-  const planLabel = subscription?.plan ?? 'Free'
-  const isElite = planLabel === 'Elite'
-
-  if (!isElite) {
-    return (
-      <Card className="space-y-3 border-amber-500/30 bg-amber-500/5 p-5 text-sm text-amber-100">
-        <div className="flex items-center gap-2">
-          <Badge variant="yellow">Upgrade</Badge>
-          <span className="font-semibold">
-            Enterprise admin is Elite-only.
-          </span>
-        </div>
-        <p className="text-amber-100/80">
-          Upgrade to Elite to view and manage enterprise consult requests.
-        </p>
-        <Button asChild size="sm" variant="primary">
-          <Link href={`/dashboard/${params.workspaceSlug}/upsell?need=Elite`}>
-            View Elite benefits
-          </Link>
-        </Button>
-      </Card>
-    )
-  }
-
-  const consults = await prisma.enterpriseConsultRequest.findMany({
-    where: { workspaceId: workspace.id },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      user: true,
-    },
-  })
+  const [consults, activeContractRows, securityReviews, complianceRequests] =
+    await Promise.all([
+      prisma.enterpriseConsultRequest.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: true,
+          workspace: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      }),
+      prisma.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(*)::int AS count
+        FROM "ContractEntitlement"
+        WHERE "expiresAt" IS NULL OR "expiresAt" > NOW()
+      `,
+      prisma.securityPackRequest.count({
+        where: {
+          reviewType: 'SECURITY_REVIEW',
+        },
+      }),
+      prisma.securityPackRequest.count({
+        where: {
+          reviewType: { in: ['SOC2_ESCALATION', 'AUDIT_REQUEST'] },
+        },
+      }),
+    ])
+  const activeContracts = activeContractRows[0]?.count ?? 0
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-50">
-          Enterprise Consult Requests
-        </h1>
-        <p className="text-sm text-slate-400">
-          High-intent leads who want you to build the whole system for them.
-        </p>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Enterprise"
+        subtitle="Manage enterprise consults, active entitlements, security reviews, and compliance requests across all workspaces."
+      />
+
+      <AdminStatsGrid>
+        <AdminStatCard label="Enterprise Accounts" value={consults.length} />
+        <AdminStatCard label="Active Contracts" value={activeContracts} />
+        <AdminStatCard label="Security Reviews" value={securityReviews} />
+        <AdminStatCard label="Compliance Requests" value={complianceRequests} />
+      </AdminStatsGrid>
 
       {consults.length === 0 ? (
-        <Card className="p-4 text-sm text-slate-400">
-          No enterprise consult requests yet. When teams ask for a full
-          build-out, they&apos;ll show up here.
-        </Card>
+        <AdminEmptyState
+          title="No enterprise consults yet"
+          description="When teams ask for full build-outs or enterprise support, consult requests will appear here."
+        />
       ) : (
-        <div className="space-y-3">
-          {consults.map((c: (typeof consults)[number]) => (
-            <Card
-              key={c.id}
-              className="space-y-2 border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-200"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-50">{c.name}</span>
-                    <Badge size="xs" variant="blue">
-                      {c.status}
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                    <span>{c.email}</span>
-                    {c.phone && (
-                      <>
-                        <span>•</span>
-                        <span>{c.phone}</span>
-                      </>
-                    )}
-                    {c.companySize && (
-                      <>
-                        <span>•</span>
-                        <span>Size: {c.companySize}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <span className="text-[11px] text-slate-500">
-                  {c.createdAt.toISOString().slice(0, 10)}
-                </span>
-              </div>
+        <AdminSection>
+          <AdminTable minWidth="min-w-[920px]">
+            <thead className={adminTableHeaderClass}>
+              <tr>
+                <th className={adminTableHeadClass}>Contact</th>
+                <th className={adminTableHeadClass}>Company</th>
+                <th className={adminTableHeadClass}>Goal</th>
+                <th className={adminTableHeadClass}>Status</th>
+                <th className={`${adminTableHeadClass} text-right`}>Created</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/70">
+              {consults.map((consult) => {
+                const displayUser =
+                  consult.user.fullName || consult.user.email || consult.name
 
-              {c.projectGoal && (
-                <p className="text-[11px] font-medium text-slate-200">
-                  Goal:{' '}
-                  <span className="font-normal text-slate-300">
-                    {c.projectGoal}
-                  </span>
-                </p>
-              )}
-
-              <pre className="whitespace-pre-wrap rounded bg-slate-900/80 p-2 text-[11px] text-slate-200">
-                {c.description}
-              </pre>
-            </Card>
-          ))}
-        </div>
+                return (
+                  <tr key={consult.id} className={adminTableRowClass}>
+                    <td className={adminTableCellClass}>
+                      <div className="space-y-1">
+                        <div className="font-medium text-slate-50">
+                          {consult.name || displayUser}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {consult.email}
+                        </div>
+                        {consult.phone ? (
+                          <div className="text-xs text-slate-500">
+                            {consult.phone}
+                          </div>
+                        ) : null}
+                        <details className="text-[11px] text-slate-500">
+                          <summary className="cursor-pointer select-none">
+                            User ID
+                          </summary>
+                          <div className="mt-1 font-mono">{consult.userId}</div>
+                        </details>
+                      </div>
+                    </td>
+                    <td className={`${adminTableCellClass} text-slate-300`}>
+                      <div className="space-y-1">
+                        <div>{consult.companySize || 'Size not provided'}</div>
+                        <div className="text-xs text-slate-500">
+                          Workspace: {consult.workspace.name}
+                        </div>
+                      </div>
+                    </td>
+                    <td className={adminTableCellClass}>
+                      <div className="max-w-md space-y-2">
+                        <div className="font-medium text-slate-100">
+                          {consult.projectGoal || 'Enterprise build-out'}
+                        </div>
+                        <p className="line-clamp-2 text-xs text-slate-400">
+                          {consult.description}
+                        </p>
+                        <details className="text-[11px] text-slate-500">
+                          <summary className="cursor-pointer select-none">
+                            Consult details
+                          </summary>
+                          <div className="mt-1 space-y-1">
+                            <p className="whitespace-pre-wrap text-slate-400">
+                              {consult.description}
+                            </p>
+                            <div className="font-mono">ID: {consult.id}</div>
+                            <div className="font-mono">
+                              Workspace: {consult.workspaceId}
+                            </div>
+                          </div>
+                        </details>
+                      </div>
+                    </td>
+                    <td className={adminTableCellClass}>
+                      <Badge
+                        size="xs"
+                        variant={enterpriseStatusVariant(consult.status)}
+                      >
+                        {consult.status}
+                      </Badge>
+                    </td>
+                    <td
+                      className={`${adminTableCellClass} text-right text-slate-400`}
+                    >
+                      {formatDate(consult.createdAt)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </AdminTable>
+        </AdminSection>
       )}
     </div>
   )

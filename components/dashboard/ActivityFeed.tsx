@@ -3,6 +3,7 @@
 'use client'
 
 import { Zap, AlertTriangle, MessageSquare, Cpu } from 'lucide-react'
+import { formatWorkspaceDateTime } from '@/lib/formatting/dates'
 
 export type ActivityKind = 'run' | 'ai' | 'error' | 'billing'
 
@@ -37,7 +38,7 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
           {items.map((item) => (
             <li
               key={item.id}
-              className="flex items-start gap-3 rounded-xl border border-slate-800/70 bg-slate-900/60 px-3 py-2.5"
+              className="border-app bg-app-surface-muted flex items-start gap-3 rounded-xl border px-3 py-2.5"
             >
               <div className="mt-0.5">
                 <KindIcon kind={item.kind} />
@@ -48,14 +49,14 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
                     {item.title}
                   </p>
                   <span className="text-neutral-text-secondary whitespace-nowrap text-[11px]">
-                    {item.timestamp}
+                    {formatWorkspaceDateTime(item.timestamp)}
                   </span>
                 </div>
                 <p className="text-neutral-text-secondary text-xs">
                   {item.description}
                 </p>
                 {item.meta && (
-                  <p className="text-[11px] text-slate-400">{item.meta}</p>
+                  <p className="text-app-muted text-[11px]">{item.meta}</p>
                 )}
               </div>
             </li>
@@ -99,7 +100,7 @@ function KindIcon({ kind }: { kind: ActivityKind }) {
     default:
       return (
         <span
-          className={`${base} border-slate-500/40 bg-slate-800 text-slate-200`}
+          className={`${base} border-app bg-app-surface-muted text-app-secondary`}
         >
           <MessageSquare className="h-3 w-3" />
         </span>

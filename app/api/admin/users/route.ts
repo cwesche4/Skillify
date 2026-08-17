@@ -4,7 +4,6 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/db'
-import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
 
 async function requireAdmin() {
   const { userId } = auth()
@@ -18,38 +17,65 @@ async function requireAdmin() {
     throw new Error('FORBIDDEN')
   }
 
-  // Elite-only access for admin users API
-  const plan = await getUserPlanByClerkId(userId)
-  if (plan !== 'elite') {
-    throw new Error('PLAN_FORBIDDEN')
-  }
-
   return profile
 }
 
-// GET /api/admin/users  — list users + simple stats
+// GET /api/admin/users — list users with readable identity and workspace context
 export async function GET() {
   try {
     await requireAdmin()
 
     const users = await prisma.userProfile.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
-        automations: {
-          select: { id: true },
+      select: {
+        id: true,
+        clerkId: true,
+        fullName: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        subscription: {
+          select: {
+            plan: true,
+            status: true,
+          },
         },
-        subscription: true,
+        memberships: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            role: true,
+            workspace: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                ownerId: true,
+              },
+            },
+          },
+        },
       },
     })
 
-    const result = users.map((u: any) => ({
-      id: u.id,
-      clerkId: u.clerkId,
-      role: u.role,
-      createdAt: u.createdAt,
-      automationCount: u.automations.length,
-      subscriptionStatus: u.subscription?.status ?? 'none',
-      plan: u.subscription?.plan ?? null,
+    const result = users.map((user) => ({
+      id: user.id,
+      clerkId: user.clerkId,
+      fullName: user.fullName,
+      name: user.fullName,
+      email: user.email,
+      globalRole: user.role,
+      createdAt: user.createdAt,
+      subscription: {
+        plan: user.subscription?.plan ?? 'Free',
+        status: user.subscription?.status ?? 'none',
+      },
+      workspaces: user.memberships.map((membership) => ({
+        id: membership.workspace.id,
+        name: membership.workspace.name,
+        slug: membership.workspace.slug,
+        role: membership.role,
+        isOwner: membership.workspace.ownerId === user.id,
+      })),
     }))
 
     return NextResponse.json({ users: result })
@@ -59,12 +85,6 @@ export async function GET() {
     }
     if (err.message === 'FORBIDDEN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    if (err.message === 'PLAN_FORBIDDEN') {
-      return NextResponse.json(
-        { error: 'Elite plan required' },
-        { status: 403 },
-      )
     }
     console.error('Admin users API error', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

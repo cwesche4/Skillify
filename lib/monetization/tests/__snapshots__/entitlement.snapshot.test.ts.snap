@@ -1,0 +1,43 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`entitlement snapshots flag OFF -> all denied (default) 1`] = `
+{
+  "entitled": false,
+  "reason": "monetization_disabled",
+}
+`;
+
+exports[`entitlement snapshots flag OFF -> analytics_dashboards denied even with plan 1`] = `
+{
+  "entitled": false,
+  "reason": "monetization_disabled",
+}
+`;
+
+exports[`entitlement snapshots flag ON + other entitlement -> denied 1`] = `
+{
+  "entitled": false,
+  "reason": "monetization_disabled",
+}
+`;
+
+exports[`entitlement snapshots flag ON + plan enterprise -> analytics_dashboards allowed 1`] = `
+{
+  "entitled": true,
+  "reason": "not_configured",
+}
+`;
+
+exports[`entitlement snapshots flag ON + plan free -> analytics_dashboards denied 1`] = `
+{
+  "entitled": false,
+  "reason": "plan_insufficient",
+}
+`;
+
+exports[`entitlement snapshots flag ON + plan pro -> analytics_dashboards allowed 1`] = `
+{
+  "entitled": true,
+  "reason": "not_configured",
+}
+`;

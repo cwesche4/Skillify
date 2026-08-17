@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`resolveOnboardingEligibility snapshots determinism check for identical input 1`] = `
+{
+  "allowed": false,
+  "reason": "user_disabled",
+}
+`;
+
+exports[`resolveOnboardingEligibility snapshots feature flag disabled 1`] = `
+{
+  "allowed": false,
+  "reason": "feature_flag_disabled",
+}
+`;
+
+exports[`resolveOnboardingEligibility snapshots fully allowed when all inputs allow onboarding 1`] = `
+{
+  "allowed": true,
+}
+`;
+
+exports[`resolveOnboardingEligibility snapshots org policy disables walkthroughs 1`] = `
+{
+  "allowed": false,
+  "reason": "org_policy",
+}
+`;
+
+exports[`resolveOnboardingEligibility snapshots partial inputs (missing org defaults and work mode) 1`] = `
+{
+  "allowed": true,
+}
+`;
+
+exports[`resolveOnboardingEligibility snapshots user disabled walkthroughs 1`] = `
+{
+  "allowed": false,
+  "reason": "user_disabled",
+}
+`;
+
+exports[`resolveOnboardingEligibility snapshots work mode blocks onboarding (expert) 1`] = `
+{
+  "allowed": false,
+  "reason": "work_mode_disabled",
+}
+`;

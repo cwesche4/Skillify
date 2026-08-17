@@ -13,6 +13,8 @@ export default function WorkspaceSettingsPage({ params }: any) {
   const [name, setName] = useState('')
   const [initialName, setInitialName] = useState('')
   const [loading, setLoading] = useState(true)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
 
   useEffect(() => {
     fetch(`/api/workspaces/${workspaceId}`)
@@ -33,14 +35,15 @@ export default function WorkspaceSettingsPage({ params }: any) {
   }
 
   const remove = async () => {
-    if (!confirm('Are you sure? This will delete the workspace for everyone.'))
-      return
-
-    await fetch(`/api/workspaces/${workspaceId}`, {
+    const response = await fetch(`/api/workspaces/${workspaceId}`, {
       method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation: deleteConfirmation }),
     })
 
-    router.push('/dashboard/workspaces')
+    if (response.ok) {
+      router.push('/dashboard/workspaces')
+    }
   }
 
   if (loading) return <div>Loading...</div>
@@ -79,10 +82,46 @@ export default function WorkspaceSettingsPage({ params }: any) {
           Deleting this workspace will remove access for all members and delete
           associated data.
         </p>
-
-        <Button className="btn-danger" onClick={remove}>
-          Delete workspace
-        </Button>
+        {confirmingDelete ? (
+          <div className="mt-4 space-y-3 rounded-xl border border-red-500/40 bg-red-500/10 p-4">
+            <p className="text-sm text-red-100">
+              Type the workspace name to confirm permanent deletion.
+            </p>
+            <input
+              className="form-input"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              placeholder={initialName}
+              aria-label={`Type ${initialName} to confirm workspace deletion`}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                className="btn-danger"
+                onClick={remove}
+                disabled={deleteConfirmation.trim() !== initialName}
+              >
+                Delete workspace
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setConfirmingDelete(false)
+                  setDeleteConfirmation('')
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            className="btn-danger"
+            onClick={() => setConfirmingDelete(true)}
+          >
+            Delete workspace
+          </Button>
+        )}
       </div>
     </div>
   )

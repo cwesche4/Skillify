@@ -259,7 +259,14 @@ export default function WorkspaceDashboardGrid({
           // Build widget-specific data bundle
           const widgetData =
             id === 'successRate'
-              ? { health: data.health, successRate: data.successRate }
+              ? {
+                  health: data.health,
+                  successRate: data.successRate,
+                  failedRunCount: data.failedRunCount,
+                  failedAutomationCount: data.failedAutomationCount,
+                  automationsNeedingAttention: data.automationsNeedingAttention,
+                  affectedAutomations: data.affectedAutomations,
+                }
               : id === 'members'
                 ? { totalMembers: data.totalMembers }
                 : id === 'recentRuns'

@@ -38,13 +38,13 @@ export function SidebarTooltip({
             exit={{ opacity: 0, x: side === 'right' ? 4 : -4, scale: 0.98 }}
             transition={{ duration: 0.14, ease: 'easeOut' }}
             className={cn(
-              'pointer-events-none absolute top-1/2 z-50 -translate-y-1/2',
+              'pointer-events-none absolute top-1/2 z-[1000] -translate-y-1/2 whitespace-nowrap',
               side === 'right'
                 ? 'left-full ml-3'
                 : 'right-full mr-3 text-right',
             )}
           >
-            <div className="rounded-xl border border-neutral-800/80 bg-black/95 px-3 py-2 text-[11px] text-neutral-100 shadow-xl shadow-black/60">
+            <div className="rounded-xl border border-neutral-800/80 bg-black/95 px-3 py-2 text-[11px] text-neutral-100 shadow-2xl shadow-black/60 backdrop-blur">
               {section && (
                 <div className="mb-0.5 text-[10px] uppercase tracking-[0.12em] text-neutral-400">
                   {section}

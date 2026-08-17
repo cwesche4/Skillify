@@ -19,13 +19,19 @@ export function FeatureLockOverlay({
   planLabel,
   requiredPlan,
   onUpgradeClick,
+  className,
   subtle,
 }: FeatureLockOverlayProps) {
+  if (!requiredPlan) {
+    return <div className={className}>{children}</div>
+  }
+
   return (
     <div className="relative">
       <div
         className={cn(
           'pointer-events-none rounded-xl border border-dashed border-amber-500/40 bg-slate-950/60',
+          className,
           subtle ? 'backdrop-blur-sm' : 'backdrop-blur-md',
         )}
       >

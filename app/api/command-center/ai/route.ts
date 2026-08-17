@@ -1,6 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
+import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
+import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
 
 //
 // TYPES
@@ -131,6 +133,18 @@ export async function POST(req: NextRequest) {
       status: 400,
     })
   }
+
+  const aiGuard = await assertAiActionsEnabled(body.workspaceId)
+  if (aiGuard) return aiGuard
+
+  emitAiMetric(
+    buildAiMetric({
+      name: 'ai_action_attempted',
+      workspaceId: body.workspaceId,
+      action: 'command_center_ai',
+      result: 'applied',
+    }),
+  )
 
   const mode: AiCoachMode = body.mode ?? inferMode(body.question)
 

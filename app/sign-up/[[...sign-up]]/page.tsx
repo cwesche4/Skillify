@@ -1,15 +1,20 @@
 // app/sign-up/[[...sign-up]]/page.tsx
+import React from 'react'
 import { SignUp } from '@clerk/nextjs'
+
+import { AuthPageShell } from '@/components/auth/AuthPageShell'
+import { skillifyClerkAppearance } from '@/lib/auth/clerkAppearance'
 
 export default function SignUpPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <AuthPageShell mode="sign-up">
       <SignUp
         routing="path"
         path="/sign-up"
         signInUrl="/sign-in"
         afterSignUpUrl="/dashboard"
+        appearance={skillifyClerkAppearance}
       />
-    </div>
+    </AuthPageShell>
   )
 }

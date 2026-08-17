@@ -12,6 +12,7 @@ export type ButtonVariant =
   | 'outline'
   | 'ghost'
   | 'danger'
+  | 'destructive'
 
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon'
 
@@ -41,20 +42,22 @@ export function Button({
   const isDisabled = disabled || loading
 
   const base =
-    'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed'
+    'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-background)] disabled:opacity-50 disabled:cursor-not-allowed'
 
   const variants: Record<ButtonVariant, string> = {
     primary:
       'bg-brand-primary text-white hover:bg-brand-primary/90 border border-brand-primary/80',
     secondary:
-      'bg-slate-900 text-neutral-text-primary border border-slate-700 hover:bg-slate-800',
+      'bg-app-surface-raised text-app-primary border border-app hover:bg-app-surface-hover',
     subtle:
-      'bg-slate-900/60 text-neutral-text-primary border border-slate-800 hover:bg-slate-900',
+      'bg-app-surface-muted text-app-primary border border-app hover:bg-app-surface-hover',
     outline:
-      'bg-transparent text-neutral-text-primary border border-slate-700 hover:bg-slate-900/60',
+      'bg-transparent text-app-primary border border-app hover:bg-app-surface-hover',
     ghost:
-      'bg-transparent text-neutral-text-primary hover:bg-slate-900/60 border border-transparent',
+      'bg-transparent text-app-primary hover:bg-app-surface-hover border border-transparent',
     danger:
+      'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500/80',
+    destructive:
       'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500/80',
   }
 

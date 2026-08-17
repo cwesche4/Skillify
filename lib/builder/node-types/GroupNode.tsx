@@ -9,6 +9,7 @@ export default function GroupNode({ data }: NodeProps) {
   const note =
     data?.note ??
     'Use groups to visually organize related steps in complex flows.'
+  const collapsed = data?.collapsed === true
 
   const isActive = data?.status === 'running' || data?.__active === true
   const isHot = data?.__hot === true
@@ -17,6 +18,7 @@ export default function GroupNode({ data }: NodeProps) {
     <NodeBase
       title={label}
       category="Organization"
+      iconKey={data?.__iconKey ?? 'boxes'}
       tone="group"
       isActive={isActive}
       isHot={isHot}
@@ -27,7 +29,19 @@ export default function GroupNode({ data }: NodeProps) {
           {count}
         </span>
       </div>
-      <p className="mt-1 line-clamp-2 text-[10px] text-slate-400">{note}</p>
+      <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+        <p className="line-clamp-2">{note}</p>
+        <span
+          className={`ml-2 rounded px-1.5 py-0.5 text-[9px] ${
+            collapsed
+              ? 'bg-slate-900/80 text-slate-200'
+              : 'bg-emerald-900/50 text-emerald-100'
+          }`}
+          aria-label={collapsed ? 'Group collapsed' : 'Group expanded'}
+        >
+          {collapsed ? 'Collapsed' : 'Expanded'}
+        </span>
+      </div>
     </NodeBase>
   )
 }

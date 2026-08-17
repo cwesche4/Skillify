@@ -4,11 +4,14 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { WorkspaceMemberRole } from '@/lib/prisma/enums'
 import { logAudit } from '@/lib/audit/log'
+import { handleWorkspaceMemberCalendarConnectionLifecycle } from '@/lib/scheduling/providers/calendarGovernance'
+import {
+  canManageWorkspaceMembers,
+  normalizeWorkspaceRole,
+} from '@/lib/workspaces/workspaceRoles'
 
 function isManager(role: WorkspaceMemberRole) {
-  return (
-    role === WorkspaceMemberRole.OWNER || role === WorkspaceMemberRole.ADMIN
-  )
+  return canManageWorkspaceMembers(role)
 }
 
 export async function GET(
@@ -80,6 +83,13 @@ export async function PATCH(
     memberId: string
     role: WorkspaceMemberRole
   }
+  const requestedRole = normalizeWorkspaceRole(body.role)
+  if (!requestedRole) {
+    return NextResponse.json(
+      { error: `Unsupported workspace role: ${String(body.role)}` },
+      { status: 400 },
+    )
+  }
 
   const target = await prisma.workspaceMember.findUnique({
     where: { id: body.memberId },
@@ -102,7 +112,7 @@ export async function PATCH(
   // Prevent removing last OWNER by accidental demotion
   if (
     target.role === WorkspaceMemberRole.OWNER &&
-    body.role !== WorkspaceMemberRole.OWNER
+    requestedRole !== WorkspaceMemberRole.OWNER
   ) {
     const owners = await prisma.workspaceMember.count({
       where: {
@@ -120,7 +130,7 @@ export async function PATCH(
 
   const updated = await prisma.workspaceMember.update({
     where: { id: body.memberId },
-    data: { role: body.role },
+    data: { role: requestedRole },
   })
 
   await logAudit({
@@ -129,7 +139,7 @@ export async function PATCH(
     action: 'MEMBER_ROLE_CHANGED',
     targetType: 'WorkspaceMember',
     targetId: body.memberId,
-    meta: { role: body.role },
+    meta: { role: requestedRole },
   })
 
   return NextResponse.json({ ok: true, member: updated })
@@ -198,6 +208,12 @@ export async function DELETE(
     }
   }
 
+  await handleWorkspaceMemberCalendarConnectionLifecycle({
+    workspaceId: params.workspaceId,
+    workspaceMemberId: memberId,
+    transition: 'removed',
+    actor: { workspaceMemberId: actor.id, userId: profile.id },
+  })
   await prisma.workspaceMember.delete({ where: { id: memberId } })
   await logAudit({
     workspaceId: params.workspaceId,

@@ -52,12 +52,12 @@ export function MetricCard(props: StatItem) {
     'card card-hover flex flex-col justify-between border transition-all duration-200'
 
   const intentClasses: Record<StatIntent, string> = {
-    default: 'border-slate-800 bg-slate-900/40',
+    default: 'border-app bg-app-surface-raised',
     primary:
-      'border-emerald-500/40 bg-emerald-500/5 shadow-[0_0_24px_rgba(16,185,129,0.25)]',
+      'border-emerald-500/35 bg-emerald-500/5 shadow-[0_10px_28px_rgba(16,185,129,0.12)]',
     danger:
-      'border-red-500/40 bg-red-500/5 shadow-[0_0_24px_rgba(248,113,113,0.25)]',
-    muted: 'border-slate-800/60 bg-slate-900/60 opacity-80',
+      'border-red-500/35 bg-red-500/5 shadow-[0_10px_28px_rgba(248,113,113,0.12)]',
+    muted: 'border-app bg-app-surface-muted opacity-90',
   }
 
   const deltaIcon =
@@ -66,7 +66,7 @@ export function MetricCard(props: StatItem) {
     ) : deltaDirection === 'down' ? (
       <ArrowDownRight className="h-3 w-3 text-red-400" />
     ) : (
-      <Minus className="h-3 w-3 text-slate-500" />
+      <Minus className="text-app-muted h-3 w-3" />
     )
 
   const deltaColor =
@@ -74,7 +74,7 @@ export function MetricCard(props: StatItem) {
       ? 'text-emerald-300'
       : deltaDirection === 'down'
         ? 'text-red-300'
-        : 'text-slate-400'
+        : 'text-app-muted'
 
   return (
     <div className={`${base} ${intentClasses[intent]}`}>
@@ -90,7 +90,7 @@ export function MetricCard(props: StatItem) {
           </div>
         </div>
         {icon && (
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/70">
+          <div className="border-app bg-app-surface-muted text-app-secondary flex h-8 w-8 items-center justify-center rounded-xl border">
             {icon}
           </div>
         )}

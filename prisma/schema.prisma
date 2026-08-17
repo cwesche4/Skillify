@@ -19,7 +19,204 @@ datasource db {
 enum WorkspaceMemberRole {
   OWNER
   ADMIN
+  MANAGER
   MEMBER
+}
+
+enum WorkspaceBusinessModel {
+  SIMPLE_SERVICE_BUSINESS
+  CONSULTATIVE_SALES
+  DIRECT_SALES
+  PRODUCT_COMMERCE
+}
+
+enum LeadConversionDestination {
+  OPPORTUNITY
+  SALE
+  CUSTOMER
+}
+
+enum QualifiedLeadBehavior {
+  ASK
+  AUTO_CONVERT
+  KEEP_QUALIFIED
+}
+
+enum RevenueTransactionSourceType {
+  MANUAL
+  JOB
+  ORDER
+  INVOICE
+  PAYMENT
+  REFUND
+  ADJUSTMENT
+}
+
+enum RevenueTransactionStatus {
+  ACTIVE
+  VOIDED
+}
+
+enum WorkspaceTeamType {
+  GENERAL
+  OFFICE
+  FIELD_CREW
+  SALES
+  SERVICE
+  INSTALLATION
+  WAREHOUSE
+  MANAGEMENT
+  OTHER
+}
+
+enum WorkspaceLocationType {
+  OFFICE
+  STORE
+  WAREHOUSE
+  SHOP
+  SERVICE_BASE
+  BRANCH
+  REMOTE
+  OTHER
+}
+
+enum WorkspaceAIStatus {
+  NOT_CONFIGURED
+  READY
+  PAUSED
+  DISABLED
+}
+
+enum WorkspaceAIActivityType {
+  PROFILE_CREATED
+  PROFILE_UPDATED
+  STATUS_CHANGED
+  CONTEXT_RESOLVED
+  REQUEST_STARTED
+  REQUEST_COMPLETED
+  REQUEST_FAILED
+  ACTION_PROPOSED
+  ACTION_APPROVED
+  ACTION_REJECTED
+}
+
+enum WorkspaceKnowledgeApprovalStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+  SUPERSEDED
+}
+
+enum WorkspaceKnowledgeVisibility {
+  WORKSPACE
+  ADMINS_ONLY
+}
+
+enum WorkspaceKnowledgeItemStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WorkspaceKnowledgeRevisionType {
+  CREATED
+  UPDATED
+  APPROVED
+  REJECTED
+  ARCHIVED
+  SUPERSEDED
+  ROLLBACK_CANDIDATE
+}
+
+enum WorkspaceKnowledgeApprovalAction {
+  APPROVED
+  REJECTED
+  ARCHIVED
+  RESTORED
+}
+
+enum WorkspaceKnowledgeCorrectionStatus {
+  CAPTURED
+  QUEUED_FOR_REVIEW
+  DISMISSED
+}
+
+enum WorkspaceRecommendationOutcomeStatus {
+  ACCEPTED
+  REJECTED
+  EDITED
+  IGNORED
+  EXECUTED
+  REVERSED
+  EXECUTION_FAILED
+  EXECUTION_SUCCEEDED
+  CANCELLED
+}
+
+enum OperationalInsightStatus {
+  NEW
+  ACTIVE
+  RECURRING
+  RESOLVED
+  SUPERSEDED
+  DISMISSED
+  ARCHIVED
+}
+
+enum OperationalSeverity {
+  INFO
+  NOTICE
+  WARNING
+  CRITICAL
+}
+
+enum OperationalConfidence {
+  LOW
+  MEDIUM
+  HIGH
+  UNKNOWN
+}
+
+enum OperationalTrendDirection {
+  IMPROVING
+  STABLE
+  DECLINING
+  UNKNOWN
+}
+
+enum OperationalRecommendationHistoryStatus {
+  GENERATED
+  APPROVED
+  EXECUTED
+  IGNORED
+  EXPIRED
+  SUCCESSFUL
+  UNSUCCESSFUL
+  PARTIALLY_SUCCESSFUL
+}
+
+enum OperationalKnowledgeUsageOutcome {
+  APPLIED
+  IGNORED
+  OVERRIDDEN
+  REJECTED
+  RECOMMENDATION_ACCEPTED
+  RECOMMENDATION_DECLINED
+  OUTCOME_IMPROVED
+  OUTCOME_UNCHANGED
+  OUTCOME_WORSE
+}
+
+enum OperationalAuditAction {
+  CREATED
+  UPDATED
+  RECURRED
+  RESOLVED
+  DISMISSED
+  ARCHIVED
+  SUPERSEDED
+  OUTCOME_RECORDED
 }
 
 enum AutomationStatus {
@@ -39,8 +236,279 @@ enum RunStatus {
 enum CalendarProvider {
   GOOGLE
   OUTLOOK
+  APPLE_ICLOUD
+  CALDAV
+  ICS
   CALENDLY
   OTHER
+}
+
+enum SchedulingEventStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+  MISSED
+}
+
+enum SchedulingOccurrenceState {
+  MASTER
+  GENERATED
+  OVERRIDDEN
+  CANCELED
+  COMPLETED
+  DETACHED
+  SUPERSEDED
+  DELETED
+}
+
+enum SchedulingRecurrenceSeriesStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELED
+}
+
+enum SchedulingLocationType {
+  NONE
+  ADDRESS
+  VIDEO
+  PHONE
+  CUSTOM
+}
+
+enum SchedulingExternalVisibility {
+  DEFAULT
+  PUBLIC
+  PRIVATE
+  BUSY_ONLY
+}
+
+enum SchedulingSyncPolicy {
+  WORKSPACE_DEFAULT
+  SYNC
+  DO_NOT_SYNC
+}
+
+enum SchedulingAssignmentType {
+  MEMBER
+  TEAM
+}
+
+enum SchedulingAttendeeType {
+  WORKSPACE_MEMBER
+  CONTACT
+  CUSTOMER
+  EXTERNAL_GUEST
+}
+
+enum SchedulingAttendeeResponseStatus {
+  NEEDS_ACTION
+  ACCEPTED
+  TENTATIVE
+  DECLINED
+}
+
+enum CalendarConnectionStatus {
+  NOT_CONNECTED
+  CONNECTING
+  INITIAL_SYNC
+  CONNECTED
+  NEEDS_ATTENTION
+  PAUSED
+  DISCONNECTED
+}
+
+enum CalendarConnectionOwnershipType {
+  MEMBER
+  WORKSPACE
+}
+
+enum CalendarConnectionPurpose {
+  PERSONAL
+  INDIVIDUAL_WORK
+  WORKSPACE_SHARED
+  RESOURCE
+  UNKNOWN
+}
+
+enum CalendarPurposeClassificationSource {
+  MEMBER_SELECTED
+  ADMIN_CONFIRMED
+  PROVIDER_METADATA
+  DOMAIN_HEURISTIC
+  MIGRATION
+  UNKNOWN
+}
+
+enum ExternalCalendarVisibilityMode {
+  BUSY_ONLY
+  TITLE_ONLY
+  FULL_DETAILS
+}
+
+enum CalendarConnectionApprovalStatus {
+  APPROVED
+  PENDING
+  REJECTED
+  NEEDS_REVIEW
+}
+
+enum CalendarSyncDirection {
+  IMPORT_ONLY
+  EXPORT_ONLY
+  TWO_WAY
+  AVAILABILITY_ONLY
+  DISABLED
+}
+
+enum PersonalCalendarAvailabilityBehavior {
+  IGNORE
+  SUGGEST_CONFLICTS
+  BLOCK_AVAILABILITY
+}
+
+enum PersonalCalendarBusyDisplayMode {
+  HIDDEN
+  MEMBER_DETAIL_ONLY
+  EXPANDABLE_EXTERNAL_AVAILABILITY
+  VISIBLE_IN_BUSY
+}
+
+enum CalendarConflictPolicy {
+  SKILLIFY_WINS
+  PROVIDER_WINS
+  ASK_USER
+}
+
+enum CalendarEventOwnership {
+  SKILLIFY_NATIVE
+  EXTERNAL_ONLY
+}
+
+enum CalendarEventSyncState {
+  SYNCED
+  PENDING_PUSH
+  PENDING_PULL
+  CONFLICT
+  FAILED
+  PROVIDER_DELETED
+  SKILLIFY_DELETED
+}
+
+enum CalendarSyncLogStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+  RETRYING
+}
+
+enum CalendarSyncDirectionLog {
+  IMPORT
+  EXPORT
+  TWO_WAY
+  WEBHOOK
+  TOKEN_REFRESH
+  WATCH_RENEWAL
+  RECOVERY
+  DIAGNOSTICS
+}
+
+enum CalendarWatchChannelStatus {
+  ACTIVE
+  RENEWING
+  EXPIRED
+  STOPPED
+  FAILED
+}
+
+enum CalendarSyncConflictStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+enum SchedulingAvailabilityRecordKind {
+  WORKING_HOURS
+  TIME_OFF
+  AVAILABILITY_EXCEPTION
+}
+
+enum SchedulingTimeOffCategory {
+  VACATION
+  SICK
+  PERSONAL
+  APPOINTMENT
+  UNAVAILABLE
+  OTHER
+}
+
+enum SchedulingExceptionType {
+  CLOSED
+  CUSTOM_HOURS
+}
+
+enum SchedulingNotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+}
+
+enum SchedulingNotificationDeliveryStatus {
+  PENDING
+  DEFERRED
+  PROCESSING
+  SENT
+  DELIVERED
+  FAILED
+  PERMANENTLY_FAILED
+  CANCELED
+  SKIPPED
+}
+
+enum SchedulingNotificationCategory {
+  EVENT_CREATED
+  ASSIGNMENT
+  REASSIGNMENT
+  EVENT_UPDATED
+  RESCHEDULED
+  CANCELED
+  COMPLETED
+  MISSED
+  REMINDER
+  RECURRING_SERIES_CHANGED
+  RECURRING_SERIES_CANCELED
+  TIME_OFF
+  AVAILABILITY_EXCEPTION
+  CONFLICT
+  DELIVERY_FAILURE
+}
+
+enum SchedulingNotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SchedulingReminderStatus {
+  SCHEDULED
+  PROCESSING
+  SENT
+  CANCELED
+  SKIPPED
+  FAILED
+  PERMANENTLY_FAILED
+}
+
+enum DomainOutboxStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+  DEAD
 }
 
 enum BookingStatus {
@@ -64,16 +532,170 @@ enum EnterpriseStatus {
   CLOSED
 }
 
+enum SubscriptionPlan {
+  Free
+  Basic
+  Pro
+  Elite
+}
+
+enum SubscriptionStatus {
+  active
+  canceled
+  past_due
+  trialing
+}
+
+enum AccessCodeType {
+  DISCOUNT
+  TRIAL_EXTENSION
+  COMPLIMENTARY_ACCESS
+  SPECIAL_PRICE
+  INTERNAL_ACCESS
+}
+
+enum SubscriptionAccessSource {
+  NORMAL_TRIAL
+  ACCESS_CODE
+  ADMIN_OVERRIDE
+  STRIPE
+}
+
+enum BuildRequestStatus {
+  NEW
+  REVIEWING
+  CLOSED
+}
+
+enum IntegrationStatus {
+  connected
+  disconnected
+  error
+}
+
+enum WorkspaceIntegrationCredentialOwnership {
+  platform
+  workspaceOAuth
+  workspaceApiKey
+  workspaceWebhook
+  workspaceManual
+  none
+}
+
+enum WorkspaceIntegrationConnectionStatus {
+  notConnected
+  configurationRequired
+  connecting
+  connected
+  degraded
+  actionRequired
+  expired
+  revoked
+  error
+  unavailable
+  comingSoon
+}
+
+enum UserProfileRole {
+  user
+  admin
+  security
+  legal
+  grc
+}
+
+enum SecurityPackIndustry {
+  FINTECH
+  HEALTHCARE
+  SAAS
+  ENTERPRISE
+  PUBLIC_SECTOR
+  BANK_PAYMENTS
+  UNKNOWN
+}
+
+enum SecurityPackReviewType {
+  SECURITY_REVIEW
+  SOC2_ESCALATION
+  AUDIT_REQUEST
+}
+
+enum SecurityPackArtifactType {
+  TRUST_CENTER_ONLY
+  SOC2_PACKET
+  AUDIT_CSV
+  EVIDENCE_BUNDLE
+}
+
+enum SecurityPackEventType {
+  REQUEST_SUBMITTED
+  VALIDATION_FAILED
+  APPROVAL_REQUESTED
+  APPROVED
+  REJECTED
+  DELIVERY_MARKED
+  DELIVERY_FAILED
+}
+
+enum SecurityPackApproverRole {
+  SECURITY
+  LEGAL
+  GRC
+  OTHER
+}
+
+enum SecurityPackDeliveryMethod {
+  MANUAL
+  AUTOMATED
+}
+
+enum SecurityPackAutomationSystem {
+  N8N
+  SKILLIFY
+  OTHER
+}
+
+enum AutomationServiceScope {
+  SECURITY_PACK_DELIVERY
+  ENTITLEMENT_ADMIN
+}
+
+enum AutomationServiceSystem {
+  N8N
+  SKILLIFY
+  OTHER
+}
+
+enum EntitlementAuditAction {
+  GRANTED
+  REVOKED
+  EXPIRED
+}
+
+enum EntitlementAuditSource {
+  CONTRACT
+  AMENDMENT
+  EXCEPTION
+  RENEWAL
+}
+
+enum EntitlementAuditActorType {
+  SYSTEM
+  SALES_OPS
+  LEGAL
+  AUTOMATION
+}
+
 //
 // CORE USER
 //
 
 model UserProfile {
-  id       String  @id @default(cuid())
-  clerkId  String  @unique
+  id       String          @id @default(cuid())
+  clerkId  String          @unique
   fullName String?
   email    String?
-  role     String  @default("user")
+  role     UserProfileRole @default(user)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -91,14 +713,25 @@ model UserProfile {
   templatePurchases         TemplatePurchase[]
   microUpsellPurchases      MicroUpsellPurchase[]
   blogPosts                 BlogPost[]
+  automationTemplates       AutomationTemplate[]
+  workspacePatterns         WorkspacePattern[]
+  automationLineagesForked  AutomationLineage[]
+  auditEvents               AuditEvent[]
+  secretVersions            SecretVersion[]
+  accessCodeRedemptions     AccessCodeRedemption[]
 
   // Scheduling relations
-  calendarAccounts     CalendarAccount[]
-  bookingTypesCreated  BookingType[]     @relation("BookingTypeCreator")
-  bookingTypesAssigned BookingType[]     @relation("BookingTypeAssignedUser")
-  bookingsScheduledFor Booking[]         @relation("BookingScheduledFor")
-  bookingsCreated      Booking[]         @relation("BookingCreatedBy")
-  auditLogs            AuditLog[]
+  calendarAccounts      CalendarAccount[]
+  bookingTypesCreated   BookingType[]          @relation("BookingTypeCreator")
+  bookingTypesAssigned  BookingType[]          @relation("BookingTypeAssignedUser")
+  bookingsScheduledFor  Booking[]              @relation("BookingScheduledFor")
+  bookingsCreated       Booking[]              @relation("BookingCreatedBy")
+  auditLogs             AuditLog[]
+  aiActionAudits        AiActionAudit[]
+  collaborationSessions CollaborationSession[]
+  presenceStates        PresenceState[]
+  nodeLocks             NodeLock[]
+  automationVersions    AutomationVersion[]
 
   @@index([clerkId])
 }
@@ -118,36 +751,122 @@ model OnboardingProgress {
 //
 
 model Workspace {
-  id   String @id @default(cuid())
-  name String
-  slug String @unique
+  id           String  @id @default(cuid())
+  name         String
+  slug         String  @unique
+  businessName String?
+  industry     String?
 
   ownerId String
   owner   UserProfile @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  businessModel          WorkspaceBusinessModel    @default(DIRECT_SALES)
+  opportunitiesEnabled   Boolean                   @default(false)
+  commerceEnabled        Boolean                   @default(false)
+  defaultLeadDestination LeadConversionDestination @default(SALE)
+  allowDirectLeadToSale  Boolean                   @default(true)
+  qualifiedLeadBehavior  QualifiedLeadBehavior     @default(ASK)
+  customerSingularLabel  String                    @default("Client")
+  customerPluralLabel    String                    @default("Clients")
+  salesLabel             String                    @default("Sales")
 
-  members                   WorkspaceMember[]
-  automations               Automation[]
-  invites                   WorkspaceInvite[]
-  subscription              Subscription?              @relation(fields: [subscriptionId], references: [id])
-  subscriptionId            String?
-  automationRuns            AutomationRun[]
-  dashboardPreferences      DashboardPreference[]
-  upsellRequests            UpsellRequest[]
-  enterpriseConsultRequests EnterpriseConsultRequest[]
-  templatePurchases         TemplatePurchase[]
-  microUpsellPurchases      MicroUpsellPurchase[]
-  calendarAccounts          CalendarAccount[]
-  bookingTypes              BookingType[]
-  availabilityWindows       AvailabilityWindow[]
-  bookings                  Booking[]
-  reminderSequences         ReminderSequence[]
-  externalCalendarEvents    ExternalCalendarEvent[]
-  integrations              Integration[]
-  externalRecords           ExternalRecord[]
-  auditLogs                 AuditLog[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+
+  members                           WorkspaceMember[]
+  workspaceTeams                    WorkspaceTeam[]
+  workspaceLocations                WorkspaceLocation[]
+  automations                       Automation[]
+  invites                           WorkspaceInvite[]
+  subscription                      Subscription?                       @relation(fields: [subscriptionId], references: [id])
+  subscriptionId                    String?
+  automationRuns                    AutomationRun[]
+  dashboardPreferences              DashboardPreference[]
+  upsellRequests                    UpsellRequest[]
+  enterpriseConsultRequests         EnterpriseConsultRequest[]
+  templatePurchases                 TemplatePurchase[]
+  microUpsellPurchases              MicroUpsellPurchase[]
+  calendarAccounts                  CalendarAccount[]
+  schedulingEvents                  SchedulingEvent[]
+  schedulingRecurrenceSeries        SchedulingRecurrenceSeries[]
+  schedulingAssignments             SchedulingAssignment[]
+  schedulingAttendees               SchedulingAttendee[]
+  schedulingAvailabilityRecords     SchedulingAvailabilityRecord[]
+  calendarConnections               CalendarConnection[]
+  connectedCalendars                ConnectedCalendar[]
+  calendarEventMappings             CalendarEventMapping[]
+  calendarSyncCursors               CalendarSyncCursor[]
+  calendarSyncLogs                  CalendarSyncLog[]
+  calendarWatchChannels             CalendarWatchChannel[]
+  calendarSyncDiagnostics           CalendarSyncDiagnostic[]
+  calendarSyncConflicts             CalendarSyncConflict[]
+  schedulingNotifications           SchedulingNotification[]
+  schedulingNotificationDeliveries  SchedulingNotificationDelivery[]
+  schedulingReminderSchedules       SchedulingReminderSchedule[]
+  schedulingNotificationPreferences SchedulingNotificationPreference[]
+  schedulingEventActivities         SchedulingEventActivity[]
+  revenueTransactions               RevenueTransaction[]
+  accessCodeRedemptions             AccessCodeRedemption[]
+  domainOutboxEvents                DomainOutboxEvent[]
+  bookingTypes                      BookingType[]
+  availabilityWindows               AvailabilityWindow[]
+  bookings                          Booking[]
+  reminderSequences                 ReminderSequence[]
+  externalCalendarEvents            ExternalCalendarEvent[]
+  integrations                      Integration[]
+  integrationConnections            WorkspaceIntegrationConnection[]
+  externalRecords                   ExternalRecord[]
+  auditLogs                         AuditLog[]
+  defaults                          WorkspaceDefaults?
+  contractEntitlements              ContractEntitlement[]
+  contractExceptions                ContractException[]
+  entitlementAuditEvents            EntitlementAuditEvent[]
+  automationTemplates               AutomationTemplate[]
+  workspacePatterns                 WorkspacePattern[]
+  automationLineages                AutomationLineage[]
+  auditEvents                       AuditEvent[]
+  secrets                           WorkspaceSecret[]
+  secretVersions                    SecretVersion[]
+  inspectorTelemetryEvents          InspectorTelemetryEvent[]
+  settings                          WorkspaceSettings?
+  aiProfile                         WorkspaceAIProfile?
+  aiActivities                      WorkspaceAIActivity[]
+  knowledgeSources                  WorkspaceKnowledgeSource[]
+  knowledgeItems                    WorkspaceKnowledgeItem[]
+  knowledgeRevisions                WorkspaceKnowledgeRevision[]
+  knowledgeApprovals                WorkspaceKnowledgeApproval[]
+  knowledgeGaps                     WorkspaceKnowledgeGap[]
+  knowledgeCorrections              WorkspaceKnowledgeCorrection[]
+  recommendationOutcomes            WorkspaceRecommendationOutcome[]
+  confidenceAssessments             WorkspaceConfidenceAssessment[]
+  knowledgeLearningEvents           WorkspaceLearningEvent[]
+  operationalInsights               OperationalInsight[]
+  operationalFindings               OperationalFinding[]
+  operationalTrends                 OperationalTrend[]
+  operationalRecommendationHistory  OperationalRecommendationHistory[]
+  operationalRecommendationOutcomes OperationalRecommendationOutcome[]
+  operationalHealthSnapshots        OperationalHealthSnapshot[]
+  operationalSignals                OperationalSignal[]
+  operationalEvidence               OperationalEvidence[]
+  operationalExplanations           OperationalExplanation[]
+  operationalDecisions              OperationalDecision[]
+  operationalPatterns               OperationalPattern[]
+  operationalRisks                  OperationalRisk[]
+  operationalResolutions            OperationalResolution[]
+  operationalMetricHistory          OperationalMetricHistory[]
+  operationalKnowledgeUsage         OperationalKnowledgeUsage[]
+  operationalKnowledgeEffectiveness OperationalKnowledgeEffectiveness[]
+  operationalDashboardSignals       OperationalDashboardSignal[]
+  operationalInsightRevisions       OperationalInsightRevision[]
+  operationalInsightAudits          OperationalInsightAudit[]
+  aiActionAudits                    AiActionAudit[]
+  collaborationSessions             CollaborationSession[]
+  presenceStates                    PresenceState[]
+  nodeLocks                         NodeLock[]
+  automationVersions                AutomationVersion[]
+  inspectorPresets                  InspectorPreset[]
+  schedulingRecurrenceMutations     SchedulingRecurrenceMutation[]
 
   @@index([ownerId])
   @@index([slug])
@@ -162,12 +881,82 @@ model WorkspaceMember {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      UserProfile @relation(fields: [userId], references: [id])
-  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+  user                         UserProfile           @relation(fields: [userId], references: [id])
+  workspace                    Workspace             @relation(fields: [workspaceId], references: [id])
+  teamMemberships              WorkspaceTeamMember[]
+  ownedCalendarConnections     CalendarConnection[]  @relation("CalendarConnectionOwner")
+  connectedCalendarConnections CalendarConnection[]  @relation("CalendarConnectionConnector")
 
   @@unique([userId, workspaceId])
   @@index([workspaceId])
   @@index([userId])
+}
+
+model WorkspaceTeam {
+  id           String             @id @default(cuid())
+  workspaceId  String
+  name         String
+  description  String?
+  teamType     WorkspaceTeamType?
+  leadMemberId String?
+  isActive     Boolean            @default(true)
+  createdById  String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  archivedAt   DateTime?
+
+  workspace Workspace             @relation(fields: [workspaceId], references: [id])
+  members   WorkspaceTeamMember[]
+
+  @@index([workspaceId, isActive])
+  @@index([workspaceId, name])
+  @@index([workspaceId, archivedAt])
+}
+
+model WorkspaceTeamMember {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  teamId            String
+  workspaceMemberId String
+  roleLabel         String?
+  isPrimary         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  team            WorkspaceTeam   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  workspaceMember WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, workspaceMemberId])
+  @@index([workspaceId, workspaceMemberId])
+  @@index([workspaceId, teamId])
+}
+
+model WorkspaceLocation {
+  id           String                @id @default(cuid())
+  workspaceId  String
+  name         String
+  locationType WorkspaceLocationType
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  region       String?
+  postalCode   String?
+  countryCode  String?
+  timezone     String?
+  phone        String?
+  notes        String?
+  isPrimary    Boolean               @default(false)
+  isActive     Boolean               @default(true)
+  createdById  String
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  archivedAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, isActive])
+  @@index([workspaceId, name])
+  @@index([workspaceId, archivedAt])
+  @@index([workspaceId, isPrimary])
 }
 
 model WorkspaceInvite {
@@ -187,6 +976,942 @@ model WorkspaceInvite {
   @@index([email])
 }
 
+model WorkspaceSettings {
+  id               String   @id @default(cuid())
+  workspaceId      String   @unique
+  aiActionsEnabled Boolean  @default(false)
+  scheduling       Json?
+  schedulingEvents Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model RevenueTransaction {
+  id                         String                       @id @default(cuid())
+  workspaceId                String
+  clientId                   String?
+  customerId                 String?
+  amountCents                Int
+  currency                   String                       @default("USD")
+  occurredAt                 DateTime
+  description                String
+  sourceType                 RevenueTransactionSourceType @default(MANUAL)
+  sourceId                   String?
+  status                     RevenueTransactionStatus     @default(ACTIVE)
+  createdByUserId            String?
+  createdByWorkspaceMemberId String?
+  voidedAt                   DateTime?
+  voidedByUserId             String?
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, occurredAt])
+  @@index([workspaceId, clientId])
+  @@index([workspaceId, customerId])
+  @@index([workspaceId, sourceType, sourceId])
+  @@index([workspaceId, status])
+}
+
+model WorkspaceAIProfile {
+  id                   String            @id @default(cuid())
+  workspaceId          String            @unique
+  enabled              Boolean           @default(false)
+  status               WorkspaceAIStatus @default(NOT_CONFIGURED)
+  businessSummary      String?
+  productsAndServices  Json?
+  operatingGuidelines  Json?
+  brandVoice           Json?
+  customerPolicies     Json?
+  automationGuardrails Json?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+}
+
+model WorkspaceAIActivity {
+  id          String                  @id @default(cuid())
+  workspaceId String
+  userId      String?
+  type        WorkspaceAIActivityType
+  source      String?
+  metadata    Json?
+  createdAt   DateTime                @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, type, createdAt])
+  @@index([userId, createdAt])
+}
+
+model WorkspaceKnowledgeSource {
+  id                     String   @id @default(cuid())
+  workspaceId            String
+  type                   String
+  label                  String
+  domain                 String
+  actorUserId            String?
+  actorWorkspaceMemberId String?
+  confidence             String?
+  recordType             String?
+  recordId               String?
+  referenceId            String?
+  metadata               Json?
+  inspectedAt            DateTime @default(now())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  workspace      Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  knowledgeItems WorkspaceKnowledgeItem[]
+
+  @@index([workspaceId, type])
+  @@index([workspaceId, domain])
+  @@index([workspaceId, recordType, recordId])
+  @@index([workspaceId, inspectedAt])
+}
+
+model WorkspaceKnowledgeItem {
+  id              String                           @id @default(cuid())
+  workspaceId     String
+  sourceId        String?
+  category        String
+  title           String
+  description     String?
+  structuredValue Json
+  sourceSummary   String?
+  confidence      String
+  approvalStatus  WorkspaceKnowledgeApprovalStatus @default(DRAFT)
+  createdById     String
+  approvedById    String?
+  approvedAt      DateTime?
+  version         Int                              @default(1)
+  isArchived      Boolean                          @default(false)
+  supersededById  String?
+  reason          String?
+  tags            String[]
+  visibility      WorkspaceKnowledgeVisibility     @default(WORKSPACE)
+  status          WorkspaceKnowledgeItemStatus     @default(ACTIVE)
+  createdAt       DateTime                         @default(now())
+  updatedAt       DateTime                         @updatedAt
+
+  workspace      Workspace                      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source         WorkspaceKnowledgeSource?      @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  supersededBy   WorkspaceKnowledgeItem?        @relation("WorkspaceKnowledgeSupersession", fields: [supersededById], references: [id])
+  supersedes     WorkspaceKnowledgeItem[]       @relation("WorkspaceKnowledgeSupersession")
+  revisions      WorkspaceKnowledgeRevision[]
+  approvals      WorkspaceKnowledgeApproval[]
+  corrections    WorkspaceKnowledgeCorrection[]
+  learningEvents WorkspaceLearningEvent[]
+
+  @@index([workspaceId, approvalStatus, isArchived])
+  @@index([workspaceId, category])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, updatedAt])
+  @@index([sourceId])
+}
+
+model WorkspaceKnowledgeRevision {
+  id                 String                           @id @default(cuid())
+  workspaceId        String
+  knowledgeItemId    String
+  version            Int
+  revisionType       WorkspaceKnowledgeRevisionType
+  category           String
+  title              String
+  description        String?
+  structuredValue    Json
+  confidence         String
+  approvalStatus     WorkspaceKnowledgeApprovalStatus
+  changedById        String
+  changeSummary      String?
+  previousRevisionId String?
+  metadata           Json?
+  createdAt          DateTime                         @default(now())
+
+  workspace        Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  knowledgeItem    WorkspaceKnowledgeItem       @relation(fields: [knowledgeItemId], references: [id], onDelete: Cascade)
+  previousRevision WorkspaceKnowledgeRevision?  @relation("WorkspaceKnowledgeRevisionHistory", fields: [previousRevisionId], references: [id])
+  nextRevisions    WorkspaceKnowledgeRevision[] @relation("WorkspaceKnowledgeRevisionHistory")
+
+  @@index([workspaceId, knowledgeItemId, version])
+  @@index([workspaceId, revisionType, createdAt])
+}
+
+model WorkspaceKnowledgeApproval {
+  id              String                           @id @default(cuid())
+  workspaceId     String
+  knowledgeItemId String
+  action          WorkspaceKnowledgeApprovalAction
+  actorUserId     String
+  actorRole       WorkspaceMemberRole
+  reason          String?
+  metadata        Json?
+  createdAt       DateTime                         @default(now())
+
+  workspace     Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  knowledgeItem WorkspaceKnowledgeItem @relation(fields: [knowledgeItemId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, action, createdAt])
+  @@index([workspaceId, knowledgeItemId, createdAt])
+}
+
+model WorkspaceKnowledgeGap {
+  id                    String    @id @default(cuid())
+  workspaceId           String
+  category              String
+  title                 String
+  description           String
+  severity              String
+  affectedDomains       String[]
+  firstDetectedAt       DateTime  @default(now())
+  lastDetectedAt        DateTime  @default(now())
+  frequency             Int       @default(1)
+  isResolved            Boolean   @default(false)
+  resolvedAt            DateTime?
+  resolvedByKnowledgeId String?
+  source                String?
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, category, isResolved])
+  @@index([workspaceId, severity, lastDetectedAt])
+  @@index([workspaceId, isResolved, lastDetectedAt])
+}
+
+model WorkspaceKnowledgeCorrection {
+  id                  String                             @id @default(cuid())
+  workspaceId         String
+  knowledgeItemId     String?
+  correctionText      String
+  correctedValue      Json?
+  sourceDomain        String?
+  targetCategory      String?
+  submittedById       String
+  status              WorkspaceKnowledgeCorrectionStatus @default(CAPTURED)
+  proposedKnowledgeId String?
+  metadata            Json?
+  createdAt           DateTime                           @default(now())
+  updatedAt           DateTime                           @updatedAt
+
+  workspace     Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  knowledgeItem WorkspaceKnowledgeItem? @relation(fields: [knowledgeItemId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, createdAt])
+  @@index([workspaceId, knowledgeItemId])
+}
+
+model WorkspaceRecommendationOutcome {
+  id                   String                               @id @default(cuid())
+  workspaceId          String
+  recommendationId     String
+  recommendationType   String
+  recommendationTitle  String
+  outcome              WorkspaceRecommendationOutcomeStatus
+  actorUserId          String
+  sourceDomain         String?
+  targetRecordType     String?
+  targetRecordId       String?
+  confidenceAtDecision String?
+  reason               String?
+  metadata             Json?
+  occurredAt           DateTime                             @default(now())
+  createdAt            DateTime                             @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, recommendationId])
+  @@index([workspaceId, outcome, occurredAt])
+  @@index([workspaceId, sourceDomain, occurredAt])
+}
+
+model WorkspaceConfidenceAssessment {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  scope              String
+  level              String
+  score              Float?
+  supportingFactors  String[]
+  limitingFactors    String[]
+  missingData        String[]
+  recommendedActions String[]
+  metadata           Json?
+  assessedAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, scope, assessedAt])
+  @@index([workspaceId, level, assessedAt])
+}
+
+model OperationalInsight {
+  id                      String                   @id @default(cuid())
+  workspaceId             String
+  fingerprint             String
+  domain                  String
+  title                   String
+  summary                 String
+  status                  OperationalInsightStatus @default(NEW)
+  severity                OperationalSeverity
+  confidence              OperationalConfidence
+  firstSeenAt             DateTime                 @default(now())
+  lastSeenAt              DateTime                 @default(now())
+  occurrenceCount         Int                      @default(1)
+  linkedEvidenceIds       String[]
+  linkedRecommendationIds String[]
+  resolutionId            String?
+  currentVersion          Int                      @default(1)
+  sourceResponseId        String?
+  sourceRuntimeRequestId  String?
+  metadata                Json?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  workspace  Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  revisions  OperationalInsightRevision[]
+  audits     OperationalInsightAudit[]
+  resolution OperationalResolution?       @relation(fields: [resolutionId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, fingerprint])
+  @@index([workspaceId, status, lastSeenAt])
+  @@index([workspaceId, domain, status])
+  @@index([workspaceId, severity, lastSeenAt])
+}
+
+model OperationalFinding {
+  id                String                   @id @default(cuid())
+  workspaceId       String
+  insightId         String?
+  domain            String
+  title             String
+  summary           String
+  status            OperationalInsightStatus @default(ACTIVE)
+  severity          OperationalSeverity
+  confidence        OperationalConfidence
+  evidenceIds       String[]
+  recommendationIds String[]
+  firstSeenAt       DateTime                 @default(now())
+  lastSeenAt        DateTime                 @default(now())
+  occurrenceCount   Int                      @default(1)
+  metadata          Json?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status, lastSeenAt])
+  @@index([workspaceId, domain, status])
+}
+
+model OperationalEvidence {
+  id                         String                @id @default(cuid())
+  workspaceId                String
+  evidenceKey                String
+  sourceOperationalInsightId String?
+  sourceResponseId           String?
+  domain                     String
+  label                      String
+  source                     String
+  provider                   String?
+  confidence                 OperationalConfidence
+  verified                   Boolean               @default(false)
+  occurredAt                 DateTime?
+  referenceId                String?
+  payload                    Json?
+  createdAt                  DateTime              @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, evidenceKey])
+  @@index([workspaceId, domain, createdAt])
+  @@index([workspaceId, sourceResponseId])
+}
+
+model OperationalExplanation {
+  id                     String                @id @default(cuid())
+  workspaceId            String
+  explanationKey         String
+  recommendationId       String?
+  sourceResponseId       String?
+  title                  String
+  summary                String
+  confidence             OperationalConfidence
+  businessRuleIds        String[]
+  evidenceIds            String[]
+  rejectedAlternativeIds String[]
+  knowledgeUsed          Json?
+  metadata               Json?
+  createdAt              DateTime              @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, explanationKey])
+  @@index([workspaceId, recommendationId])
+  @@index([workspaceId, sourceResponseId])
+}
+
+model OperationalDecision {
+  id                     String                @id @default(cuid())
+  workspaceId            String
+  decisionKey            String
+  recommendationId       String
+  recommendation         String
+  decisionType           String
+  confidence             OperationalConfidence
+  evidenceIds            String[]
+  businessRuleIds        String[]
+  rejectedAlternativeIds String[]
+  proposalOnly           Boolean               @default(true)
+  metadata               Json?
+  decidedAt              DateTime              @default(now())
+  createdAt              DateTime              @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, decisionKey])
+  @@index([workspaceId, recommendationId, decidedAt])
+}
+
+model OperationalRecommendationHistory {
+  id                     String                                 @id @default(cuid())
+  workspaceId            String
+  recommendationId       String
+  recommendationType     String
+  recommendationTitle    String
+  status                 OperationalRecommendationHistoryStatus @default(GENERATED)
+  sourceDomain           String?
+  sourceResponseId       String?
+  targetRecordType       String?
+  targetRecordId         String?
+  confidenceAtGeneration OperationalConfidence
+  evidenceIds            String[]
+  metadata               Json?
+  generatedAt            DateTime                               @default(now())
+  updatedAt              DateTime                               @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, recommendationId])
+  @@index([workspaceId, status, generatedAt])
+  @@index([workspaceId, sourceDomain, generatedAt])
+}
+
+model OperationalRecommendationOutcome {
+  id                      String                                 @id @default(cuid())
+  workspaceId             String
+  recommendationHistoryId String?
+  recommendationId        String
+  outcome                 OperationalRecommendationHistoryStatus
+  actorUserId             String?
+  sourceDomain            String?
+  targetRecordType        String?
+  targetRecordId          String?
+  evidenceIds             String[]
+  reason                  String?
+  metadata                Json?
+  occurredAt              DateTime                               @default(now())
+  createdAt               DateTime                               @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, recommendationId])
+  @@index([workspaceId, outcome, occurredAt])
+}
+
+model OperationalHealthSnapshot {
+  id               String                    @id @default(cuid())
+  workspaceId      String
+  snapshotKey      String
+  sourceResponseId String?
+  overallStatus    String
+  confidence       OperationalConfidence
+  signalCount      Int                       @default(0)
+  riskCount        Int                       @default(0)
+  trendDirection   OperationalTrendDirection @default(UNKNOWN)
+  signals          Json
+  metadata         Json?
+  capturedAt       DateTime                  @default(now())
+  createdAt        DateTime                  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, snapshotKey])
+  @@index([workspaceId, capturedAt])
+  @@index([workspaceId, overallStatus, capturedAt])
+}
+
+model OperationalSignal {
+  id               String                    @id @default(cuid())
+  workspaceId      String
+  signalKey        String
+  sourceResponseId String?
+  domain           String
+  label            String
+  summary          String
+  severity         OperationalSeverity
+  confidence       OperationalConfidence
+  trendDirection   OperationalTrendDirection @default(UNKNOWN)
+  evidenceIds      String[]
+  history          Json?
+  firstSeenAt      DateTime                  @default(now())
+  lastSeenAt       DateTime                  @default(now())
+  occurrenceCount  Int                       @default(1)
+  metadata         Json?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, signalKey])
+  @@index([workspaceId, domain, lastSeenAt])
+  @@index([workspaceId, severity, lastSeenAt])
+}
+
+model OperationalTrend {
+  id            String                    @id @default(cuid())
+  workspaceId   String
+  trendKey      String
+  domain        String
+  metric        String
+  direction     OperationalTrendDirection @default(UNKNOWN)
+  severity      OperationalSeverity       @default(INFO)
+  confidence    OperationalConfidence     @default(UNKNOWN)
+  currentValue  Float?
+  previousValue Float?
+  evidenceIds   String[]
+  history       Json?
+  detectedAt    DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, trendKey])
+  @@index([workspaceId, domain, metric])
+  @@index([workspaceId, direction, detectedAt])
+}
+
+model OperationalPattern {
+  id              String                    @id @default(cuid())
+  workspaceId     String
+  patternKey      String
+  domain          String
+  title           String
+  summary         String
+  direction       OperationalTrendDirection @default(UNKNOWN)
+  severity        OperationalSeverity       @default(INFO)
+  confidence      OperationalConfidence     @default(UNKNOWN)
+  occurrenceCount Int                       @default(1)
+  evidenceIds     String[]
+  firstSeenAt     DateTime                  @default(now())
+  lastSeenAt      DateTime                  @default(now())
+  metadata        Json?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, patternKey])
+  @@index([workspaceId, domain, lastSeenAt])
+}
+
+model OperationalRisk {
+  id               String                   @id @default(cuid())
+  workspaceId      String
+  riskKey          String
+  domain           String
+  title            String
+  summary          String
+  status           OperationalInsightStatus @default(ACTIVE)
+  severity         OperationalSeverity
+  confidence       OperationalConfidence
+  evidenceIds      String[]
+  linkedInsightIds String[]
+  firstSeenAt      DateTime                 @default(now())
+  lastSeenAt       DateTime                 @default(now())
+  resolvedAt       DateTime?
+  metadata         Json?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, riskKey])
+  @@index([workspaceId, status, lastSeenAt])
+  @@index([workspaceId, severity, lastSeenAt])
+}
+
+model OperationalResolution {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  insightId      String?
+  resolutionType String
+  summary        String
+  actorUserId    String?
+  evidenceIds    String[]
+  metadata       Json?
+  resolvedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  workspace Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  insights  OperationalInsight[]
+
+  @@index([workspaceId, resolvedAt])
+  @@index([workspaceId, resolutionType, resolvedAt])
+}
+
+model OperationalMetricHistory {
+  id          String                    @id @default(cuid())
+  workspaceId String
+  metricKey   String
+  domain      String
+  metric      String
+  value       Float
+  unit        String?
+  direction   OperationalTrendDirection @default(UNKNOWN)
+  evidenceIds String[]
+  metadata    Json?
+  measuredAt  DateTime                  @default(now())
+  createdAt   DateTime                  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, domain, metric, measuredAt])
+  @@index([workspaceId, metricKey, measuredAt])
+}
+
+model OperationalKnowledgeUsage {
+  id                   String                           @id @default(cuid())
+  workspaceId          String
+  knowledgeItemId      String?
+  knowledgeReferenceId String?
+  source               String
+  label                String
+  outcome              OperationalKnowledgeUsageOutcome
+  sourceResponseId     String?
+  recommendationId     String?
+  affectedModules      String[]
+  evidenceIds          String[]
+  metadata             Json?
+  usedAt               DateTime                         @default(now())
+  createdAt            DateTime                         @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, knowledgeItemId, usedAt])
+  @@index([workspaceId, outcome, usedAt])
+  @@index([workspaceId, sourceResponseId])
+}
+
+model OperationalKnowledgeEffectiveness {
+  id                       String                @id @default(cuid())
+  workspaceId              String
+  knowledgeKey             String
+  knowledgeItemId          String?
+  label                    String
+  timesUsed                Int                   @default(0)
+  lastUsedAt               DateTime?
+  affectedModules          String[]
+  positiveOutcomes         Int                   @default(0)
+  negativeOutcomes         Int                   @default(0)
+  neutralOutcomes          Int                   @default(0)
+  conflictsGenerated       Int                   @default(0)
+  recommendationsGenerated Int                   @default(0)
+  operationalImpact        String
+  confidence               OperationalConfidence @default(UNKNOWN)
+  metadata                 Json?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, knowledgeKey])
+  @@index([workspaceId, lastUsedAt])
+  @@index([workspaceId, confidence])
+}
+
+model OperationalDashboardSignal {
+  id               String                    @id @default(cuid())
+  workspaceId      String
+  signalKey        String
+  label            String
+  summary          String
+  severity         OperationalSeverity
+  confidence       OperationalConfidence
+  trendDirection   OperationalTrendDirection @default(UNKNOWN)
+  evidenceIds      String[]
+  healthSnapshotId String?
+  history          Json?
+  visible          Boolean                   @default(true)
+  generatedAt      DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, signalKey])
+  @@index([workspaceId, visible, generatedAt])
+  @@index([workspaceId, severity, generatedAt])
+}
+
+model OperationalInsightRevision {
+  id                String                   @id @default(cuid())
+  workspaceId       String
+  insightId         String
+  version           Int
+  status            OperationalInsightStatus
+  severity          OperationalSeverity
+  confidence        OperationalConfidence
+  title             String
+  summary           String
+  evidenceIds       String[]
+  recommendationIds String[]
+  metadata          Json?
+  createdAt         DateTime                 @default(now())
+
+  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  insight   OperationalInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, insightId, version])
+  @@index([workspaceId, status, createdAt])
+}
+
+model OperationalInsightAudit {
+  id          String                 @id @default(cuid())
+  workspaceId String
+  insightId   String?
+  action      OperationalAuditAction
+  actorUserId String?
+  source      String
+  summary     String
+  metadata    Json?
+  createdAt   DateTime               @default(now())
+
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  insight   OperationalInsight? @relation(fields: [insightId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, action, createdAt])
+  @@index([workspaceId, insightId, createdAt])
+}
+
+model PlatformAggregateSignal {
+  id             String                    @id @default(cuid())
+  signalKey      String                    @unique
+  category       String
+  label          String
+  summary        String
+  severity       OperationalSeverity
+  confidence     OperationalConfidence
+  trendDirection OperationalTrendDirection @default(UNKNOWN)
+  workspaceCount Int                       @default(0)
+  evidence       Json?
+  metadata       Json?
+  generatedAt    DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([category, generatedAt])
+  @@index([severity, generatedAt])
+}
+
+model WorkspaceLearningEvent {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  knowledgeItemId String?
+  eventType       String
+  actorUserId     String?
+  source          String
+  summary         String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  workspace     Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  knowledgeItem WorkspaceKnowledgeItem? @relation(fields: [knowledgeItemId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, eventType, createdAt])
+  @@index([workspaceId, knowledgeItemId])
+}
+
+model PlatformLearningSignal {
+  id             String   @id @default(cuid())
+  category       String
+  label          String
+  aggregateCount Int      @default(1)
+  confidence     String?
+  metadata       Json?
+  lastObservedAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([category, label])
+  @@index([category, lastObservedAt])
+}
+
+model WorkspaceDefaults {
+  id               String   @id @default(cuid())
+  workspaceId      String   @unique
+  namePrefix       String?
+  retryCount       Int?
+  timeoutMs        Int?
+  aiModel          String?
+  requiresApproval Boolean?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model AiActionAudit {
+  id           String  @id @default(cuid())
+  workspaceId  String
+  automationId String?
+  nodeId       String?
+  actorUserId  String
+  action       String
+
+  beforeData Json?
+  afterData  Json?
+
+  wasDenied     Boolean @default(false)
+  reason        String?
+  undoOfId      String?
+  integrityHash String
+
+  createdAt DateTime @default(now())
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id])
+  actor     UserProfile @relation(fields: [actorUserId], references: [id])
+
+  @@index([workspaceId, automationId, nodeId])
+  @@index([actorUserId])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, actorUserId, createdAt])
+  @@index([workspaceId, action, createdAt])
+}
+
+/// Request record (created once; never updated)
+model SecurityPackRequest {
+  id                 String                     @id @default(cuid())
+  workspaceId        String // scalar only (avoid cascade deletes)
+  requestedByUserId  String // scalar only
+  industry           SecurityPackIndustry       @default(UNKNOWN)
+  reviewType         SecurityPackReviewType
+  requestedArtifacts SecurityPackArtifactType[] // what they asked for
+
+  templateFile String? // set by automation; but we do NOT update this here (log it as an event instead)
+  bundles      Json? // names + flags only (log as event instead of updating)
+  links        Json? // trust URLs only (log as event instead of updating)
+
+  approvalRequired Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+}
+
+/// Append-only event log (SOC-2 friendly)
+model SecurityPackAuditEvent {
+  id            String                @id @default(cuid())
+  requestId     String
+  workspaceId   String // scalar only
+  eventType     SecurityPackEventType
+  correlationId String? // optional cross-system trace (e.g., n8n run)
+
+  // Optional “who”
+  actorUserId String? // internal actor (initiator/approver)
+  actorRole   SecurityPackApproverRole?
+
+  // Optional “what” (no PII, no payloads)
+  templateFile String?
+  bundles      Json? // names + flags only
+  links        Json? // trust center URLs only
+
+  // Optional decision / delivery metadata
+  decisionNotes    String?
+  deliveryMethod   SecurityPackDeliveryMethod?
+  automationSystem SecurityPackAutomationSystem?
+  sent             Boolean? // metadata only
+
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([requestId, createdAt])
+  @@index([workspaceId, eventType, createdAt])
+  @@index([correlationId])
+}
+
+/// Current contract entitlements (effective state; no pricing)
+model ContractEntitlement {
+  id             String                 @id @default(cuid())
+  workspaceId    String
+  entitlementKey String
+  source         EntitlementAuditSource @default(CONTRACT)
+  effectiveAt    DateTime
+  expiresAt      DateTime?
+  createdAt      DateTime               @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, entitlementKey, effectiveAt])
+  @@index([workspaceId, entitlementKey])
+  @@index([workspaceId, effectiveAt])
+}
+
+/// Time-bound exceptions (optional additive entitlements)
+model ContractException {
+  id             String                 @id @default(cuid())
+  workspaceId    String
+  entitlementKey String
+  source         EntitlementAuditSource @default(EXCEPTION)
+  effectiveAt    DateTime
+  expiresAt      DateTime?
+  createdAt      DateTime               @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, entitlementKey, effectiveAt])
+  @@index([workspaceId, entitlementKey])
+  @@index([workspaceId, effectiveAt])
+}
+
+/// Append-only entitlement change log (contract-level)
+model EntitlementAuditEvent {
+  id             String                    @id @default(cuid())
+  workspaceId    String
+  entitlementKey String
+  action         EntitlementAuditAction
+  source         EntitlementAuditSource
+  actorType      EntitlementAuditActorType
+  actorId        String?
+  effectiveAt    DateTime
+  createdAt      DateTime                  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, entitlementKey, createdAt])
+}
+
+/// Service tokens for automation callbacks (hash stored; no user impersonation)
+model AutomationServiceToken {
+  id        String                   @id @default(cuid())
+  tokenHash String                   @unique /// Store hashed token; raw token never persisted.
+  scopes    AutomationServiceScope[]
+  system    AutomationServiceSystem
+  active    Boolean                  @default(true)
+  revokedAt DateTime?
+  createdAt DateTime                 @default(now())
+
+  @@index([active, system])
+}
+
 //
 // AUTOMATIONS
 //
@@ -201,7 +1926,10 @@ model Automation {
   description String?
   status      AutomationStatus @default(INACTIVE)
 
-  flow Json?
+  flow         Json?
+  forkedFromId String? // Automation forking. Lineage is informational only. No runtime or config coupling.
+  forkedAt     DateTime?
+  forkedBy     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,8 +1937,163 @@ model Automation {
   user      UserProfile @relation(fields: [userId], references: [id])
   workspace Workspace   @relation(fields: [workspaceId], references: [id])
 
-  runs           AutomationRun[]
-  upsellRequests UpsellRequest[]
+  runs                  AutomationRun[]
+  upsellRequests        UpsellRequest[]
+  collaborationSessions CollaborationSession[]
+  presenceStates        PresenceState[]
+  nodeLocks             NodeLock[]
+  automationVersions    AutomationVersion[]
+  lineage               AutomationLineage?
+  forks                 AutomationLineage[]    @relation("AutomationForks")
+}
+
+//
+// TEMPLATES & PATTERNS — TRUST-FIRST
+//
+
+enum TemplateVisibility {
+  PUBLIC
+  WORKSPACE
+  PRIVATE
+}
+
+enum PatternVisibility {
+  WORKSPACE
+  PRIVATE
+}
+
+model AutomationTemplate {
+  id          String             @id @default(cuid())
+  slug        String             @unique
+  name        String
+  description String?
+  category    String?
+  tags        String[]
+  visibility  TemplateVisibility @default(PUBLIC)
+
+  // Snapshot of the builder graph. Read-only reference.
+  // Must not contain secrets, tokens, or real PII.
+  flow        Json
+  flowVersion Int  @default(1)
+
+  // Trust-first constraints
+  readOnly   Boolean @default(true)
+  executable Boolean @default(false)
+
+  // Ownership scope (workspace templates)
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+
+  createdById String?
+  createdBy   UserProfile? @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lineages AutomationLineage[]
+
+  @@index([workspaceId])
+  @@index([category])
+}
+
+model WorkspacePattern {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  name        String
+  description String?
+  tags        String[]
+  visibility  PatternVisibility @default(WORKSPACE)
+
+  // Static snapshot only. No linkage after insertion.
+  snapshot        Json
+  snapshotVersion Int  @default(1)
+
+  // Helpful metadata for UX (never authoritative)
+  nodeCount   Int?
+  inputHints  Json?
+  outputHints Json?
+
+  createdById String?
+  createdBy   UserProfile? @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model AutomationLineage {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  automationId String     @unique
+  automation   Automation @relation(fields: [automationId], references: [id])
+
+  forkedFromId String?
+  forkedFrom   Automation? @relation("AutomationForks", fields: [forkedFromId], references: [id])
+
+  templateId String?
+  template   AutomationTemplate? @relation(fields: [templateId], references: [id])
+
+  demoFlowId String?
+
+  forkedById String?
+  forkedBy   UserProfile? @relation(fields: [forkedById], references: [id])
+
+  forkedAt DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([forkedFromId])
+  @@index([templateId])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  action      String
+  objectId    String?
+  objectType  String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id])
+  actor     UserProfile? @relation(fields: [actorId], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([action, createdAt])
+}
+
+model WorkspaceSecret {
+  id          String   @id @default(cuid())
+  workspaceId String
+  alias       String
+  lastFour    String
+  createdAt   DateTime @default(now())
+  rotatedAt   DateTime @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id])
+  versions  SecretVersion[]
+
+  @@index([workspaceId, alias])
+}
+
+model SecretVersion {
+  id          String          @id @default(cuid())
+  workspaceId String
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id])
+  secretId    String
+  secret      WorkspaceSecret @relation(fields: [secretId], references: [id])
+  ciphertext  Bytes
+  iv          Bytes
+  createdAt   DateTime        @default(now())
+  createdById String?
+  createdBy   UserProfile?    @relation(fields: [createdById], references: [id])
+
+  @@index([workspaceId, secretId, createdAt])
 }
 
 model AutomationRun {
@@ -265,20 +2148,82 @@ model Subscription {
 
   subscriberName  String?
   subscriberEmail String?
-  plan            String
-  status          String
+  plan            SubscriptionPlan
+  status          SubscriptionStatus
 
   stripeCustomerId String?
   stripeSubId      String?
+
+  trialEndsAt           DateTime?
+  complimentaryEndsAt   DateTime?
+  paymentMethodRequired Boolean                  @default(true)
+  accessSource          SubscriptionAccessSource @default(NORMAL_TRIAL)
+  accessCodeId          String?
+  accessCode            AccessCode?              @relation(fields: [accessCodeId], references: [id], onDelete: SetNull)
+  accessReason          String?
 
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
   cancelAtPeriodEnd  Boolean   @default(false)
   canceledAt         DateTime?
 
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  workspaces Workspace[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  workspaces            Workspace[]
+  accessCodeRedemptions AccessCodeRedemption[]
+
+  @@index([accessCodeId])
+  @@index([status, trialEndsAt])
+  @@index([status, complimentaryEndsAt])
+}
+
+model AccessCode {
+  id                    String            @id @default(cuid())
+  code                  String            @unique
+  active                Boolean           @default(true)
+  type                  AccessCodeType
+  plan                  SubscriptionPlan?
+  discountPercent       Int?
+  discountAmountCents   Int?
+  trialDaysOverride     Int?
+  complimentaryDays     Int?
+  complimentaryUntil    DateTime?
+  paymentMethodRequired Boolean?
+  maxUses               Int?
+  usesCount             Int               @default(0)
+  perUserLimit          Int?
+  startsAt              DateTime?
+  expiresAt             DateTime?
+  internalReason        String?
+  notes                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  subscriptions Subscription[]
+  redemptions   AccessCodeRedemption[]
+
+  @@index([active, type])
+  @@index([plan])
+  @@index([startsAt, expiresAt])
+}
+
+model AccessCodeRedemption {
+  id             String   @id @default(cuid())
+  accessCodeId   String
+  userId         String
+  workspaceId    String?
+  subscriptionId String?
+  redeemedAt     DateTime @default(now())
+
+  accessCode   AccessCode    @relation(fields: [accessCodeId], references: [id], onDelete: Cascade)
+  user         UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace    Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([accessCodeId, userId])
+  @@index([userId, redeemedAt])
+  @@index([workspaceId, redeemedAt])
+  @@index([subscriptionId])
 }
 
 model DashboardPreference {
@@ -334,8 +2279,8 @@ model BuildRequest {
   budgetRange     String?
   timeline        String?
 
-  status    String   @default("NEW") // NEW | REVIEWING | CLOSED
-  createdAt DateTime @default(now())
+  status    BuildRequestStatus @default(NEW)
+  createdAt DateTime           @default(now())
 }
 
 model EnterpriseConsultRequest {
@@ -583,6 +2528,714 @@ model ExternalCalendarEvent {
   @@index([provider, externalId])
 }
 
+//
+// SCHEDULING PRODUCTION FOUNDATION
+//
+
+model SchedulingEvent {
+  id           String                @id @default(cuid())
+  workspaceId  String
+  eventTypeKey String
+  title        String
+  description  String?
+  status       SchedulingEventStatus @default(SCHEDULED)
+
+  startsAtUtc DateTime
+  endsAtUtc   DateTime
+  timezone    String
+  allDay      Boolean  @default(false)
+
+  locationType    SchedulingLocationType?
+  locationLabel   String?
+  locationAddress String?
+  meetingUrl      String?
+
+  recurrenceSeriesId   String?
+  recurrenceRule       Json?
+  recurrenceTimezone   String?
+  occurrenceOriginalAt DateTime?
+  occurrenceState      SchedulingOccurrenceState?
+  overrideFields       Json?
+  recurrenceLineage    Json?
+  reminderPolicy       Json?
+
+  linkedRecordType  String?
+  linkedRecordId    String?
+  linkedRecordLabel String?
+
+  blocksAvailability Boolean                      @default(true)
+  externalVisibility SchedulingExternalVisibility @default(DEFAULT)
+  syncPolicy         SchedulingSyncPolicy         @default(WORKSPACE_DEFAULT)
+
+  createdByUserId String
+  updatedByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  canceledAt      DateTime?
+  completedAt     DateTime?
+  deletedAt       DateTime?
+
+  workspace        Workspace                        @relation(fields: [workspaceId], references: [id])
+  recurrenceSeries SchedulingRecurrenceSeries?      @relation("SchedulingEventSeries", fields: [recurrenceSeriesId], references: [id])
+  masterSeries     SchedulingRecurrenceSeries?      @relation("SchedulingMasterEvent")
+  assignments      SchedulingAssignment[]
+  attendees        SchedulingAttendee[]
+  providerMappings CalendarEventMapping[]
+  syncConflicts    CalendarSyncConflict[]
+  notifications    SchedulingNotificationDelivery[]
+  activity         SchedulingEventActivity[]
+
+  @@index([workspaceId, startsAtUtc])
+  @@index([workspaceId, endsAtUtc])
+  @@index([workspaceId, eventTypeKey])
+  @@index([workspaceId, status])
+  @@index([recurrenceSeriesId])
+  @@index([workspaceId, recurrenceSeriesId, occurrenceOriginalAt])
+  @@index([workspaceId, occurrenceState])
+  @@index([workspaceId, linkedRecordType, linkedRecordId])
+}
+
+model SchedulingRecurrenceSeries {
+  id                  String                           @id @default(cuid())
+  workspaceId         String
+  masterEventId       String                           @unique
+  timezone            String
+  rrule               String
+  startsAtLocal       String?
+  localStartDate      String?
+  localStartTime      String?
+  durationMinutes     Int
+  normalizedRule      Json?
+  untilUtc            DateTime?
+  occurrenceCount     Int?
+  exdates             Json?
+  metadata            Json?
+  status              SchedulingRecurrenceSeriesStatus @default(ACTIVE)
+  version             Int                              @default(1)
+  splitFromSeriesId   String?
+  splitAtOccurrenceId String?
+  splitBoundaryUtc    DateTime?
+  generatedThroughUtc DateTime?
+  pausedAt            DateTime?
+  canceledAt          DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id])
+  masterEvent SchedulingEvent   @relation("SchedulingMasterEvent", fields: [masterEventId], references: [id])
+  events      SchedulingEvent[] @relation("SchedulingEventSeries")
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, version])
+  @@index([workspaceId, splitFromSeriesId])
+  @@index([workspaceId, splitBoundaryUtc])
+}
+
+model SchedulingRecurrenceMutation {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  seriesId       String?
+  idempotencyKey String
+  mutationKind   String
+  requestHash    String
+  status         String
+  result         Json?
+  errorCode      String?
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, idempotencyKey])
+  @@index([seriesId, createdAt])
+  @@index([workspaceId, mutationKind, createdAt])
+}
+
+model SchedulingAssignment {
+  id                String                   @id @default(cuid())
+  workspaceId       String
+  eventId           String
+  assignmentType    SchedulingAssignmentType
+  workspaceMemberId String?
+  teamId            String?
+  roleLabel         String?
+  displaySnapshot   String?
+  notificationState Json?
+  createdAt         DateTime                 @default(now())
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id])
+  event     SchedulingEvent @relation(fields: [eventId], references: [id])
+
+  @@unique([eventId, workspaceMemberId])
+  @@unique([eventId, teamId])
+  @@index([workspaceId, workspaceMemberId])
+  @@index([workspaceId, teamId])
+  @@index([eventId])
+}
+
+model SchedulingAttendee {
+  id                 String                           @id @default(cuid())
+  workspaceId        String
+  eventId            String
+  attendeeType       SchedulingAttendeeType
+  name               String?
+  email              String
+  responseStatus     SchedulingAttendeeResponseStatus @default(NEEDS_ACTION)
+  isOrganizer        Boolean                          @default(false)
+  isOptional         Boolean                          @default(false)
+  notificationPolicy String?
+  createdAt          DateTime                         @default(now())
+  updatedAt          DateTime                         @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id])
+  event     SchedulingEvent @relation(fields: [eventId], references: [id])
+
+  @@unique([eventId, email])
+  @@index([workspaceId, email])
+  @@index([eventId])
+}
+
+model SchedulingAvailabilityRecord {
+  id               String                           @id @default(cuid())
+  workspaceId      String
+  kind             SchedulingAvailabilityRecordKind
+  memberId         String?
+  teamId           String?
+  title            String?
+  category         SchedulingTimeOffCategory?
+  exceptionType    SchedulingExceptionType?
+  startsAtUtc      DateTime?
+  endsAtUtc        DateTime?
+  timezone         String
+  allDay           Boolean                          @default(false)
+  daysOfWeek       Int[]                            @default([])
+  startTimeMinutes Int?
+  endTimeMinutes   Int?
+  effectiveFrom    DateTime?
+  effectiveUntil   DateTime?
+  recurrenceRule   Json?
+  notes            String?
+  createdByUserId  String?
+  createdAt        DateTime                         @default(now())
+  updatedAt        DateTime                         @updatedAt
+  deletedAt        DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, kind])
+  @@index([workspaceId, memberId])
+  @@index([workspaceId, teamId])
+  @@index([workspaceId, startsAtUtc])
+}
+
+model CalendarConnection {
+  id                                String                               @id @default(cuid())
+  workspaceId                       String
+  connectedByUserId                 String
+  workspaceMemberId                 String?
+  connectedByWorkspaceMemberId      String?
+  ownershipType                     CalendarConnectionOwnershipType      @default(MEMBER)
+  connectionPurpose                 CalendarConnectionPurpose            @default(UNKNOWN)
+  classificationSource              CalendarPurposeClassificationSource  @default(UNKNOWN)
+  classificationConfidence          Float?
+  classifiedAt                      DateTime?
+  classifiedByWorkspaceMemberId     String?
+  adminConfirmedAt                  DateTime?
+  adminConfirmedByWorkspaceMemberId String?
+  availabilityBehavior              PersonalCalendarAvailabilityBehavior @default(IGNORE)
+  busyDisplayMode                   PersonalCalendarBusyDisplayMode      @default(HIDDEN)
+  visibilityMode                    ExternalCalendarVisibilityMode       @default(BUSY_ONLY)
+  approvalStatus                    CalendarConnectionApprovalStatus     @default(APPROVED)
+  provider                          CalendarProvider
+  providerAccountId                 String
+  accountEmail                      String?
+  displayName                       String?
+  accessTokenEncrypted              String?
+  refreshTokenEncrypted             String?
+  tokenExpiresAt                    DateTime?
+  scopes                            Json?
+  syncStatus                        CalendarConnectionStatus             @default(NOT_CONNECTED)
+  conflictPolicy                    CalendarConflictPolicy               @default(SKILLIFY_WINS)
+  syncFrequencyMinutes              Int                                  @default(15)
+  lastSuccessfulSyncAt              DateTime?
+  lastAttemptedSyncAt               DateTime?
+  lastValidatedAt                   DateTime?
+  nextSyncAt                        DateTime?
+  lastErrorCode                     String?
+  lastErrorMessage                  String?
+  oauthState                        String?
+  oauthStateExpiresAt               DateTime?
+  tokenStatus                       String?
+  metadata                          Json?
+  createdAt                         DateTime                             @default(now())
+  updatedAt                         DateTime                             @updatedAt
+  disconnectedAt                    DateTime?
+  disabledAt                        DateTime?
+  disabledReason                    String?
+  ownerInactiveAt                   DateTime?
+
+  workspace                  Workspace                @relation(fields: [workspaceId], references: [id])
+  workspaceMember            WorkspaceMember?         @relation("CalendarConnectionOwner", fields: [workspaceMemberId], references: [id])
+  connectedByWorkspaceMember WorkspaceMember?         @relation("CalendarConnectionConnector", fields: [connectedByWorkspaceMemberId], references: [id])
+  calendars                  ConnectedCalendar[]
+  syncCursors                CalendarSyncCursor[]
+  syncLogs                   CalendarSyncLog[]
+  watchChannels              CalendarWatchChannel[]
+  diagnostics                CalendarSyncDiagnostic[]
+  conflicts                  CalendarSyncConflict[]
+
+  @@unique([workspaceId, provider, providerAccountId])
+  @@index([workspaceId, provider])
+  @@index([workspaceId, workspaceMemberId])
+  @@index([workspaceId, ownershipType])
+  @@index([workspaceId, connectionPurpose])
+  @@index([connectedByWorkspaceMemberId])
+  @@index([syncStatus, nextSyncAt])
+}
+
+model ConnectedCalendar {
+  id                                String                               @id @default(cuid())
+  connectionId                      String
+  workspaceId                       String
+  providerCalendarId                String
+  calendarPurpose                   CalendarConnectionPurpose            @default(UNKNOWN)
+  classificationSource              CalendarPurposeClassificationSource  @default(UNKNOWN)
+  classificationConfidence          Float?
+  classifiedAt                      DateTime?
+  classifiedByWorkspaceMemberId     String?
+  adminConfirmedAt                  DateTime?
+  adminConfirmedByWorkspaceMemberId String?
+  availabilityBehavior              PersonalCalendarAvailabilityBehavior @default(IGNORE)
+  busyDisplayMode                   PersonalCalendarBusyDisplayMode      @default(HIDDEN)
+  name                              String
+  ownerEmail                        String?
+  description                       String?
+  color                             String?
+  timezone                          String?
+  accessRole                        String?
+  visibility                        String?
+  isPrimary                         Boolean                              @default(false)
+  isWritable                        Boolean                              @default(false)
+  selectedForSync                   Boolean                              @default(false)
+  importEnabled                     Boolean                              @default(true)
+  exportEnabled                     Boolean                              @default(false)
+  availabilityEnabled               Boolean                              @default(true)
+  defaultExportTarget               Boolean                              @default(false)
+  privacyMode                       Boolean                              @default(false)
+  syncDirection                     CalendarSyncDirection                @default(IMPORT_ONLY)
+  syncFrequencyMinutes              Int?
+  lastSyncToken                     String?
+  lastSyncedAt                      DateTime?
+  nextSyncAt                        DateTime?
+  lastErrorCode                     String?
+  lastErrorMessage                  String?
+  metadata                          Json?
+  createdAt                         DateTime                             @default(now())
+  updatedAt                         DateTime                             @updatedAt
+
+  workspace     Workspace                @relation(fields: [workspaceId], references: [id])
+  connection    CalendarConnection       @relation(fields: [connectionId], references: [id])
+  mappings      CalendarEventMapping[]
+  syncCursors   CalendarSyncCursor[]
+  syncLogs      CalendarSyncLog[]
+  watchChannels CalendarWatchChannel[]
+  diagnostics   CalendarSyncDiagnostic[]
+  conflicts     CalendarSyncConflict[]
+
+  @@unique([connectionId, providerCalendarId])
+  @@index([workspaceId])
+  @@index([workspaceId, selectedForSync])
+  @@index([workspaceId, defaultExportTarget])
+  @@index([workspaceId, calendarPurpose])
+}
+
+model CalendarSyncCursor {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  connectionId        String
+  connectedCalendarId String?
+  cursor              String?
+  deltaLink           String?
+  pageToken           String?
+  expiresAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id])
+  connection        CalendarConnection @relation(fields: [connectionId], references: [id])
+  connectedCalendar ConnectedCalendar? @relation(fields: [connectedCalendarId], references: [id])
+
+  @@unique([connectionId, connectedCalendarId])
+  @@index([workspaceId])
+}
+
+model CalendarEventMapping {
+  id                       String                 @id @default(cuid())
+  workspaceId              String
+  schedulingEventId        String?
+  recurrenceSeriesId       String?
+  occurrenceId             String?
+  connectedCalendarId      String
+  providerEventId          String
+  providerSeriesId         String?
+  providerRecurringEventId String?
+  providerOccurrenceId     String?
+  providerEtag             String?
+  providerVersion          String?
+  lastSyncOrigin           String?
+  originOperation          String?
+  syncHash                 String?
+  providerUpdatedAt        DateTime?
+  syncVersion              Int                    @default(1)
+  ownership                CalendarEventOwnership
+  syncState                CalendarEventSyncState @default(SYNCED)
+  lastSyncedAt             DateTime?
+  lastPulledAt             DateTime?
+  lastPushedAt             DateTime?
+  lastErrorCode            String?
+  lastErrorMessage         String?
+  deletedAtProvider        Boolean                @default(false)
+  deletedAtSkillify        Boolean                @default(false)
+  conflictType             String?
+  conflictMetadata         Json?
+  conflictResolvedAt       DateTime?
+  providerSnapshot         Json?
+  skillifySnapshot         Json?
+  metadata                 Json?
+
+  workspace         Workspace              @relation(fields: [workspaceId], references: [id])
+  schedulingEvent   SchedulingEvent?       @relation(fields: [schedulingEventId], references: [id])
+  connectedCalendar ConnectedCalendar      @relation(fields: [connectedCalendarId], references: [id])
+  conflicts         CalendarSyncConflict[]
+
+  @@unique([connectedCalendarId, providerEventId])
+  @@index([workspaceId, schedulingEventId])
+  @@index([workspaceId, recurrenceSeriesId])
+  @@index([workspaceId, occurrenceId])
+  @@index([workspaceId, syncState])
+}
+
+model CalendarSyncLog {
+  id                  String                   @id @default(cuid())
+  workspaceId         String
+  connectionId        String?
+  connectedCalendarId String?
+  schedulingEventId   String?
+  direction           CalendarSyncDirectionLog
+  operation           String
+  status              CalendarSyncLogStatus
+  providerCode        String?
+  safeMessage         String?
+  attempts            Int                      @default(1)
+  startedAt           DateTime
+  completedAt         DateTime?
+  workerId            String?
+  durationMs          Int?
+  retryable           Boolean?
+  metadata            Json?
+
+  workspace         Workspace           @relation(fields: [workspaceId], references: [id])
+  connection        CalendarConnection? @relation(fields: [connectionId], references: [id])
+  connectedCalendar ConnectedCalendar?  @relation(fields: [connectedCalendarId], references: [id])
+
+  @@index([workspaceId, startedAt])
+  @@index([connectionId])
+}
+
+model CalendarWatchChannel {
+  id                  String                     @id @default(cuid())
+  workspaceId         String
+  connectionId        String
+  connectedCalendarId String?
+  provider            CalendarProvider
+  providerCalendarId  String?
+  channelId           String
+  resourceId          String?
+  resourceUri         String?
+  tokenEncrypted      String?
+  status              CalendarWatchChannelStatus @default(ACTIVE)
+  expiresAt           DateTime?
+  lastMessageNumber   String?
+  lastNotificationAt  DateTime?
+  failureCode         String?
+  failureMessage      String?
+  metadata            Json?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  stoppedAt           DateTime?
+
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id])
+  connection        CalendarConnection @relation(fields: [connectionId], references: [id])
+  connectedCalendar ConnectedCalendar? @relation(fields: [connectedCalendarId], references: [id])
+
+  @@unique([provider, channelId])
+  @@index([workspaceId, status, expiresAt])
+  @@index([connectionId])
+  @@index([connectedCalendarId])
+}
+
+model CalendarSyncDiagnostic {
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  connectionId         String?
+  connectedCalendarId  String?
+  workerKind           String
+  status               String
+  pendingPull          Int      @default(0)
+  pendingPush          Int      @default(0)
+  openConflicts        Int      @default(0)
+  failedMappings       Int      @default(0)
+  activeWatchChannels  Int      @default(0)
+  expiredWatchChannels Int      @default(0)
+  safeMessage          String?
+  metadata             Json?
+  measuredAt           DateTime @default(now())
+
+  workspace         Workspace           @relation(fields: [workspaceId], references: [id])
+  connection        CalendarConnection? @relation(fields: [connectionId], references: [id])
+  connectedCalendar ConnectedCalendar?  @relation(fields: [connectedCalendarId], references: [id])
+
+  @@index([workspaceId, measuredAt])
+  @@index([connectionId])
+  @@index([connectedCalendarId])
+}
+
+model CalendarSyncConflict {
+  id                  String                     @id @default(cuid())
+  workspaceId         String
+  connectionId        String?
+  connectedCalendarId String?
+  mappingId           String?
+  schedulingEventId   String?
+  provider            CalendarProvider
+  conflictType        String
+  status              CalendarSyncConflictStatus @default(OPEN)
+  resolutionPolicy    CalendarConflictPolicy     @default(SKILLIFY_WINS)
+  resolution          String?
+  safeMessage         String
+  providerSnapshot    Json?
+  skillifySnapshot    Json?
+  metadata            Json?
+  detectedAt          DateTime                   @default(now())
+  resolvedAt          DateTime?
+  resolvedByUserId    String?
+
+  workspace         Workspace             @relation(fields: [workspaceId], references: [id])
+  connection        CalendarConnection?   @relation(fields: [connectionId], references: [id])
+  connectedCalendar ConnectedCalendar?    @relation(fields: [connectedCalendarId], references: [id])
+  mapping           CalendarEventMapping? @relation(fields: [mappingId], references: [id])
+  schedulingEvent   SchedulingEvent?      @relation(fields: [schedulingEventId], references: [id])
+
+  @@index([workspaceId, status, detectedAt])
+  @@index([connectionId])
+  @@index([connectedCalendarId])
+  @@index([mappingId])
+  @@index([schedulingEventId])
+}
+
+model SchedulingNotification {
+  id                         String                         @id @default(cuid())
+  workspaceId                String
+  key                        String
+  deduplicationKey           String?
+  sourceOutboxId             String?
+  category                   SchedulingNotificationCategory @default(EVENT_UPDATED)
+  priority                   SchedulingNotificationPriority @default(NORMAL)
+  recipientType              String?
+  recipientUserId            String?
+  recipientWorkspaceMemberId String?
+  recipientEmail             String?
+  title                      String
+  body                       String
+  deepLink                   String?
+  actionUrl                  String?
+  entityType                 String?
+  entityId                   String?
+  schedulingEventId          String?
+  occurrenceId               String?
+  seriesId                   String?
+  relatedRecordType          String?
+  relatedRecordId            String?
+  metadata                   Json?
+  readAt                     DateTime?
+  archivedAt                 DateTime?
+  createdAt                  DateTime                       @default(now())
+
+  workspace  Workspace                        @relation(fields: [workspaceId], references: [id])
+  deliveries SchedulingNotificationDelivery[]
+
+  @@unique([workspaceId, deduplicationKey])
+  @@index([workspaceId, recipientUserId, readAt])
+  @@index([workspaceId, recipientWorkspaceMemberId, readAt])
+  @@index([workspaceId, recipientEmail])
+  @@index([workspaceId, category, createdAt])
+  @@index([workspaceId, sourceOutboxId])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, key])
+}
+
+model SchedulingNotificationDelivery {
+  id                String                               @id @default(cuid())
+  workspaceId       String
+  notificationId    String
+  schedulingEventId String?
+  recipientUserId   String?
+  recipientEmail    String?
+  channel           SchedulingNotificationChannel
+  status            SchedulingNotificationDeliveryStatus @default(PENDING)
+  attempts          Int                                  @default(0)
+  destination       String?
+  provider          String?
+  providerMessageId String?
+  idempotencyKey    String?
+  nextAttemptAt     DateTime?
+  claimedAt         DateTime?
+  claimedBy         String?
+  leaseExpiresAt    DateTime?
+  lastAttemptAt     DateTime?
+  lastErrorCode     String?
+  lastErrorMessage  String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  failedAt          DateTime?
+  readAt            DateTime?
+  createdAt         DateTime                             @default(now())
+  updatedAt         DateTime                             @updatedAt
+
+  workspace       Workspace              @relation(fields: [workspaceId], references: [id])
+  notification    SchedulingNotification @relation(fields: [notificationId], references: [id])
+  schedulingEvent SchedulingEvent?       @relation(fields: [schedulingEventId], references: [id])
+
+  @@unique([workspaceId, idempotencyKey])
+  @@index([status, nextAttemptAt])
+  @@index([channel, status, nextAttemptAt])
+  @@index([workspaceId, status, nextAttemptAt])
+  @@index([workspaceId, recipientUserId, readAt])
+  @@index([workspaceId, recipientEmail])
+  @@index([notificationId])
+}
+
+model SchedulingReminderSchedule {
+  id                         String                         @id @default(cuid())
+  workspaceId                String
+  schedulingEventId          String?
+  recurrenceSeriesId         String?
+  occurrenceId               String?
+  occurrenceOriginalAt       DateTime?
+  recipientType              String
+  recipientUserId            String?
+  recipientWorkspaceMemberId String?
+  recipientEmail             String?
+  channel                    SchedulingNotificationChannel
+  category                   SchedulingNotificationCategory @default(REMINDER)
+  offsetMinutes              Int?
+  scheduledForUtc            DateTime
+  eventStartsAtUtc           DateTime?
+  timezone                   String
+  status                     SchedulingReminderStatus       @default(SCHEDULED)
+  idempotencyKey             String
+  source                     String
+  metadata                   Json?
+  claimedAt                  DateTime?
+  claimedBy                  String?
+  leaseExpiresAt             DateTime?
+  attempts                   Int                            @default(0)
+  nextAttemptAt              DateTime?
+  sentAt                     DateTime?
+  canceledAt                 DateTime?
+  skippedAt                  DateTime?
+  failedAt                   DateTime?
+  lastErrorCode              String?
+  lastErrorMessage           String?
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, idempotencyKey])
+  @@index([workspaceId, schedulingEventId])
+  @@index([workspaceId, recurrenceSeriesId])
+  @@index([workspaceId, occurrenceId])
+  @@index([status, scheduledForUtc])
+  @@index([workspaceId, status, scheduledForUtc])
+  @@index([recipientUserId, status, scheduledForUtc])
+}
+
+model SchedulingNotificationPreference {
+  id                           String   @id @default(cuid())
+  workspaceId                  String
+  scopeType                    String
+  workspaceMemberId            String?
+  userId                       String?
+  schedulingEnabled            Boolean?
+  inAppEnabled                 Boolean?
+  emailEnabled                 Boolean?
+  categorySettings             Json?
+  quietHours                   Json?
+  timezone                     String?
+  selfNotifications            Boolean?
+  defaultReminders             Json?
+  externalAttendeesEnabled     Boolean?
+  linkedClientsEnabled         Boolean?
+  deliveryFailureAlertsEnabled Boolean?
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, scopeType, workspaceMemberId])
+  @@index([workspaceId, scopeType])
+  @@index([workspaceId, userId])
+}
+
+model SchedulingEventActivity {
+  id          String   @id @default(cuid())
+  workspaceId String
+  eventId     String
+  actorId     String?
+  action      String
+  source      String
+  summary     String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id])
+  event     SchedulingEvent @relation(fields: [eventId], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([eventId, createdAt])
+}
+
+model DomainOutboxEvent {
+  id               String             @id @default(cuid())
+  workspaceId      String
+  topic            String
+  aggregateType    String
+  aggregateId      String
+  payload          Json
+  status           DomainOutboxStatus @default(PENDING)
+  attempts         Int                @default(0)
+  availableAt      DateTime           @default(now())
+  nextAttemptAt    DateTime?
+  claimedAt        DateTime?
+  claimedBy        String?
+  leaseExpiresAt   DateTime?
+  processedAt      DateTime?
+  lastErrorCode    String?
+  lastErrorMessage String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([status, availableAt])
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseExpiresAt])
+  @@index([workspaceId, createdAt])
+}
+
 model BlogPost {
   id          String    @id @default(cuid())
   slug        String    @unique
@@ -606,59 +3259,94 @@ model BlogPost {
 // INTEGRATIONS (CRM)
 //
 
-model Integration {
-  id           String   @id @default(cuid())
-  workspaceId  String
-  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+model WorkspaceIntegrationConnection {
+  id                           String                                  @id @default(cuid())
+  workspaceId                  String
+  providerId                   String
+  category                     String
+  ownershipType                WorkspaceIntegrationCredentialOwnership
+  status                       WorkspaceIntegrationConnectionStatus    @default(notConnected)
+  externalAccountId            String?
+  externalAccountLabel         String?
+  encryptedCredentials         String?
+  credentialHint               String?
+  grantedScopes                Json?
+  tokenExpiresAt               DateTime?
+  refreshStatus                String?
+  providerMetadata             Json?
+  connectedByUserId            String?
+  connectedByWorkspaceMemberId String?
+  connectedAt                  DateTime?
+  lastValidatedAt              DateTime?
+  lastSuccessfulSyncAt         DateTime?
+  lastErrorCode                String?
+  lastErrorAt                  DateTime?
+  disabledAt                   DateTime?
+  revokedAt                    DateTime?
+  createdAt                    DateTime                                @default(now())
+  updatedAt                    DateTime                                @updatedAt
 
-  provider     String   // hubspot | salesforce | pipedrive
-  status       String   // connected | disconnected | error
-  metadata     Json?
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, providerId, externalAccountId])
+  @@index([workspaceId, providerId])
+  @@index([workspaceId, status])
+  @@index([providerId])
+}
+
+model Integration {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  provider String // hubspot | salesforce | pipedrive
+  status   IntegrationStatus
+  metadata Json?
 
   credentials  IntegrationCredential[]
   externalRefs ExternalRecord[]
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
+  @@unique([workspaceId, provider])
   @@index([workspaceId])
   @@index([provider])
-  @@unique([workspaceId, provider])
 }
 
 model IntegrationCredential {
-  id             String      @id @default(cuid())
-  integrationId  String
-  integration    Integration @relation(fields: [integrationId], references: [id])
+  id            String      @id @default(cuid())
+  integrationId String
+  integration   Integration @relation(fields: [integrationId], references: [id])
 
-  accessToken    String
-  refreshToken   String?
-  expiresAt      DateTime?
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([integrationId])
 }
 
 model ExternalRecord {
-  id            String   @id @default(cuid())
+  id            String       @id @default(cuid())
   workspaceId   String
-  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id])
   integrationId String?
   integration   Integration? @relation(fields: [integrationId], references: [id])
 
-  provider      String   // hubspot | salesforce | pipedrive
-  objectType    String   // contact | deal | company
-  externalId    String
+  provider   String // hubspot | salesforce | pipedrive
+  objectType String // contact | deal | company
+  externalId String
 
-  localType     String?  // AutomationRun, UpsellRequest, etc.
-  localId       String?
+  localType String? // AutomationRun, UpsellRequest, etc.
+  localId   String?
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
+  @@unique([workspaceId, provider, objectType, externalId])
   @@index([workspaceId])
   @@index([integrationId])
   @@index([provider, objectType])
-  @@unique([workspaceId, provider, objectType, externalId])
 }
 
 model AuditLog {
@@ -676,4 +3364,199 @@ model AuditLog {
 
   @@index([workspaceId])
   @@index([action])
+}
+
+//
+// COLLABORATION (additive, read-only foundations)
+//
+
+enum LockState {
+  SOFT
+  HARD
+}
+
+enum LockScope {
+  NODE
+  CANVAS
+}
+
+enum PresenceStatus {
+  ACTIVE
+  IDLE
+  OFFLINE
+}
+
+model CollaborationSession {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  automationId String
+  userId       String
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+
+  workspace  Workspace       @relation(fields: [workspaceId], references: [id])
+  automation Automation      @relation(fields: [automationId], references: [id])
+  user       UserProfile     @relation(fields: [userId], references: [id])
+  presences  PresenceState[]
+  locks      NodeLock[]
+
+  @@index([workspaceId])
+  @@index([automationId])
+  @@index([userId])
+}
+
+model PresenceState {
+  id           String         @id @default(cuid())
+  sessionId    String
+  userId       String
+  workspaceId  String
+  automationId String
+  status       PresenceStatus @default(ACTIVE)
+  displayName  String?
+  color        String?
+  cursorX      Float?
+  cursorY      Float?
+  viewport     Json?
+  activeNodeId String?
+  lastSeenAt   DateTime       @default(now())
+
+  session    CollaborationSession @relation(fields: [sessionId], references: [id])
+  user       UserProfile          @relation(fields: [userId], references: [id])
+  workspace  Workspace            @relation(fields: [workspaceId], references: [id])
+  automation Automation           @relation(fields: [automationId], references: [id])
+
+  @@index([workspaceId])
+  @@index([automationId])
+  @@index([userId])
+}
+
+model NodeLock {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  automationId String
+  nodeId       String?
+  ownerUserId  String
+  lockType     LockScope @default(NODE)
+  state        LockState @default(SOFT)
+  expiresAt    DateTime?
+  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
+
+  workspace              Workspace             @relation(fields: [workspaceId], references: [id])
+  automation             Automation            @relation(fields: [automationId], references: [id])
+  owner                  UserProfile           @relation(fields: [ownerUserId], references: [id])
+  collaborationSession   CollaborationSession? @relation(fields: [collaborationSessionId], references: [id])
+  collaborationSessionId String?
+
+  @@index([workspaceId])
+  @@index([automationId])
+  @@index([nodeId])
+  @@index([ownerUserId])
+}
+
+//
+// AUTOMATION VERSIONING (foundation only)
+//
+
+enum AutomationVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model AutomationVersion {
+  id              String                  @id @default(cuid())
+  automationId    String
+  workspaceId     String
+  createdAt       DateTime                @default(now())
+  createdByUserId String
+  label           String?
+  message         String?
+  baseVersionId   String?
+  status          AutomationVersionStatus @default(DRAFT)
+
+  automation Automation                  @relation(fields: [automationId], references: [id])
+  workspace  Workspace                   @relation(fields: [workspaceId], references: [id])
+  creator    UserProfile                 @relation(fields: [createdByUserId], references: [id])
+  snapshots  AutomationVersionSnapshot[]
+
+  @@index([automationId])
+  @@index([workspaceId])
+  @@index([createdByUserId])
+}
+
+model AutomationVersionSnapshot {
+  id            String   @id @default(cuid())
+  versionId     String
+  flowJson      Json
+  schemaVersion Int      @default(1)
+  nodeCount     Int      @default(0)
+  edgeCount     Int      @default(0)
+  checksum      String
+  createdAt     DateTime @default(now())
+
+  version AutomationVersion @relation(fields: [versionId], references: [id])
+
+  @@index([versionId])
+}
+
+model InspectorTelemetryEvent {
+  id           String   @id @default(cuid())
+  workspaceId  String?
+  automationId String?
+  nodeType     String?
+  event        String
+  payload      Json
+  createdAt    DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([event])
+}
+
+model InspectorPreset {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  nodeType      String
+  name          String
+  data          Json
+  latestVersion Int      @default(1)
+  isTemplate    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace Workspace                @relation(fields: [workspaceId], references: [id])
+  versions  InspectorPresetVersion[]
+  shares    InspectorPresetShare[]
+
+  @@unique([workspaceId, nodeType, name])
+  @@index([workspaceId, nodeType])
+}
+
+model InspectorPresetVersion {
+  id        String   @id @default(cuid())
+  presetId  String
+  version   Int
+  data      Json
+  createdAt DateTime @default(now())
+
+  preset InspectorPreset @relation(fields: [presetId], references: [id])
+
+  @@unique([presetId, version])
+  @@index([presetId])
+}
+
+model InspectorPresetShare {
+  id                String   @id @default(cuid())
+  presetId          String
+  sourceWorkspaceId String
+  targetWorkspaceId String
+  createdAt         DateTime @default(now())
+
+  preset InspectorPreset @relation(fields: [presetId], references: [id])
+
+  @@unique([presetId, targetWorkspaceId])
+  @@index([targetWorkspaceId])
+  @@index([sourceWorkspaceId])
 }

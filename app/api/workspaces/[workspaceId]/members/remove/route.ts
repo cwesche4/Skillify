@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { fail, ok } from '@/lib/api/responses'
 import { prisma } from '@/lib/db'
 import { canManageWorkspace } from '@/lib/permissions/workspace'
+import { handleWorkspaceMemberCalendarConnectionLifecycle } from '@/lib/scheduling/providers/calendarGovernance'
 
 export async function POST(req: Request, { params }: any) {
   const { userId } = await auth()
@@ -19,6 +20,12 @@ export async function POST(req: Request, { params }: any) {
     return fail('Not allowed', 403)
   }
 
+  await handleWorkspaceMemberCalendarConnectionLifecycle({
+    workspaceId,
+    workspaceMemberId: memberId,
+    transition: 'removed',
+    actor: { workspaceMemberId: requester.id, userId: requester.userId },
+  })
   await prisma.workspaceMember.delete({
     where: { id: memberId },
   })

@@ -1,28 +1,16 @@
-'use client'
+import BuilderClientShell from './BuilderClientShell'
 
-import { ReactFlowProvider } from 'reactflow'
-import BuilderInner from './BuilderInner'
-import { BuilderShell } from '@/components/builder/BuilderShell'
-
-interface PageProps {
-  params: {
-    workspaceSlug: string
-    automationId: string
-  }
-}
-
-export default function AutomationBuilderPage({ params }: PageProps) {
+export default function AutomationBuilderPage({
+  params,
+}: {
+  params: { workspaceSlug: string; automationId: string }
+}) {
   return (
-    <ReactFlowProvider>
-      <BuilderShell
+    <div className="relative flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-slate-950">
+      <BuilderClientShell
         automationId={params.automationId}
         workspaceId={params.workspaceSlug}
-      >
-        <BuilderInner
-          automationId={params.automationId}
-          workspaceId={params.workspaceSlug}
-        />
-      </BuilderShell>
-    </ReactFlowProvider>
+      />
+    </div>
   )
 }

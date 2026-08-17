@@ -1,0 +1,1 @@
+ALTER TYPE "WorkspaceMemberRole" ADD VALUE IF NOT EXISTS 'MANAGER';

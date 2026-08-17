@@ -2,23 +2,32 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   BarChart3,
   Bot,
+  BriefcaseBusiness,
   ChevronsLeft,
   ChevronsRight,
   CreditCard,
+  FileBarChart,
   HelpCircle,
+  History,
   LayoutDashboard,
+  Layers,
+  ListChecks,
   Settings,
   Users,
   Workflow,
   Radio,
   Lock,
   Star,
+  UserPlus,
+  BadgeDollarSign,
+  KanbanSquare,
+  ClipboardList,
+  CalendarDays,
 } from 'lucide-react'
 
 import CreateWorkspaceModal from '@/components/workspaces/CreateWorkspaceModal'
@@ -28,12 +37,24 @@ import { SidebarTooltip } from '@/components/ui/SidebarTooltip'
 import { useSidebarSettings } from '@/components/dashboard/useSidebarSettings'
 import type { Plan } from '@/lib/subscriptions/features'
 import { planAtLeast } from '@/lib/subscriptions/features'
+import OnboardingTasks from '@/components/onboarding/OnboardingTasks'
+import { BrandLogo } from '@/components/branding/BrandLogo'
 
 // ICON SET
 const ICONS: Record<string, any> = {
   dashboard: LayoutDashboard,
+  leads: UserPlus,
+  opportunities: BadgeDollarSign,
+  salesPipeline: KanbanSquare,
   automations: Workflow,
+  executions: History,
+  templates: Layers,
   analytics: BarChart3,
+  reports: FileBarChart,
+  clients: BriefcaseBusiness,
+  tasks: ListChecks,
+  serviceRequests: ClipboardList,
+  scheduling: CalendarDays,
   settings: Settings,
   team: Users,
   billing: CreditCard,
@@ -50,12 +71,6 @@ export interface SidebarNavProps {
   plan?: Plan | null
 }
 
-// Resolve /dashboard/:workspace/... → /dashboard/{slug}/...
-function resolveHref(templateHref: string, workspaceSlug: string): string {
-  if (!templateHref.includes(':workspace')) return templateHref
-  return templateHref.replace(':workspace', workspaceSlug)
-}
-
 type LiveMetrics = {
   successRate: number | null
   runsToday: number | null
@@ -68,6 +83,7 @@ export function SidebarNav({
   workspaceSlug,
   plan = 'Free',
 }: SidebarNavProps) {
+  const router = useRouter()
   const pathname = usePathname()
   const { compact, toggleCompact, isAutoCompact } = useSidebarSettings()
 
@@ -130,19 +146,30 @@ export function SidebarNav({
   }, [workspaceSlug])
 
   // Group items by section & resolve hrefs
-  const sections = useMemo(
-    () =>
-      items.reduce<Record<string, SidebarItem[]>>((acc, item) => {
-        const key = item.section ?? 'General'
-        if (!acc[key]) acc[key] = []
-        acc[key].push({
-          ...item,
-          href: resolveHref(item.href, workspaceSlug),
-        })
+  const sections = useMemo(() => {
+    const grouped = items.reduce<Record<string, SidebarItem[]>>((acc, item) => {
+      if (item.roles && !item.roles.includes(role.toUpperCase() as any)) {
         return acc
-      }, {}),
-    [items, workspaceSlug],
-  )
+      }
+      const key = item.section ?? 'General'
+      if (!acc[key]) acc[key] = []
+      let href = item.href
+      if (href.includes(':workspace')) {
+        href = href.replace(':workspace', workspaceSlug)
+      }
+      if (!href.startsWith('/dashboard/')) {
+        href = `/dashboard/${workspaceSlug}${href.startsWith('/') ? href : `/${href}`}`
+      }
+      acc[key].push({ ...item, href })
+      return acc
+    }, {})
+
+    return Object.fromEntries(
+      Object.entries(grouped).filter(
+        ([, sectionItems]) => sectionItems.length > 0,
+      ),
+    )
+  }, [items, role, workspaceSlug])
 
   const successRateLabel =
     metrics.successRate != null ? `${Math.round(metrics.successRate)}%` : '—'
@@ -159,20 +186,27 @@ export function SidebarNav({
         )}
       >
         {/* TOP: LOGO + COMPACT TOGGLE */}
-        <div className="mb-6 flex items-center justify-between gap-2 px-1">
-          <div className="flex items-center gap-2">
-            <div className="bg-brand-primary/15 flex h-8 w-8 items-center justify-center rounded-xl text-sm font-semibold text-brand-primary">
-              S
-            </div>
-            {!compact && (
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold tracking-tight">
+        <div
+          className={cn(
+            'mb-6 flex items-center gap-3 px-1',
+            compact ? 'flex-col justify-center' : 'justify-between',
+          )}
+        >
+          <div
+            className={cn(
+              'flex items-center justify-start rounded-lg px-1.5 py-1',
+              compact ? 'justify-center' : 'gap-2.5',
+            )}
+          >
+            {compact ? (
+              <BrandLogo variant="icon" alt="Skillify" className="h-7 w-7" />
+            ) : (
+              <>
+                <BrandLogo variant="icon" alt="Skillify" className="h-7 w-7" />
+                <span className="translate-y-px font-heading text-[23px] font-semibold leading-none tracking-normal text-white">
                   Skillify
                 </span>
-                <span className="text-neutral-text-secondary/70 text-[11px]">
-                  Automation HQ
-                </span>
-              </div>
+              </>
             )}
           </div>
 
@@ -192,6 +226,9 @@ export function SidebarNav({
 
         {/* NAVIGATION SECTIONS */}
         <nav className="flex-1 space-y-6 overflow-y-auto pr-1">
+          <div className="mb-3">
+            <OnboardingTasks workspaceSlug={workspaceSlug} />
+          </div>
           {Object.entries(sections).map(([section, sectionItems]) => (
             <div key={section}>
               {/* SECTION LABEL */}
@@ -204,16 +241,10 @@ export function SidebarNav({
               {/* SECTION ITEMS */}
               <div className="space-y-1">
                 {sectionItems.map((item) => {
-                  // Role-based filtering (layout still passes uppercase roles in `roles` array)
-                  if (
-                    item.roles &&
-                    !item.roles.includes(role.toUpperCase() as any)
-                  ) {
-                    return null
-                  }
-
                   const Icon = ICONS[item.icon]
-                  const active = pathname === item.href
+                  const active =
+                    pathname === item.href ||
+                    pathname.startsWith(`${item.href}/`)
 
                   // Normalize plan (fixes TS error)
                   const currentPlan: Plan = plan ?? 'Free'
@@ -228,39 +259,39 @@ export function SidebarNav({
                     </span>
                   ) : null
 
-                  const row = (
-                    <AnimatePresence>
-                      <motion.div
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -8 }}
-                        transition={{ duration: 0.15 }}
-                        className={cn(
-                          'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
-                          active && !isLocked
-                            ? 'bg-brand-primary/18 border-brand-primary/50 border text-brand-primary shadow-[0_0_0_1px_rgba(37,99,235,0.35)]'
-                            : 'hover:bg-neutral-card-light/8 text-neutral-text-secondary',
-                          compact && 'justify-center px-2',
-                          isLocked &&
-                            'border border-dashed border-amber-500/40 bg-amber-500/5 text-amber-200/90',
-                        )}
-                      >
-                        <Icon size={18} className="shrink-0" />
-                        {!compact && (
-                          <span className="flex items-center gap-1">
-                            {item.label}
-                            {lockBadge}
-                          </span>
-                        )}
-                      </motion.div>
-                    </AnimatePresence>
+                  const inner = (
+                    <Link
+                      href={item.href}
+                      aria-label={item.label}
+                      title={
+                        isLocked
+                          ? `Requires ${item.requiredPlan} plan`
+                          : item.label
+                      }
+                      onClick={(e) => {
+                        // Belt-and-suspenders: ensure navigation always fires even if Link is interrupted.
+                        e.preventDefault()
+                        router.push(item.href)
+                      }}
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                        active && !isLocked
+                          ? 'bg-brand-primary/18 border-brand-primary/50 border text-brand-primary shadow-[0_0_0_1px_rgba(37,99,235,0.35)]'
+                          : 'hover:bg-neutral-card-light/8 text-neutral-text-secondary',
+                        compact && 'justify-center px-2',
+                        isLocked &&
+                          'border border-dashed border-amber-500/40 bg-amber-500/5 text-amber-200/90',
+                      )}
+                    >
+                      <Icon size={18} className="shrink-0" />
+                      {!compact && (
+                        <span className="flex items-center gap-1">
+                          {item.label}
+                          {lockBadge}
+                        </span>
+                      )}
+                    </Link>
                   )
-
-                  const targetHref = isLocked
-                    ? `/dashboard/${workspaceSlug}/upsell?need=${item.requiredPlan ?? 'Pro'}`
-                    : item.href
-
-                  const inner = <Link href={targetHref}>{row}</Link>
 
                   return (
                     <div key={item.href}>
@@ -353,17 +384,29 @@ export function SidebarNav({
           <CreateWorkspaceModal />
         </div>
 
-        <div className="text-neutral-text-secondary/70 mt-3 flex items-center justify-between px-1 text-[10px]">
-          {!compact && <span>© {new Date().getFullYear()} Skillify</span>}
+        <div
+          className={cn(
+            'text-neutral-text-secondary/70 mt-6 flex items-center justify-between gap-2 px-1 text-[10px]',
+            compact && 'flex-col justify-center',
+          )}
+        >
+          {!compact && (
+            <p className="px-1 text-center text-[10px] font-medium text-neutral-400/60">
+              Powered by Skillify
+            </p>
+          )}
           {compact && (
-            <span className="text-[9px] uppercase tracking-[0.16em]">HQ</span>
+            <BrandLogo
+              variant="icon"
+              alt="Skillify"
+              className="h-3.5 w-3.5 opacity-50"
+            />
           )}
           <span className="border-neutral-border/40 rounded-full border px-2 py-0.5 text-[9px]">
             Cmd + K
           </span>
         </div>
       </aside>
-
     </>
   )
 }

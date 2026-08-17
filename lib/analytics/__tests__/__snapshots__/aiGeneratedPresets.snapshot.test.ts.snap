@@ -1,0 +1,293 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateAIPresetDrafts snapshots > creates drafts for ai usage patterns (ignored suggestions) 1`] = `
+[
+  {
+    "confidence": "medium",
+    "data": {},
+    "evidence": "3 suggestions ignored",
+    "id": "ai-1491983074",
+    "name": "iota ai-usage draft",
+    "nodeType": "iota",
+    "source": "ai",
+  },
+  {
+    "confidence": "low",
+    "data": {},
+    "evidence": "1 suggestions ignored",
+    "id": "ai-479757088",
+    "name": "kappa ai-usage draft",
+    "nodeType": "kappa",
+    "source": "ai",
+  },
+  {
+    "confidence": "high",
+    "data": {},
+    "evidence": "6 suggestions ignored",
+    "id": "ai-349664838",
+    "name": "theta ai-usage draft",
+    "nodeType": "theta",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots > creates drafts for high-performing nodes with confidence derivation 1`] = `
+[
+  {
+    "confidence": "high",
+    "data": {
+      "retries": 1,
+    },
+    "evidence": "Success rate 0.86",
+    "id": "ai-1567303462",
+    "name": "delta high-performing preset",
+    "nodeType": "delta",
+    "source": "ai",
+  },
+  {
+    "confidence": "medium",
+    "data": {
+      "retries": 2,
+    },
+    "evidence": "Success rate 0.72",
+    "id": "ai-22087839",
+    "name": "epsilon high-performing preset",
+    "nodeType": "epsilon",
+    "source": "ai",
+  },
+  {
+    "confidence": "low",
+    "data": {
+      "retries": 3,
+    },
+    "evidence": "Success rate 0.50",
+    "id": "ai-1465565860",
+    "name": "zeta high-performing preset",
+    "nodeType": "zeta",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots > creates drafts for validation hotspots 1`] = `
+[
+  {
+    "confidence": "high",
+    "data": {},
+    "evidence": "Failure rate 0.60",
+    "id": "ai-1289680186",
+    "name": "beta validation draft",
+    "nodeType": "beta",
+    "source": "ai",
+  },
+  {
+    "confidence": "medium",
+    "data": {},
+    "evidence": "Failure rate 0.30",
+    "id": "ai-1366254416",
+    "name": "gamma validation draft",
+    "nodeType": "gamma",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots > ensures duplicate inputs produce stable ids 1`] = `
+[
+  {
+    "confidence": "medium",
+    "data": {
+      "a": 1,
+    },
+    "evidence": "Success rate 0.80",
+    "id": "ai-531718759",
+    "name": "lambda high-performing preset",
+    "nodeType": "lambda",
+    "source": "ai",
+  },
+  {
+    "confidence": "medium",
+    "data": {},
+    "evidence": "Failure rate 0.40",
+    "id": "ai-1614254790",
+    "name": "mu validation draft",
+    "nodeType": "mu",
+    "source": "ai",
+  },
+  {
+    "confidence": "medium",
+    "data": {},
+    "evidence": "4 suggestions ignored",
+    "id": "ai-2134305954",
+    "name": "nu ai-usage draft",
+    "nodeType": "nu",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots > handles partial analytics input 1`] = `
+[
+  {
+    "confidence": "high",
+    "data": {
+      "foo": "bar",
+    },
+    "evidence": "Success rate 0.90",
+    "id": "ai-1247496954",
+    "name": "alpha high-performing preset",
+    "nodeType": "alpha",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots > returns empty array for empty analytics 1`] = `[]`;
+
+exports[`generateAIPresetDrafts snapshots creates drafts for ai usage patterns (ignored suggestions) 1`] = `
+Array [
+  Object {
+    "confidence": "medium",
+    "data": Object {},
+    "evidence": "3 suggestions ignored",
+    "id": "ai-1491983074",
+    "name": "iota ai-usage draft",
+    "nodeType": "iota",
+    "source": "ai",
+  },
+  Object {
+    "confidence": "low",
+    "data": Object {},
+    "evidence": "1 suggestions ignored",
+    "id": "ai-479757088",
+    "name": "kappa ai-usage draft",
+    "nodeType": "kappa",
+    "source": "ai",
+  },
+  Object {
+    "confidence": "high",
+    "data": Object {},
+    "evidence": "6 suggestions ignored",
+    "id": "ai-349664838",
+    "name": "theta ai-usage draft",
+    "nodeType": "theta",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots creates drafts for high-performing nodes with confidence derivation 1`] = `
+Array [
+  Object {
+    "confidence": "high",
+    "data": Object {
+      "retries": 1,
+    },
+    "evidence": "Success rate 0.86",
+    "id": "ai-1567303462",
+    "name": "delta high-performing preset",
+    "nodeType": "delta",
+    "source": "ai",
+  },
+  Object {
+    "confidence": "medium",
+    "data": Object {
+      "retries": 2,
+    },
+    "evidence": "Success rate 0.72",
+    "id": "ai-22087839",
+    "name": "epsilon high-performing preset",
+    "nodeType": "epsilon",
+    "source": "ai",
+  },
+  Object {
+    "confidence": "low",
+    "data": Object {
+      "retries": 3,
+    },
+    "evidence": "Success rate 0.50",
+    "id": "ai-1465565860",
+    "name": "zeta high-performing preset",
+    "nodeType": "zeta",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots creates drafts for validation hotspots 1`] = `
+Array [
+  Object {
+    "confidence": "high",
+    "data": Object {},
+    "evidence": "Failure rate 0.60",
+    "id": "ai-1289680186",
+    "name": "beta validation draft",
+    "nodeType": "beta",
+    "source": "ai",
+  },
+  Object {
+    "confidence": "medium",
+    "data": Object {},
+    "evidence": "Failure rate 0.30",
+    "id": "ai-1366254416",
+    "name": "gamma validation draft",
+    "nodeType": "gamma",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots ensures duplicate inputs produce stable ids 1`] = `
+Array [
+  Object {
+    "confidence": "medium",
+    "data": Object {
+      "a": 1,
+    },
+    "evidence": "Success rate 0.80",
+    "id": "ai-531718759",
+    "name": "lambda high-performing preset",
+    "nodeType": "lambda",
+    "source": "ai",
+  },
+  Object {
+    "confidence": "medium",
+    "data": Object {},
+    "evidence": "Failure rate 0.40",
+    "id": "ai-1614254790",
+    "name": "mu validation draft",
+    "nodeType": "mu",
+    "source": "ai",
+  },
+  Object {
+    "confidence": "medium",
+    "data": Object {},
+    "evidence": "4 suggestions ignored",
+    "id": "ai-2134305954",
+    "name": "nu ai-usage draft",
+    "nodeType": "nu",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots handles partial analytics input 1`] = `
+Array [
+  Object {
+    "confidence": "high",
+    "data": Object {
+      "foo": "bar",
+    },
+    "evidence": "Success rate 0.90",
+    "id": "ai-1247496954",
+    "name": "alpha high-performing preset",
+    "nodeType": "alpha",
+    "source": "ai",
+  },
+]
+`;
+
+exports[`generateAIPresetDrafts snapshots returns empty array for empty analytics 1`] = `
+Array []
+`;

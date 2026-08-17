@@ -1,6 +1,7 @@
 // app/api/enterprise/request-consult/route.ts
 
 import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { scoreLead } from '@/lib/enterprise/leadScoring'
 import { sendSlackMessage } from '@/lib/notifications/slack'
@@ -10,6 +11,7 @@ import { EnterpriseStatus } from '@prisma/client'
 
 export async function POST(req: Request) {
   try {
+    const { userId: clerkId } = auth()
     const body = await req.json()
 
     const {
@@ -33,6 +35,29 @@ export async function POST(req: Request) {
       )
     }
 
+    const workspaceScoped = workspaceId && workspaceId !== 'public'
+    const userProfile = clerkId
+      ? await prisma.userProfile.findUnique({ where: { clerkId } })
+      : null
+
+    if (workspaceScoped) {
+      if (!userProfile) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const membership = await prisma.workspaceMember.findFirst({
+        where: {
+          workspaceId,
+          userId: userProfile.id,
+        },
+        select: { userId: true },
+      })
+
+      if (!membership) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+
     const leadScore = await scoreLead({
       companySize,
       budgetRange,
@@ -44,7 +69,7 @@ export async function POST(req: Request) {
     const consult = await prisma.enterpriseConsultRequest.create({
       data: {
         workspaceId,
-        userId: userId ?? 'public',
+        userId: userProfile?.id ?? userId ?? 'public',
         name,
         email,
         phone,

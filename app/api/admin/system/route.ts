@@ -1,42 +1,29 @@
 // app/api/admin/system/route.ts
 
-import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
-import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
+import { getGlobalAdminProfile } from '@/lib/auth/getGlobalAdminProfile'
 
 export async function GET() {
   try {
-    const { userId: clerkId } = auth()
-    if (!clerkId) return new Response('Unauthorized', { status: 401 })
+    const admin = await getGlobalAdminProfile()
 
-    // Elite-only access to workspace admin system API
-    const plan = await getUserPlanByClerkId(clerkId)
-    if (plan !== 'elite') {
-      return new Response('Elite plan required', { status: 403 })
+    if (!admin) {
+      return new Response('Forbidden', { status: 403 })
     }
 
-    // Get user
-    const user = await prisma.userProfile.findUnique({
-      where: { clerkId },
-      include: { memberships: true },
-    })
-
-    if (!user) return new Response('User not found', { status: 404 })
-
-    // Find user's active workspace where they are OWNER/ADMIN
-    const workspace = await prisma.workspace.findFirst({
-      where: {
-        members: {
-          some: {
-            userId: user.id,
-            role: { in: ['OWNER', 'ADMIN'] },
-          },
-        },
-      },
-    })
-
+    const workspace = admin.firstWorkspace
     if (!workspace) {
-      return new Response('Not an admin of this workspace', { status: 403 })
+      return Response.json({
+        workspace: null,
+        members: [],
+        invites: [],
+        stats: {
+          members: 0,
+          invites: 0,
+          automations: 0,
+          runs: 0,
+        },
+      })
     }
 
     const workspaceId = workspace.id

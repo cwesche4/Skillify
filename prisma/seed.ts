@@ -2,6 +2,10 @@ import 'dotenv/config'
 import { prisma } from '@/lib/db'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
+import {
+  getWorkspaceSlugCandidate,
+  isPrismaUniqueConstraintError,
+} from '@/lib/workspaces/workspaceSlugs'
 
 // PG pool setup (required for standalone seed execution)
 const url = process.env.DATABASE_URL
@@ -48,19 +52,30 @@ async function main() {
   })
 
   if (!workspace) {
-    workspace = await prisma.workspace.create({
-      data: {
-        ownerId: user.id,
-        name: 'Dev Skillify HQ',
-        slug: `dev-workspace-${user.id}`,
-        members: {
-          create: {
-            userId: user.id,
-            role: 'OWNER', // string enum
+    const name = 'Dev Skillify HQ'
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      try {
+        workspace = await prisma.workspace.create({
+          data: {
+            ownerId: user.id,
+            name,
+            slug: getWorkspaceSlugCandidate(name, attempt),
+            members: {
+              create: {
+                userId: user.id,
+                role: 'OWNER', // string enum
+              },
+            },
           },
-        },
-      },
-    })
+        })
+        break
+      } catch (error) {
+        if (!isPrismaUniqueConstraintError(error, 'slug')) throw error
+      }
+    }
+    if (!workspace) {
+      throw new Error('Could not create a unique development workspace slug.')
+    }
   }
 
   // --------------------------

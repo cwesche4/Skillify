@@ -6,10 +6,13 @@ import { cn } from '@/lib/utils'
 
 export function Table({
   className,
+  containerClassName,
   ...props
-}: React.TableHTMLAttributes<HTMLTableElement>) {
+}: React.TableHTMLAttributes<HTMLTableElement> & {
+  containerClassName?: string
+}) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className={cn('w-full overflow-x-auto', containerClassName)}>
       <table
         className={cn(
           'text-neutral-text-primary w-full border-collapse text-sm',
@@ -25,7 +28,7 @@ export function THead({
   className,
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn('bg-slate-900/60', className)} {...props} />
+  return <thead className={cn('bg-app-surface-muted', className)} {...props} />
 }
 
 export function TBody({
@@ -42,7 +45,7 @@ export function TR({
   return (
     <tr
       className={cn(
-        'border-b border-slate-800 transition-colors last:border-0 hover:bg-slate-900/60',
+        'border-app hover:bg-app-surface-hover border-b transition-colors last:border-0',
         className,
       )}
       {...props}

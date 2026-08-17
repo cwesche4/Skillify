@@ -1,156 +1,221 @@
 // app/dashboard/admin/build-requests/page.tsx
 
-import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
-import Link from 'next/link'
-import { requireWorkspaceAdmin } from '@/lib/auth/currentUser'
-import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { AdminForbidden } from '@/components/admin/AdminForbidden'
+import {
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminSection,
+  AdminStatCard,
+  AdminStatsGrid,
+  AdminTable,
+  adminTableCellClass,
+  adminTableHeadClass,
+  adminTableHeaderClass,
+  adminTableRowClass,
+} from '@/components/admin/AdminPage'
+import { getGlobalAdminProfile } from '@/lib/auth/getGlobalAdminProfile'
 
-interface PageProps {
-  params: { workspaceSlug: string }
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat('en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
 }
 
-export default async function BuildRequestsAdminPage({ params }: PageProps) {
-  const workspace = await prisma.workspace.findUnique({
-    where: { slug: params.workspaceSlug },
-  })
+function requestStatusVariant(status: string) {
+  if (status === 'CLOSED') return 'green'
+  if (status === 'REVIEWING') return 'blue'
+  return 'yellow'
+}
 
-  if (!workspace) {
-    notFound()
-  }
+export default async function BuildRequestsAdminPage() {
+  const admin = await getGlobalAdminProfile()
 
-  // Must be workspace OWNER/ADMIN
-  const { user } = await requireWorkspaceAdmin(workspace.id)
-
-  const subscription = await prisma.subscription.findUnique({
-    where: { userId: user.id },
-    select: { plan: true },
-  })
-  const planLabel = subscription?.plan ?? 'Free'
-  const isElite = planLabel === 'Elite'
-
-  if (!isElite) {
-    return (
-      <Card className="space-y-3 border-amber-500/30 bg-amber-500/5 p-5 text-sm text-amber-100">
-        <div className="flex items-center gap-2">
-          <Badge variant="yellow">Upgrade</Badge>
-          <span className="font-semibold">
-            DFY build admin is Elite-only.
-          </span>
-        </div>
-        <p className="text-amber-100/80">
-          Upgrade to Elite to view and manage done-for-you build requests.
-        </p>
-        <div className="pt-1">
-          <Button asChild size="sm" variant="primary">
-            <Link href={`/dashboard/${params.workspaceSlug}/upsell?need=Elite`}>
-              View Elite benefits
-            </Link>
-          </Button>
-        </div>
-      </Card>
-    )
+  if (!admin) {
+    return <AdminForbidden />
   }
 
   const requests = await prisma.buildRequest.findMany({
-    where: { workspaceId: workspace.id },
     orderBy: { createdAt: 'desc' },
   })
+  const workspaceIds = Array.from(
+    new Set(requests.map((request) => request.workspaceId).filter(Boolean)),
+  ) as string[]
+  const workspaces = workspaceIds.length
+    ? await prisma.workspace.findMany({
+        where: { id: { in: workspaceIds } },
+        select: { id: true, name: true, slug: true },
+      })
+    : []
+  const workspaceById = new Map(
+    workspaces.map((workspace) => [workspace.id, workspace]),
+  )
 
-  type RequestType = (typeof requests)[number]
+  const openCount = requests.filter(
+    (request) => request.status === 'NEW',
+  ).length
+  const inProgressCount = requests.filter(
+    (request) => request.status === 'REVIEWING',
+  ).length
+  const completedCount = requests.filter(
+    (request) => request.status === 'CLOSED',
+  ).length
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-50">
-          DFY Build Requests
-        </h1>
-        <p className="text-sm text-slate-400">
-          High-intent teams asking Skillify to build or rebuild their entire
-          automation system.
-        </p>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Build Requests"
+        subtitle="Review high-intent teams asking Skillify to build or rebuild their automation systems across all workspaces."
+      />
+
+      <AdminStatsGrid>
+        <AdminStatCard label="Open Requests" value={openCount} />
+        <AdminStatCard label="In Progress" value={inProgressCount} />
+        <AdminStatCard label="Completed" value={completedCount} />
+        <AdminStatCard
+          label="Average Completion Time"
+          value="N/A"
+          hint="Completion timestamp not tracked yet"
+        />
+      </AdminStatsGrid>
 
       {requests.length === 0 ? (
-        <Card className="p-4 text-sm text-slate-400">
-          No build requests yet. When teams submit DFY builds tied to this
-          workspace, they&apos;ll show up here.
-        </Card>
+        <AdminEmptyState
+          title="No build requests yet"
+          description="When teams submit done-for-you build requests, they will appear here."
+        />
       ) : (
-        <div className="space-y-3">
-          {requests.map((r: RequestType) => (
-            <Card
-              key={r.id}
-              className="space-y-2 border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-200"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-50">
-                      {r.name || 'Unknown contact'}
-                    </span>
-                    <Badge size="xs" variant="blue">
-                      Build
+        <AdminSection>
+          <AdminTable minWidth="min-w-[940px]">
+            <thead className={adminTableHeaderClass}>
+              <tr>
+                <th className={adminTableHeadClass}>Contact</th>
+                <th className={adminTableHeadClass}>Company</th>
+                <th className={adminTableHeadClass}>Workspace</th>
+                <th className={adminTableHeadClass}>Project</th>
+                <th className={adminTableHeadClass}>Status</th>
+                <th className={adminTableHeadClass}>Timeline</th>
+                <th className={`${adminTableHeadClass} text-right`}>Created</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/70">
+              {requests.map((request) => (
+                <tr key={request.id} className={adminTableRowClass}>
+                  <td className={adminTableCellClass}>
+                    <div className="space-y-1">
+                      <div className="font-medium text-slate-50">
+                        {request.name || 'Unknown contact'}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {request.email}
+                      </div>
+                      {request.phone ? (
+                        <div className="text-xs text-slate-500">
+                          {request.phone}
+                        </div>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className={`${adminTableCellClass} text-slate-300`}>
+                    <div className="space-y-1">
+                      <div>{request.company || 'No company'}</div>
+                      {request.website ? (
+                        <div className="text-xs text-slate-500">
+                          {request.website}
+                        </div>
+                      ) : null}
+                      {request.size ? (
+                        <div className="text-xs text-slate-500">
+                          Team size: {request.size}
+                        </div>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className={`${adminTableCellClass} text-slate-300`}>
+                    {request.workspaceId ? (
+                      <div className="space-y-1">
+                        <div className="font-medium text-slate-100">
+                          {workspaceById.get(request.workspaceId)?.name ??
+                            'Unknown workspace'}
+                        </div>
+                        <details className="text-[11px] text-slate-500">
+                          <summary className="cursor-pointer select-none">
+                            Workspace details
+                          </summary>
+                          <div className="mt-1 space-y-0.5 font-mono">
+                            <div>
+                              Slug:{' '}
+                              {workspaceById.get(request.workspaceId)?.slug ??
+                                'unknown'}
+                            </div>
+                            <div>ID: {request.workspaceId}</div>
+                          </div>
+                        </details>
+                      </div>
+                    ) : (
+                      <span className="text-slate-500">Public lead</span>
+                    )}
+                  </td>
+                  <td className={adminTableCellClass}>
+                    <div className="max-w-sm space-y-2">
+                      <div className="font-medium text-slate-100">
+                        {request.projectType || 'Automation build'}
+                      </div>
+                      <p className="line-clamp-2 text-xs text-slate-400">
+                        {request.projectSummary}
+                      </p>
+                      <details className="text-[11px] text-slate-500">
+                        <summary className="cursor-pointer select-none">
+                          Request details
+                        </summary>
+                        <div className="mt-1 space-y-1">
+                          <p className="whitespace-pre-wrap text-slate-400">
+                            {request.projectSummary}
+                          </p>
+                          <div className="font-mono">ID: {request.id}</div>
+                          {request.userId ? (
+                            <div className="font-mono">
+                              User: {request.userId}
+                            </div>
+                          ) : null}
+                          {request.workspaceId ? (
+                            <div className="font-mono">
+                              Workspace: {request.workspaceId}
+                            </div>
+                          ) : null}
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                  <td className={adminTableCellClass}>
+                    <Badge
+                      size="xs"
+                      variant={requestStatusVariant(request.status)}
+                    >
+                      {request.status}
                     </Badge>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                    {r.email && <span>{r.email}</span>}
-                    {r.phone && (
-                      <>
-                        <span>•</span>
-                        <span>{r.phone}</span>
-                      </>
-                    )}
-                    {r.company && (
-                      <>
-                        <span>•</span>
-                        <span>{r.company}</span>
-                      </>
-                    )}
-                    {r.size && (
-                      <>
-                        <span>•</span>
-                        <span>Team: {r.size}</span>
-                      </>
-                    )}
-                    {r.budgetRange && (
-                      <>
-                        <span>•</span>
-                        <span>Budget: {r.budgetRange}</span>
-                      </>
-                    )}
-                    {r.timeline && (
-                      <>
-                        <span>•</span>
-                        <span>Timeline: {r.timeline}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <span className="text-[11px] text-slate-500">
-                  {r.createdAt.toISOString().slice(0, 10)}
-                </span>
-              </div>
-
-              {r.projectType && (
-                <p className="text-[11px] text-slate-300">
-                  <span className="font-medium text-slate-200">
-                    Project type:
-                  </span>{' '}
-                  {r.projectType}
-                </p>
-              )}
-
-              <pre className="whitespace-pre-wrap rounded bg-slate-950/90 p-2 text-[11px] text-slate-200">
-                {r.projectSummary}
-              </pre>
-            </Card>
-          ))}
-        </div>
+                  </td>
+                  <td className={`${adminTableCellClass} text-slate-300`}>
+                    <div className="space-y-1 text-xs">
+                      <div>{request.timeline || 'Timeline not provided'}</div>
+                      <div className="text-slate-500">
+                        {request.budgetRange || 'Budget not provided'}
+                      </div>
+                    </div>
+                  </td>
+                  <td
+                    className={`${adminTableCellClass} text-right text-slate-400`}
+                  >
+                    {formatDate(request.createdAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </AdminTable>
+        </AdminSection>
       )}
     </div>
   )

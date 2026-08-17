@@ -14,6 +14,7 @@ export type BadgeVariant =
   | 'yellow'
   | 'brand'
   | 'gray'
+  | 'slate'
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   size?: BadgeSize
@@ -44,19 +45,20 @@ function sizeClasses(size: BadgeSize = 'sm') {
 function variantClasses(variant: BadgeVariant = 'default') {
   switch (variant) {
     case 'blue':
-      return 'bg-sky-500/10 text-sky-400 border border-sky-500/40'
+      return 'bg-sky-500/10 text-sky-700 border border-sky-500/35 dark:text-sky-300 dark:border-sky-500/40'
     case 'green':
-      return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/40'
+      return 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/35 dark:text-emerald-300 dark:border-emerald-500/40'
     case 'red':
-      return 'bg-rose-500/10 text-rose-400 border border-rose-500/40'
+      return 'bg-rose-500/10 text-rose-700 border border-rose-500/35 dark:text-rose-300 dark:border-rose-500/40'
     case 'purple':
-      return 'bg-violet-500/10 text-violet-400 border border-violet-500/40'
+      return 'bg-violet-500/10 text-violet-700 border border-violet-500/35 dark:text-violet-300 dark:border-violet-500/40'
     case 'orange':
-      return 'bg-amber-500/10 text-amber-400 border border-amber-500/40'
+      return 'bg-amber-500/10 text-amber-700 border border-amber-500/35 dark:text-amber-300 dark:border-amber-500/40'
     case 'yellow':
-      return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/40'
+      return 'bg-yellow-500/10 text-yellow-700 border border-yellow-500/35 dark:text-yellow-300 dark:border-yellow-500/40'
     case 'gray':
-      return 'bg-neutral-700 text-neutral-300'
+    case 'slate':
+      return 'bg-app-surface-muted text-app-secondary border border-app'
 
     /* --------------------------
        YOUR NEW BRAND VARIANT
@@ -66,7 +68,7 @@ function variantClasses(variant: BadgeVariant = 'default') {
 
     case 'default':
     default:
-      return 'bg-neutral-card-dark text-neutral-text-secondary border border-neutral-border/80'
+      return 'bg-app-surface-muted text-app-secondary border border-app'
   }
 }
 

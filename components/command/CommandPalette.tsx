@@ -445,7 +445,7 @@ export default function CommandPalette({
         setOpen((o) => !o)
       }
 
-      if (!open) return
+      if (!open) return null
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()

@@ -4,6 +4,8 @@ import {
   type LiveCoachSnapshot,
 } from '@/lib/analytics/liveCoach'
 import { NextResponse } from 'next/server'
+import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
+import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
 
 export async function GET(
   _req: Request,
@@ -11,6 +13,17 @@ export async function GET(
 ) {
   try {
     const workspaceId = context.params.workspaceId
+    const aiGuard = await assertAiActionsEnabled(workspaceId)
+    if (aiGuard) return aiGuard
+    emitAiMetric(
+      buildAiMetric({
+        name: 'ai_action_attempted',
+        workspaceId,
+        action: 'coach_live',
+        result: 'applied',
+      }),
+    )
+
     const snapshot: LiveCoachSnapshot = await getLiveCoachSnapshot(workspaceId)
 
     return NextResponse.json(snapshot)

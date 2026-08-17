@@ -1,0 +1,69 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`phase11PreviewGate flag off delegates to phase 10 deny behavior 1`] = `
+Object {
+  "aiAssistEnterprise": Object {
+    "entitled": false,
+    "reason": "monetization_disabled",
+  },
+  "analyticsDashboardsPro": Object {
+    "entitled": false,
+    "reason": "monetization_disabled",
+  },
+}
+`;
+
+exports[`phase11PreviewGate flag on gates analytics_dashboards only 1`] = `
+Object {
+  "analyticsDashboards": Object {
+    "enterprise": Object {
+      "entitled": true,
+      "reason": "not_configured",
+    },
+    "free": Object {
+      "entitled": false,
+      "reason": "plan_insufficient",
+    },
+    "missing": Object {
+      "entitled": false,
+      "reason": "plan_insufficient",
+    },
+    "pro": Object {
+      "entitled": true,
+      "reason": "not_configured",
+    },
+    "unknown": Object {
+      "entitled": false,
+      "reason": "plan_insufficient",
+    },
+  },
+  "determinismCheck": Object {
+    "first": Object {
+      "entitled": true,
+      "reason": "not_configured",
+    },
+    "second": Object {
+      "entitled": true,
+      "reason": "not_configured",
+    },
+  },
+  "otherEntitlements": Object {
+    "aiAssist": Object {
+      "entitled": false,
+      "reason": "monetization_disabled",
+    },
+    "inspectorHeatmaps": Object {
+      "entitled": false,
+      "reason": "monetization_disabled",
+    },
+    "marketplaceAccess": Object {
+      "entitled": false,
+      "reason": "monetization_disabled",
+    },
+    "presetSharing": Object {
+      "entitled": false,
+      "reason": "monetization_disabled",
+    },
+  },
+}
+`;

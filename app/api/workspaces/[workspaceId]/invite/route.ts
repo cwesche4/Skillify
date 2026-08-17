@@ -3,16 +3,41 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { WorkspaceMemberRole } from '@/lib/prisma/enums'
 import { logAudit } from '@/lib/audit/log'
+import {
+  canManageWorkspaceMembers,
+  normalizeWorkspaceRole,
+} from '@/lib/workspaces/workspaceRoles'
 import crypto from 'crypto'
 
 function isManager(role: WorkspaceMemberRole) {
-  return (
-    role === WorkspaceMemberRole.OWNER || role === WorkspaceMemberRole.ADMIN
-  )
+  return canManageWorkspaceMembers(role)
 }
 
 function makeToken() {
   return crypto.randomBytes(24).toString('hex')
+}
+
+function serializeInvite(invite: {
+  id: string
+  email: string
+  role: WorkspaceMemberRole
+  expiresAt: Date
+  acceptedAt: Date | null
+  createdAt: Date
+}) {
+  return {
+    id: invite.id,
+    email: invite.email,
+    role: invite.role,
+    status: invite.acceptedAt
+      ? 'accepted'
+      : invite.expiresAt <= new Date()
+        ? 'expired'
+        : 'pending',
+    expiresAt: invite.expiresAt,
+    acceptedAt: invite.acceptedAt,
+    createdAt: invite.createdAt,
+  }
 }
 
 export async function GET(
@@ -44,15 +69,7 @@ export async function GET(
   })
 
   return NextResponse.json({
-    invites: invites.map((i) => ({
-      id: i.id,
-      email: i.email,
-      role: i.role,
-      token: i.token, // keep for now; later you can omit once emailing is live
-      expiresAt: i.expiresAt,
-      acceptedAt: i.acceptedAt,
-      createdAt: i.createdAt,
-    })),
+    invites: invites.map(serializeInvite),
   })
 }
 
@@ -89,7 +106,19 @@ export async function POST(
   if (!email)
     return NextResponse.json({ error: 'Email required' }, { status: 400 })
 
-  const role = body.role ?? WorkspaceMemberRole.MEMBER
+  const role = normalizeWorkspaceRole(body.role) ?? WorkspaceMemberRole.MEMBER
+  if (body.role && !normalizeWorkspaceRole(body.role)) {
+    return NextResponse.json(
+      { error: `Unsupported workspace role: ${String(body.role)}` },
+      { status: 400 },
+    )
+  }
+  if (role === WorkspaceMemberRole.OWNER) {
+    return NextResponse.json(
+      { error: 'Owner invitations must be handled by ownership transfer.' },
+      { status: 400 },
+    )
+  }
 
   // If user already a member (by matching UserProfile.email), block
   const existingUser = await prisma.userProfile.findFirst({ where: { email } })
@@ -141,7 +170,11 @@ export async function POST(
       meta: { email, role, action: 'resent' },
     })
 
-    return NextResponse.json({ ok: true, invite: updated, action: 'resent' })
+    return NextResponse.json({
+      ok: true,
+      invite: serializeInvite(updated),
+      action: 'resent',
+    })
   }
 
   const invite = await prisma.workspaceInvite.create({
@@ -163,8 +196,82 @@ export async function POST(
     meta: { email, role, action: 'created' },
   })
 
-  // NOTE: email sending can be added later (Resend/Postmark/etc). For now return token.
-  return NextResponse.json({ ok: true, invite, action: 'created' })
+  // Email delivery can be connected later. Do not expose invitation tokens in
+  // ordinary workspace-management responses.
+  return NextResponse.json({
+    ok: true,
+    invite: serializeInvite(invite),
+    action: 'created',
+  })
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
+  const { userId: clerkId } = auth()
+  if (!clerkId)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const profile = await prisma.userProfile.findUnique({ where: { clerkId } })
+  if (!profile)
+    return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+
+  const actor = await prisma.workspaceMember.findUnique({
+    where: {
+      userId_workspaceId: {
+        userId: profile.id,
+        workspaceId: params.workspaceId,
+      },
+    },
+  })
+  if (!actor || !isManager(actor.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const body = (await req.json().catch(() => ({}))) as {
+    inviteId?: string
+    role?: WorkspaceMemberRole
+  }
+  if (!body.inviteId) {
+    return NextResponse.json({ error: 'inviteId required' }, { status: 400 })
+  }
+  const role = normalizeWorkspaceRole(body.role)
+  if (!role || role === WorkspaceMemberRole.OWNER) {
+    return NextResponse.json(
+      { error: 'Choose Admin, Manager, or Member for pending invitations.' },
+      { status: 400 },
+    )
+  }
+
+  const invite = await prisma.workspaceInvite.findUnique({
+    where: { id: body.inviteId },
+  })
+  if (!invite || invite.workspaceId !== params.workspaceId) {
+    return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
+  }
+  if (invite.acceptedAt) {
+    return NextResponse.json(
+      { error: 'Accepted invitations cannot be changed.' },
+      { status: 409 },
+    )
+  }
+
+  const updated = await prisma.workspaceInvite.update({
+    where: { id: invite.id },
+    data: { role },
+  })
+
+  await logAudit({
+    workspaceId: params.workspaceId,
+    actorId: profile.id,
+    action: 'INVITE_ROLE_UPDATED',
+    targetType: 'WorkspaceInvite',
+    targetId: updated.id,
+    meta: { email: updated.email, role },
+  })
+
+  return NextResponse.json({ ok: true, invite: serializeInvite(updated) })
 }
 
 export async function DELETE(

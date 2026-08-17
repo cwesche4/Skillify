@@ -1,13 +1,24 @@
 // app/api/automations/[automationId]/heatmap/route.ts
-import { auth } from '@clerk/nextjs/server'
 import { fail, ok } from '@/lib/api/responses'
-import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
+async function getRequestContext() {
+  const [{ auth }, { prisma }] = await Promise.all([
+    import('@clerk/nextjs/server'),
+    import('@/lib/db'),
+  ])
+  const { userId } = await auth()
+  return { userId, prisma }
+}
 
 export async function GET(
   _req: Request,
   { params }: { params: { automationId: string } },
 ) {
-  const { userId } = await auth()
+  const { userId, prisma } = await getRequestContext()
   if (!userId) return fail('Unauthorized', 401)
 
   const { automationId } = params

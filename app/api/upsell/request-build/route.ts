@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { notifyBuildUpsellRequest } from '@/lib/notifications/upsell'
 
@@ -27,6 +28,31 @@ export async function POST(req: Request) {
   try {
     const json = await req.json()
     const body = BodySchema.parse(json)
+    const { userId: clerkId } = auth()
+
+    if (body.workspaceId) {
+      if (!clerkId) {
+        return NextResponse.json(
+          { ok: false, error: 'Unauthorized' },
+          { status: 401 },
+        )
+      }
+
+      const membership = await prisma.workspaceMember.findFirst({
+        where: {
+          workspaceId: body.workspaceId,
+          user: { clerkId },
+        },
+        select: { userId: true },
+      })
+
+      if (!membership) {
+        return NextResponse.json(
+          { ok: false, error: 'Forbidden' },
+          { status: 403 },
+        )
+      }
+    }
 
     // Normalize fields to null for Prisma
     const cleaned = {

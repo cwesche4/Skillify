@@ -1,19 +1,43 @@
 'use client'
 
-import { UserButton, useUser } from '@clerk/nextjs'
+import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+
+import { SkillifyUserMenu } from '@/components/auth/SkillifyUserMenu'
+import { BrandLogo } from '@/components/branding/BrandLogo'
 
 export default function Navbar() {
   const { user, isLoaded } = useUser()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    if (!isLoaded || !user) {
+      setIsAdmin(false)
+      return
+    }
+
+    let cancelled = false
+    fetch('/api/auth/is-admin')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setIsAdmin(Boolean(data?.isAdmin))
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdmin(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isLoaded, user])
 
   if (!isLoaded) return null
 
-  const role = (user?.publicMetadata as any)?.role
-
   return (
     <nav className="flex w-full items-center justify-between border-b border-zinc-200 p-4 dark:border-zinc-800">
-      <Link href="/" className="text-xl font-semibold">
-        Skillify
+      <Link href="/" className="flex items-center">
+        <BrandLogo variant="horizontal" alt="Skillify" className="h-9 w-32" />
       </Link>
 
       <div className="flex items-center gap-6">
@@ -22,23 +46,16 @@ export default function Navbar() {
           Dashboard
         </Link>
 
-        {/* Manager + Admin */}
-        {(role === 'manager' || role === 'admin') && (
-          <Link href="/admin" className="text-sm">
-            Admin Panel
-          </Link>
-        )}
-
         {/* Admin Only */}
-        {role === 'admin' && (
-          <Link href="/admin/users" className="text-sm">
+        {isAdmin && (
+          <Link href="/dashboard/admin/users" className="text-sm">
             Users
           </Link>
         )}
 
         {/* User menu */}
         {user ? (
-          <UserButton />
+          <SkillifyUserMenu />
         ) : (
           <Link href="/sign-in" className="text-sm">
             Sign In

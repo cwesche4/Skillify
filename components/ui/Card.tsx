@@ -11,7 +11,7 @@ export function Card({ className, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-2xl border border-slate-800 bg-slate-900/60 shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur',
+        'border-app bg-app-surface-raised rounded-2xl border shadow-[var(--shadow-card)] backdrop-blur',
         className,
       )}
       {...props}
@@ -74,7 +74,7 @@ export function CardFooter({
   return (
     <div
       className={cn(
-        'border-t border-slate-800/60 px-4 pb-4 pt-2 sm:px-5 sm:pb-5 sm:pt-3',
+        'border-app border-t px-4 pb-4 pt-2 sm:px-5 sm:pb-5 sm:pt-3',
         className,
       )}
       {...props}

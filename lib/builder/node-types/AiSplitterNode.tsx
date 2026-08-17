@@ -15,6 +15,7 @@ export default function AiSplitterNode({ data }: NodeProps) {
     <NodeBase
       title="AI • Splitter"
       category="AI"
+      iconKey={data?.__iconKey ?? 'split-square'}
       tone="ai"
       isActive={isActive}
       isHot={isHot}

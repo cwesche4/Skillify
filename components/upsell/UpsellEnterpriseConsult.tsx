@@ -15,11 +15,17 @@ import { requestEnterpriseConsult } from '@/lib/upsell/client'
 interface UpsellEnterpriseConsultProps {
   workspaceId: string
   defaultEmail?: string
+  disabled?: boolean
+  disabledReason?: string
+  softGateNote?: string
 }
 
 export function UpsellEnterpriseConsult({
   workspaceId,
   defaultEmail,
+  disabled = false,
+  disabledReason,
+  softGateNote,
 }: UpsellEnterpriseConsultProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState(defaultEmail ?? '')
@@ -36,6 +42,8 @@ export function UpsellEnterpriseConsult({
     e.preventDefault()
     setError(null)
     setSuccess(false)
+
+    if (disabled) return
 
     if (!name.trim() || !email.trim() || !description.trim()) {
       const msg = 'Name, email and description are required.'
@@ -74,22 +82,33 @@ export function UpsellEnterpriseConsult({
   }
 
   return (
-    <Card className="space-y-4 border border-purple-500/40 bg-slate-950/80 p-5 shadow-xl shadow-purple-900/40">
+    <Card className="bg-status-violet-surface space-y-4 border border-purple-500/35 p-5 shadow-xl shadow-purple-200/35 dark:shadow-purple-900/40">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/15">
-          <Building2 className="h-4 w-4 text-purple-300" />
+          <Building2 className="h-4 w-4 text-purple-700 dark:text-purple-300" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-sm font-semibold text-slate-50">
+          <h2 className="text-app-primary text-sm font-semibold">
             Need a full build-out?
           </h2>
-          <p className="text-[11px] text-slate-400">
-            Tell us about your automation project. We&apos;ll review your
-            request, audit your current flows, and come back with a concrete
-            proposal.
+          <p className="text-app-secondary text-[11px]">
+            Tell us about your workflow, integration, or operations project.
+            We&apos;ll review your request, audit your current systems, and come
+            back with a concrete proposal.
           </p>
         </div>
       </div>
+
+      {disabled && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-100">
+          {disabledReason ?? 'Upgrade to request an enterprise consult.'}
+        </div>
+      )}
+      {softGateNote && !disabled && (
+        <div className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-[11px] text-sky-700 dark:text-sky-100">
+          {softGateNote}
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="space-y-3 text-xs">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -100,6 +119,7 @@ export function UpsellEnterpriseConsult({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Alex Johnson"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-1">
@@ -110,6 +130,7 @@ export function UpsellEnterpriseConsult({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-1">
@@ -119,6 +140,7 @@ export function UpsellEnterpriseConsult({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+1 (555) 000-0000"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-1">
@@ -128,6 +150,7 @@ export function UpsellEnterpriseConsult({
               value={companySize}
               onChange={(e) => setCompanySize(e.target.value)}
               placeholder="e.g. 10–50, 50–200, 200+"
+              disabled={disabled}
             />
           </div>
         </div>
@@ -138,7 +161,8 @@ export function UpsellEnterpriseConsult({
             id="enterprise-goal"
             value={projectGoal}
             onChange={(e) => setProjectGoal(e.target.value)}
-            placeholder="Example: Automate lead intake, scoring, and follow-up across our stack."
+            placeholder="Example: Improve lead intake, job handoffs, and follow-up across our stack."
+            disabled={disabled}
           />
         </div>
 
@@ -150,12 +174,18 @@ export function UpsellEnterpriseConsult({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What systems do you use today? What are the biggest bottlenecks? Where do you want to be in 90 days?"
             className="min-h-[120px]"
+            disabled={disabled}
           />
         </div>
 
         <div className="flex items-center justify-between gap-3 pt-2 text-[11px] text-slate-400">
           <span>We&apos;ll respond within 1–2 business days.</span>
-          <Button type="submit" size="sm" variant="primary" disabled={loading}>
+          <Button
+            type="submit"
+            size="sm"
+            variant="primary"
+            disabled={loading || disabled}
+          >
             {loading ? 'Submitting...' : 'Request enterprise consult'}
           </Button>
         </div>

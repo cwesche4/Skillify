@@ -1,0 +1,224 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`deriveAICoachRecommendations snapshots > detects ai underutilization 1`] = `
+[
+  {
+    "automationId": "a1",
+    "evidence": "8 suggestions ignored",
+    "type": "ai_underutilized",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots > detects combined scenarios deterministically 1`] = `
+[
+  {
+    "automationId": "a7",
+    "evidence": "7 suggestions ignored",
+    "type": "ai_underutilized",
+  },
+  {
+    "evidence": "Success rate declining by 15.0%",
+    "nodeType": undefined,
+    "severity": "low",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "High Inspector usage with low success (35.0%)",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Repeated validation failures for trigger",
+    "nodeType": "trigger",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Validation failure rate 0.40 for trigger",
+    "failureRate": 0.4,
+    "nodeType": "trigger",
+    "type": "validation_hotspot",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots > detects declining success trend 1`] = `
+[
+  {
+    "evidence": "Success rate declining by 20.0%",
+    "nodeType": undefined,
+    "severity": "low",
+    "type": "stability_risk",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots > detects high inspector usage with low success 1`] = `
+[
+  {
+    "evidence": "High Inspector usage with low success (40.0%)",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots > detects validation hotspots into multiple recommendations 1`] = `
+[
+  {
+    "evidence": "Repeated validation failures for delay",
+    "nodeType": "delay",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Repeated validation failures for webhook",
+    "nodeType": "webhook",
+    "severity": "high",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Validation failure rate 0.30 for delay",
+    "failureRate": 0.3,
+    "nodeType": "delay",
+    "type": "validation_hotspot",
+  },
+  {
+    "evidence": "Validation failure rate 0.60 for webhook",
+    "failureRate": 0.6,
+    "nodeType": "webhook",
+    "type": "validation_hotspot",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots > handles partial analytics input 1`] = `
+[
+  {
+    "evidence": "Repeated validation failures for nodeX",
+    "nodeType": "nodeX",
+    "severity": "low",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Validation failure rate 0.10 for nodeX",
+    "failureRate": 0.1,
+    "nodeType": "nodeX",
+    "type": "validation_hotspot",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots > returns empty array for empty analytics 1`] = `[]`;
+
+exports[`deriveAICoachRecommendations snapshots detects ai underutilization 1`] = `
+[
+  {
+    "automationId": "a1",
+    "evidence": "8 suggestions ignored",
+    "type": "ai_underutilized",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots detects combined scenarios deterministically 1`] = `
+[
+  {
+    "automationId": "a7",
+    "evidence": "7 suggestions ignored",
+    "type": "ai_underutilized",
+  },
+  {
+    "evidence": "Success rate declining by 15.0%",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "High Inspector usage with low success (35.0%)",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Repeated validation failures for trigger",
+    "nodeType": "trigger",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Validation failure rate 0.40 for trigger",
+    "failureRate": 0.4,
+    "nodeType": "trigger",
+    "type": "validation_hotspot",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots detects declining success trend 1`] = `
+[
+  {
+    "automationId": "a3",
+    "evidence": "Success rate declining by 20.0%",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots detects high inspector usage with low success 1`] = `
+[
+  {
+    "evidence": "High Inspector usage with low success (40.0%)",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots detects validation hotspots into multiple recommendations 1`] = `
+[
+  {
+    "evidence": "Repeated validation failures for delay",
+    "nodeType": "delay",
+    "severity": "medium",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Repeated validation failures for webhook",
+    "nodeType": "webhook",
+    "severity": "high",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Validation failure rate 0.30 for delay",
+    "failureRate": 0.3,
+    "nodeType": "delay",
+    "type": "validation_hotspot",
+  },
+  {
+    "evidence": "Validation failure rate 0.60 for webhook",
+    "failureRate": 0.6,
+    "nodeType": "webhook",
+    "type": "validation_hotspot",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots handles partial analytics input 1`] = `
+[
+  {
+    "evidence": "Repeated validation failures for nodeX",
+    "nodeType": "nodeX",
+    "severity": "low",
+    "type": "stability_risk",
+  },
+  {
+    "evidence": "Validation failure rate 0.10 for nodeX",
+    "failureRate": 0.1,
+    "nodeType": "nodeX",
+    "type": "validation_hotspot",
+  },
+]
+`;
+
+exports[`deriveAICoachRecommendations snapshots returns empty array for empty analytics 1`] = `[]`;

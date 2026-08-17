@@ -1,14 +1,23 @@
 // app/api/automations/[automationId]/flow/route.ts
-import { auth } from '@clerk/nextjs/server'
-
-import { prisma } from '@/lib/db'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
 
 interface Params {
   params: { automationId: string }
 }
 
-export async function GET(_req: Request, { params }: Params) {
+async function getRequestContext() {
+  const [{ auth }, { prisma }] = await Promise.all([
+    import('@clerk/nextjs/server'),
+    import('@/lib/db'),
+  ])
   const { userId } = await auth()
+  return { userId, prisma }
+}
+
+export async function GET(_req: Request, { params }: Params) {
+  const { userId, prisma } = await getRequestContext()
   if (!userId) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
@@ -20,6 +29,7 @@ export async function GET(_req: Request, { params }: Params) {
     select: {
       id: true,
       name: true,
+      status: true,
       flow: true,
     },
   })
@@ -34,6 +44,7 @@ export async function GET(_req: Request, { params }: Params) {
     JSON.stringify({
       id: automation.id,
       name: automation.name,
+      status: automation.status,
       flow: automation.flow ?? { nodes: [], edges: [] },
     }),
     {
@@ -44,7 +55,7 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
-  const { userId } = await auth()
+  const { userId, prisma } = await getRequestContext()
   if (!userId) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
@@ -62,7 +73,7 @@ export async function PUT(req: Request, { params }: Params) {
   const automation = await prisma.automation.update({
     where: { id: params.automationId },
     data: { flow },
-    select: { id: true, name: true, flow: true },
+    select: { id: true, name: true, status: true, flow: true },
   })
 
   return new Response(JSON.stringify({ automation }), {

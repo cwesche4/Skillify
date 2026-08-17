@@ -1,25 +1,39 @@
-// app/api/scheduling/google/webhook/route.ts
+import { type NextRequest } from 'next/server'
 
-import { NextResponse } from 'next/server'
+import { recordGoogleWebhookNotification } from '@/lib/scheduling/providers/googleService'
 
-export async function POST(req: Request) {
-  try {
-    // Google Calendar push notifications are usually handled via channel IDs + sync tokens.
-    // For now, this is a placeholder so you have the endpoint wired up.
-    const headers = Object.fromEntries(req.headers)
-    const bodyText = await req.text()
+export async function POST(request: NextRequest) {
+  const channelId = request.headers.get('x-goog-channel-id')
+  const resourceId = request.headers.get('x-goog-resource-id')
+  const messageNumber = request.headers.get('x-goog-message-number')
+  const resourceState = request.headers.get('x-goog-resource-state')
 
-    console.log('[Google Calendar webhook] headers', headers)
-    console.log('[Google Calendar webhook] body', bodyText)
-
-    // You would:
-    // 1. Look up which CalendarAccount this channel corresponds to
-    // 2. Call Google Calendar API with the sync token
-    // 3. Upsert ExternalCalendarEvent + Booking mappings
-
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    console.error('[google webhook] Error', err)
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  if (!channelId) {
+    return Response.json(
+      {
+        ok: false,
+        code: 'MISSING_CHANNEL_ID',
+        message: 'Google Calendar webhook channel is missing.',
+      },
+      { status: 400 },
+    )
   }
+
+  const result = await recordGoogleWebhookNotification({
+    channelId,
+    resourceId,
+    messageNumber,
+    resourceState,
+  })
+  if (!result.ok) {
+    return Response.json(
+      {
+        ok: false,
+        code: result.code,
+        message: result.safeMessage,
+      },
+      { status: result.retryable ? 503 : 400 },
+    )
+  }
+  return Response.json({ ok: true, ...result.value })
 }

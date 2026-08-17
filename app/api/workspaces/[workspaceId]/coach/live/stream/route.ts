@@ -3,12 +3,26 @@ import {
   getLiveCoachSnapshot,
   type LiveCoachSnapshot,
 } from '@/lib/analytics/liveCoach'
+import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
+import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
 
 export async function GET(
   _req: Request,
   context: { params: { workspaceId: string } },
 ) {
   const { workspaceId } = context.params
+
+  const aiGuard = await assertAiActionsEnabled(workspaceId)
+  if (aiGuard) return aiGuard
+  emitAiMetric(
+    buildAiMetric({
+      name: 'ai_action_attempted',
+      workspaceId,
+      action: 'coach_live_stream',
+      result: 'applied',
+    }),
+  )
+
   const encoder = new TextEncoder()
 
   let interval: NodeJS.Timeout

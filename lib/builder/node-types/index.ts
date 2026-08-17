@@ -7,10 +7,13 @@ import DelayNode from './DelayNode'
 import WebhookNode from './WebhookNode'
 import AiLLMNode from './AiLLMNode'
 import AiClassifierNode from './AiClassifierNode'
+import AIDecisionNode from './AIDecisionNode'
+import AITransformNode from './AITransformNode'
 import AiSplitterNode from './AiSplitterNode'
 import OrPathNode from './OrPathNode'
 import GroupNode from './GroupNode'
 import CRMNode from './CRMNode'
+import UnknownNode from './UnknownNode'
 
 export type BuilderNodeType =
   | 'trigger'
@@ -18,11 +21,14 @@ export type BuilderNodeType =
   | 'webhook'
   | 'ai-llm'
   | 'ai-classifier'
+  | 'ai-decision'
+  | 'ai-transform'
   | 'ai-splitter'
   | 'or-path'
   | 'group'
   | 'crm-trigger'
   | 'crm-action'
+  | 'unknown'
 
 export type PlanId = 'basic' | 'pro' | 'elite'
 
@@ -41,7 +47,8 @@ export interface NodeData {
 
   // Delay
   ms?: number
-  unit?: 'ms' | 's' | 'm' | 'h'
+  duration?: number
+  unit?: 'seconds' | 'minutes' | 'hours' | 'days'
 
   // Webhook
   url?: string
@@ -56,6 +63,12 @@ export interface NodeData {
   // AI Classifier
   categories?: string[]
   fallback?: string
+  // AI Decision
+  branches?: { key: string; label?: string }[]
+  confidenceThreshold?: number
+  fallbackKey?: string
+  // AI Transform
+  schema?: { key: string; type: string }[]
 
   // AI Splitter
   mode?: string
@@ -64,6 +77,7 @@ export interface NodeData {
   // Group
   count?: number
   note?: string
+  collapsed?: boolean
 
   // Logic / OR path
   conditions?: any[]
@@ -108,8 +122,8 @@ export const NODE_DEFINITIONS: Record<BuilderNodeType, NodeDefinition> = {
     description:
       'Pause execution between steps to control timing and rate limits.',
     defaultData: {
-      ms: 1000,
-      unit: 'ms',
+      duration: 30,
+      unit: 'minutes',
     },
   },
   webhook: {
@@ -194,6 +208,37 @@ export const NODE_DEFINITIONS: Record<BuilderNodeType, NodeDefinition> = {
         '{ "name": "string", "email": "string", "message": "string" }',
     },
   },
+  'ai-decision': {
+    type: 'ai-decision',
+    label: 'AI • Decision',
+    category: 'AI',
+    description:
+      'Deterministic AI branching across predefined options with fallback.',
+    aiHints: ['List explicit branches and define a confidence threshold.'],
+    enterpriseFeature: true,
+    defaultData: {
+      branches: [
+        { key: 'option_a', label: 'Option A' },
+        { key: 'option_b', label: 'Option B' },
+      ],
+      confidenceThreshold: 0.5,
+      fallbackKey: 'option_a',
+      note: 'Deterministic AI decision across predefined branches.',
+    },
+  },
+  'ai-transform': {
+    type: 'ai-transform',
+    label: 'AI • Transform',
+    category: 'AI',
+    description:
+      'Transform JSON with schema-bound output; fails on schema mismatch.',
+    aiHints: ['Define explicit fields with types; no free-form output.'],
+    enterpriseFeature: true,
+    defaultData: {
+      schema: [{ key: 'field', type: 'string' }],
+      note: 'Transforms JSON into schema-bound JSON; fails on mismatch.',
+    },
+  },
   'or-path': {
     type: 'or-path',
     label: 'OR Path',
@@ -211,7 +256,15 @@ export const NODE_DEFINITIONS: Record<BuilderNodeType, NodeDefinition> = {
     defaultData: {
       count: 0,
       note: 'Use groups to visually organize related steps in complex flows.',
+      collapsed: false,
     },
+  },
+  unknown: {
+    type: 'unknown',
+    label: 'Unknown',
+    category: 'Unknown',
+    description: 'Experimental or missing node type',
+    defaultData: {},
   },
 }
 
@@ -224,6 +277,9 @@ export const nodeTypes: NodeTypes = {
   'ai-llm': AiLLMNode,
   'ai-classifier': AiClassifierNode,
   'ai-splitter': AiSplitterNode,
+  'ai-decision': AIDecisionNode,
+  'ai-transform': AITransformNode,
   'or-path': OrPathNode,
   group: GroupNode,
+  unknown: UnknownNode,
 }

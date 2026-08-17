@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   useNodesState,
   useEdgesState,
@@ -9,15 +9,24 @@ import {
   type Edge,
   type Node,
 } from 'reactflow'
+import { WORKFLOW_LAYOUT_SPACING } from '@/lib/workflows/previewDrafts'
 
 interface UseAutomationFlowOptions {
   automationId: string
+  autosaveEnabled?: boolean
+}
+
+type AutomationMetadata = {
+  id: string
+  name: string
+  status?: string | null
 }
 
 function autoLayout(nodes: Node[], edges: Edge[]): Node[] {
   if (!nodes.length) return nodes
 
-  const spacing = 180
+  const horizontalGap = WORKFLOW_LAYOUT_SPACING.horizontalGap
+  const verticalGap = WORKFLOW_LAYOUT_SPACING.verticalGap
   const nodeMap = new Map<string, Node>()
   const incoming = new Map<string, number>()
 
@@ -41,8 +50,12 @@ function autoLayout(nodes: Node[], edges: Edge[]): Node[] {
       const updated: Node = {
         ...node,
         position: {
-          x: layer * spacing,
-          y: index * spacing,
+          x: layer * horizontalGap,
+          y:
+            index * verticalGap +
+            (layer > 0 && index % 2 === 1
+              ? WORKFLOW_LAYOUT_SPACING.branchOffset
+              : 0),
         },
       }
       nodeMap.set(node.id, updated)
@@ -62,46 +75,115 @@ function autoLayout(nodes: Node[], edges: Edge[]): Node[] {
   return Array.from(nodeMap.values())
 }
 
-export function useAutomationFlow({ automationId }: UseAutomationFlowOptions) {
+export function useAutomationFlow({
+  automationId,
+  autosaveEnabled = true,
+}: UseAutomationFlowOptions) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [savingStatus, setSavingStatus] = useState<
+    'idle' | 'dirty' | 'saving' | 'saved' | 'error'
+  >('idle')
+  const [automation, setAutomation] = useState<AutomationMetadata | null>(null)
 
   // Load flow on mount / automationId change
   useEffect(() => {
     let cancelled = false
 
-    async function loadFlow() {
+    async function loadFlow({ syncCanvas }: { syncCanvas: boolean }) {
       try {
         const res = await fetch(`/api/automations/${automationId}/flow`)
         if (!res.ok) return
         const json = await res.json()
-        const flow = json.flow ?? json
+        let flow = json.flow ?? json
+
+        // Support legacy stringified flow payloads
+        if (typeof flow === 'string') {
+          try {
+            flow = JSON.parse(flow)
+          } catch {
+            flow = {}
+          }
+        }
 
         if (cancelled) return
 
-        const loadedNodes = (flow.nodes ?? []) as Node[]
-        const loadedEdges = (flow.edges ?? []) as Edge[]
+        setAutomation({
+          id: String(json.id ?? automationId),
+          name: typeof json.name === 'string' ? json.name : '',
+          status: typeof json.status === 'string' ? json.status : null,
+        })
+
+        if (!syncCanvas) return
+
+        const loadedNodes = Array.isArray(flow?.nodes)
+          ? (flow.nodes as Node[])
+          : []
+        const loadedEdges = Array.isArray(flow?.edges)
+          ? (flow.edges as Edge[])
+          : []
         setNodes(loadedNodes)
         setEdges(loadedEdges)
+        setSavingStatus('saved')
       } catch (err) {
         console.error('Failed to load flow', err)
       }
     }
 
-    loadFlow()
+    loadFlow({ syncCanvas: true })
+
+    const refreshMetadata = () => {
+      if (document.visibilityState === 'visible') {
+        void loadFlow({ syncCanvas: false })
+      }
+    }
+    window.addEventListener('focus', refreshMetadata)
+    document.addEventListener('visibilitychange', refreshMetadata)
+
     return () => {
       cancelled = true
+      window.removeEventListener('focus', refreshMetadata)
+      document.removeEventListener('visibilitychange', refreshMetadata)
     }
   }, [automationId, setEdges, setNodes])
 
-  // Autosave on nodes/edges changes (500ms debounce)
+  // Autosave on nodes/edges changes (debounced)
+  const saveNow = useCallback(async () => {
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current)
+      saveTimeout.current = null
+    }
+    setSavingStatus('saving')
+    try {
+      const res = await fetch(`/api/automations/${automationId}/flow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodes,
+          edges,
+        }),
+      })
+      if (!res.ok) throw new Error('save failed')
+      setSavingStatus('saved')
+    } catch (err) {
+      console.error('Failed to save flow', err)
+      setSavingStatus('error')
+    }
+  }, [automationId, edges, nodes])
+
   useEffect(() => {
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current)
+      saveTimeout.current = null
     }
 
+    setSavingStatus((prev) => (prev === 'saving' ? prev : 'dirty'))
+
+    if (!autosaveEnabled) return
+
     saveTimeout.current = setTimeout(() => {
+      setSavingStatus('saving')
       fetch(`/api/automations/${automationId}/flow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -109,15 +191,23 @@ export function useAutomationFlow({ automationId }: UseAutomationFlowOptions) {
           nodes,
           edges,
         }),
-      }).catch((err) => console.error('Failed to save flow', err))
-    }, 500)
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error('save failed')
+          setSavingStatus('saved')
+        })
+        .catch((err) => {
+          console.error('Failed to save flow', err)
+          setSavingStatus('error')
+        })
+    }, 900)
 
     return () => {
       if (saveTimeout.current) {
         clearTimeout(saveTimeout.current)
       }
     }
-  }, [automationId, nodes, edges])
+  }, [automationId, autosaveEnabled, nodes, edges])
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -139,5 +229,8 @@ export function useAutomationFlow({ automationId }: UseAutomationFlowOptions) {
     onEdgesChange,
     onConnect,
     applyAutoLayout,
+    savingStatus,
+    saveNow,
+    automation,
   }
 }

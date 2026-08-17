@@ -1,15 +1,13 @@
-import { currentUser } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/db'
 import { AutomationStatus, RunStatus } from '@/lib/prisma/enums'
+import { getGlobalAdminProfile } from '@/lib/auth/getGlobalAdminProfile'
 
 export async function GET() {
-  // Admin guard
-  const user = await currentUser()
-  const role = (user?.publicMetadata as any)?.role
+  const admin = await getGlobalAdminProfile()
 
-  if (!user || role !== 'admin') {
+  if (!admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

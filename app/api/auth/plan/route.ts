@@ -13,5 +13,8 @@ export async function GET() {
   return NextResponse.json({
     plan: sub?.plan ?? 'Free',
     status: sub?.status ?? 'inactive',
+    trialEndsAt: (sub as any)?.trialEndsAt ?? null,
+    complimentaryEndsAt: (sub as any)?.complimentaryEndsAt ?? null,
+    paymentMethodRequired: (sub as any)?.paymentMethodRequired ?? null,
   })
 }

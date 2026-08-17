@@ -2,43 +2,63 @@ import { Check } from 'lucide-react'
 
 const sections = [
   {
-    title: 'Automation Builder',
-    body: 'Visual, node-based builder with triggers, delays, webhooks, and AI nodes.',
+    title: 'Customers & CRM',
+    body: 'Keep leads, customers, follow-ups, notes, and connected records organized around the way your business works.',
     bullets: [
-      'Drag-and-drop node builder',
-      'Triggers, delays, webhooks',
-      'Auto-layout and grouping',
-      'Branching and OR paths',
+      'Leads and customer records',
+      'Business-model-specific pipelines',
+      'Follow-ups, notes, and next actions',
+      'Connected customer lifecycle context',
     ],
   },
   {
-    title: 'AI Engine',
-    body: 'AI nodes for copy, routing, scoring, and smart decision-making.',
+    title: 'Jobs & Operations',
+    body: 'Turn customer work into jobs, assignments, and clear next steps your team can follow.',
     bullets: [
-      'LLM nodes for copy & replies',
-      'Classifier nodes for routing',
-      'Splitter nodes for audience logic',
-      'AI Coach suggestions in-builder',
+      'Jobs and team assignments',
+      'Tasks and next-step tracking',
+      'Assignments and status visibility',
+      'Support recurring service work',
     ],
   },
   {
-    title: 'Analytics & Heatmaps',
-    body: 'See where automations win or fail, so you can fix issues fast.',
+    title: 'Scheduling',
+    body: 'Coordinate appointments, jobs, recurring services, event types, and team availability from one calendar system.',
     bullets: [
-      'Run success/failure breakdowns',
-      'Node-level heatmaps',
-      'Time-to-completion metrics',
-      'AI-powered optimization tips',
+      'Day, Week, Month, and Agenda views',
+      'Appointments and scheduled jobs',
+      'Recurring services and event types',
+      'Team availability and working hours',
     ],
   },
   {
-    title: 'Content & Campaigns',
-    body: 'Templates and automations for follow-ups, drips, and content workflows.',
+    title: 'Automations',
+    body: 'Build repeatable workflows for the handoffs, reminders, decisions, and updates that keep work moving.',
     bullets: [
-      'Campaign templates',
-      'Onboarding journeys',
-      'Review & testimonial flows',
-      'Reusable snippets',
+      'Visual Workflow Builder',
+      'Triggers, actions, and branching',
+      'Executions and templates',
+      'AI-assisted workflow nodes where supported',
+    ],
+  },
+  {
+    title: 'Analytics & Reporting',
+    body: 'See operational metrics, workflow health, and customer or job activity without digging through disconnected tools.',
+    bullets: [
+      'Dashboard metrics',
+      'Operational visibility',
+      'Reports and workflow health',
+      'Customer and job insights',
+    ],
+  },
+  {
+    title: 'Workspace AI',
+    body: 'Use AI that can work from workspace context, explain recommendations, and help identify what needs attention.',
+    bullets: [
+      'Workspace-aware context',
+      'Business-aware recommendations',
+      'Automation assistance',
+      'AI insights that help surface what needs attention',
     ],
   },
 ]
@@ -49,12 +69,13 @@ export default function FeaturesPage() {
       <section className="px-6 pb-12 pt-20">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            Everything you need to automate your operations.
+            One workspace for customers, work, scheduling, automation, and
+            insights.
           </h1>
           <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
-            From first touch to ongoing nurture, Skillify gives you the builder,
-            AI, and analytics to create reliable automations that actually match
-            your business.
+            Skillify gives growing service businesses the core systems to manage
+            customer work, coordinate the team, automate repetitive steps, and
+            understand what needs attention.
           </p>
         </div>
       </section>
@@ -63,7 +84,7 @@ export default function FeaturesPage() {
         {sections.map((section) => (
           <div
             key={section.title}
-            className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-md shadow-slate-200/60 transition hover:border-blue-200 hover:bg-blue-50/20 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none dark:hover:border-blue-500/30"
           >
             <h2 className="text-lg font-semibold">{section.title}</h2>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">

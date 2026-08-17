@@ -31,9 +31,20 @@ export async function POST(req: Request) {
       : null
 
     // Try to persist if we have a workspace + userProfile
+    if (body.workspaceId && body.workspaceId !== 'public' && !userProfile) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     if (body.workspaceId && body.workspaceId !== 'public' && userProfile) {
-      const workspace = await prisma.workspace.findUnique({
-        where: { id: body.workspaceId },
+      const workspace = await prisma.workspace.findFirst({
+        where: {
+          id: body.workspaceId,
+          members: {
+            some: {
+              userId: userProfile.id,
+            },
+          },
+        },
       })
 
       if (workspace) {
@@ -47,6 +58,8 @@ export async function POST(req: Request) {
             status: 'pending',
           },
         })
+      } else {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
 

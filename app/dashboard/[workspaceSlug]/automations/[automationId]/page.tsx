@@ -180,38 +180,41 @@ export default async function AutomationDetailPage({
         <Card className="mt-6 space-y-3 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-neutral-text-primary">
+              <h2 className="text-neutral-text-primary text-sm font-semibold">
                 CRM Activity Timeline
               </h2>
-              <p className="text-xs text-neutral-text-secondary">
-                Webhooks, triggers, actions, and circuit events for this automation (read-only).
+              <p className="text-neutral-text-secondary text-xs">
+                Webhooks, triggers, actions, and circuit events for this
+                automation (read-only).
               </p>
             </div>
             <Badge variant="blue">Elite</Badge>
           </div>
 
           {crmTimeline.length === 0 ? (
-            <p className="text-xs text-neutral-text-secondary">No CRM activity yet.</p>
+            <p className="text-neutral-text-secondary text-xs">
+              No CRM activity yet.
+            </p>
           ) : (
             <div className="space-y-2">
               {crmTimeline.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-start justify-between rounded-lg border border-neutral-border/60 bg-black/20 px-3 py-2"
+                  className="border-neutral-border/60 flex items-start justify-between rounded-lg border bg-black/20 px-3 py-2"
                 >
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <Badge variant="gray">{entry.action}</Badge>
-                      <span className="text-[11px] text-neutral-text-secondary">
+                      <span className="text-neutral-text-secondary text-[11px]">
                         {new Date(entry.createdAt).toLocaleString()}
                       </span>
                     </div>
-                    <div className="text-xs text-neutral-text-primary">
+                    <div className="text-neutral-text-primary text-xs">
                       Target: {entry.targetType}
                       {entry.targetId ? ` • ${entry.targetId}` : ''}
                     </div>
                     {entry.meta && (
-                      <div className="text-[11px] text-neutral-text-secondary">
+                      <div className="text-neutral-text-secondary text-[11px]">
                         {JSON.stringify(entry.meta)}
                       </div>
                     )}
@@ -226,30 +229,35 @@ export default async function AutomationDetailPage({
       {plan === 'Elite' && (
         <Card className="mt-4 space-y-3 p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-neutral-text-primary">
+            <h2 className="text-neutral-text-primary text-sm font-semibold">
               Unified Automation Timeline
             </h2>
             <Badge variant="blue">Elite</Badge>
           </div>
           {unifiedTimeline.length === 0 ? (
-            <p className="text-xs text-neutral-text-secondary">No timeline events yet.</p>
+            <p className="text-neutral-text-secondary text-xs">
+              No timeline events yet.
+            </p>
           ) : (
-            <div className="space-y-2 text-[11px] text-neutral-text-primary">
+            <div className="text-neutral-text-primary space-y-2 text-[11px]">
               {unifiedTimeline.map((entry) => {
                 const meta = (entry.meta as any) || {}
-                const error = meta.error ?? meta.reason ?? meta.lastError ?? null
-                const failureCategory = error ? classifyCRMError(String(error)) : undefined
+                const error =
+                  meta.error ?? meta.reason ?? meta.lastError ?? null
+                const failureCategory = error
+                  ? classifyCRMError(String(error))
+                  : undefined
                 return (
                   <div
                     key={entry.id}
-                    className="flex items-start justify-between rounded border border-neutral-border/60 bg-black/15 px-3 py-2"
+                    className="border-neutral-border/60 flex items-start justify-between rounded border bg-black/15 px-3 py-2"
                   >
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
                         <Badge size="xs" variant="gray">
                           {entry.action}
                         </Badge>
-                        <span className="text-[10px] text-neutral-text-secondary">
+                        <span className="text-neutral-text-secondary text-[10px]">
                           {new Date(entry.createdAt).toLocaleString()}
                         </span>
                       </div>
@@ -258,19 +266,21 @@ export default async function AutomationDetailPage({
                         {entry.targetId ? ` • ${entry.targetId}` : ''}
                       </div>
                       {meta.provider && (
-                        <div className="text-[10px] text-neutral-text-secondary">
+                        <div className="text-neutral-text-secondary text-[10px]">
                           Provider: {meta.provider}
                         </div>
                       )}
                       {meta.externalId && (
-                        <div className="text-[10px] text-neutral-text-secondary">
+                        <div className="text-neutral-text-secondary text-[10px]">
                           External ID: {meta.externalId}
                         </div>
                       )}
                       {error && (
                         <div className="text-[10px] text-amber-300">
                           Error: {String(error)}{' '}
-                          {failureCategory ? `(category: ${failureCategory})` : ''}
+                          {failureCategory
+                            ? `(category: ${failureCategory})`
+                            : ''}
                         </div>
                       )}
                     </div>

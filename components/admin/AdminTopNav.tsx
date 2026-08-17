@@ -17,42 +17,52 @@ type AdminWorkspace = {
 export interface AdminTopNavProps {
   workspace: AdminWorkspace | null
   role: WorkspaceRole
+  isGlobalAdmin?: boolean
 }
 
 const ADMIN_LINKS = [
   {
     key: 'system',
     label: 'System',
-    href: (slug: string) => `/dashboard/${slug}/admin/system`,
+    href: () => '/dashboard/admin/system',
   },
   {
     key: 'users',
     label: 'Users',
-    href: (slug: string) => `/dashboard/${slug}/admin/users`,
+    href: () => '/dashboard/admin/users',
   },
   {
     key: 'upsells',
-    label: 'Upsells',
-    href: (slug: string) => `/dashboard/${slug}/admin/upsells`,
+    label: 'Service Requests',
+    href: () => '/dashboard/admin/upsells',
   },
   {
     key: 'build-requests',
     label: 'Build Requests',
-    href: (slug: string) => `/dashboard/${slug}/admin/build-requests`,
+    href: () => '/dashboard/admin/build-requests',
   },
   {
     key: 'enterprise',
     label: 'Enterprise',
-    href: (slug: string) => `/dashboard/${slug}/admin/enterprise`,
+    href: () => '/dashboard/admin/enterprise',
+  },
+  {
+    key: 'ai-playground',
+    label: 'AI Playground',
+    href: () => '/dashboard/admin/ai-playground',
   },
 ]
 
-export function AdminTopNav({ workspace, role }: AdminTopNavProps) {
+export function AdminTopNav({
+  workspace,
+  role,
+  isGlobalAdmin = false,
+}: AdminTopNavProps) {
   const pathname = usePathname()
 
-  if (!workspace || role === 'member') return null
+  if (!workspace || role === 'member' || !isGlobalAdmin) return null
 
-  const baseAdminPath = `/dashboard/${workspace.slug}/admin`
+  const baseAdminPath = '/dashboard/admin'
   const isOnAdminRoute = pathname.startsWith(baseAdminPath)
 
   return (
@@ -66,7 +76,7 @@ export function AdminTopNav({ workspace, role }: AdminTopNavProps) {
 
       <nav className="border-neutral-border/60 bg-neutral-card-light/70 dark:bg-neutral-card-dark/70 flex items-center gap-1 rounded-full border px-1 py-0.5 text-xs">
         {ADMIN_LINKS.map((link) => {
-          const href = link.href(workspace.slug)
+          const href = link.href()
           const active = pathname.startsWith(href)
 
           return (

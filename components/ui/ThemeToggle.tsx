@@ -1,41 +1,48 @@
 'use client'
 
 import { Moon, Sun } from 'lucide-react'
+import React from 'react'
 import { useEffect, useState } from 'react'
+import {
+  applySkillifyThemeToDocument,
+  persistSkillifyThemePreference,
+  readSkillifyThemePreference,
+  type SkillifyTheme,
+} from '@/lib/theme/theme'
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const [mounted, setMounted] = useState(false)
+  const [theme, setTheme] = useState<SkillifyTheme>('dark')
 
   useEffect(() => {
-    // On mount: sync with localStorage or system preference
-    const stored = localStorage.getItem('theme') as 'light' | 'dark' | null
-    if (stored) {
-      setTheme(stored)
-      document.documentElement.classList.toggle('dark', stored === 'dark')
-    } else {
-      const prefersDark = window.matchMedia(
-        '(prefers-color-scheme: dark)',
-      ).matches
-      const initial = prefersDark ? 'dark' : 'light'
-      setTheme(initial)
-      document.documentElement.classList.toggle('dark', initial === 'dark')
-    }
+    setMounted(true)
+    const nextTheme = readSkillifyThemePreference(window.localStorage)
+    setTheme(nextTheme)
+    persistSkillifyThemePreference(window.localStorage, nextTheme)
+    applySkillifyThemeToDocument(document.documentElement, nextTheme)
   }, [])
 
-  const toggleTheme = () => {
-    const next: 'light' | 'dark' = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next)
-    document.documentElement.classList.toggle('dark', next === 'dark')
-    localStorage.setItem('theme', next)
+  if (!mounted) return null
+
+  function toggleTheme() {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    persistSkillifyThemePreference(window.localStorage, nextTheme)
+    applySkillifyThemeToDocument(document.documentElement, nextTheme)
   }
+
+  const isDark = theme === 'dark'
+  const actionLabel = isDark ? 'Switch to light theme' : 'Switch to dark theme'
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
-      aria-label="Toggle theme"
+      className="border-app bg-app-surface-muted text-app-secondary hover:bg-app-surface-hover hover:text-app-primary focus-visible:ring-brand-primary/60 inline-flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition-colors focus:outline-none focus-visible:ring-2"
+      aria-label={actionLabel}
+      title={actionLabel}
     >
-      {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+      {isDark ? <Moon size={16} /> : <Sun size={16} />}
     </button>
   )
 }

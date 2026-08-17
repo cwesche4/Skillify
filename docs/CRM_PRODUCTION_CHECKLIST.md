@@ -1,0 +1,45 @@
+# CRM Production Checklist
+
+- **Required env vars (set before enabling CRM)**
+  - `INTEGRATIONS_ENCRYPTION_KEY` — base64-encoded 32-byte key (openssl rand -base64 32)
+  - `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET`, `HUBSPOT_REDIRECT_URI`
+- **Kill switches (env)**
+  - `CRM_DISABLE_ALL=true` — disables inbound + actions (webhooks 202)
+  - `CRM_DISABLE_INBOUND=true` — webhooks 202
+  - `CRM_DISABLE_ACTIONS=true` — crm-action nodes noop
+- **Failure categories (audit meta)**
+  - `transient`, `auth`, `config`, `provider`, `unknown` — informational only
+- **Circuit breaker**
+  - Opens after repeated failures; audits `CRM_CIRCUIT_OPENED`; resets after quiet window (`CRM_CIRCUIT_RESET`)
+- **Ops endpoints**
+  - Health: `/api/integrations/{provider}/health?workspaceId=...`
+  - Diagnostics: `/api/integrations/diagnostics?workspaceId=...` (kill switches, breaker state, last errors)
+  - CRM Ops (Admin/System, Elite): read-only trends from audit logs
+- **Plan requirements**
+  - Pro: connect CRM, run CRM actions
+  - Elite: inbound webhooks / bidirectional sync
+- **Webhook setup**
+  - HubSpot webhook target: `POST /api/integrations/hubspot/webhook`
+  - Enable signatures (v3) and scopes for contacts/deals/companies/owners
+  - Ensure workspace is on Elite; match crm-trigger nodes (provider/objectType/event)
+- **Common failure modes**
+  - Missing/invalid env → clear error on CRM use
+  - Plan insufficient → 403 and audit log (`CRM_WEBHOOK_REJECTED` or action failed)
+  - Circuit open after repeated failures → actions skipped, webhooks logged only
+  - Signature invalid → 400; no automations fired
+- **Health verification**
+  - `GET /api/integrations/{provider}/health?workspaceId=...` (OWNER/ADMIN) returns status, lastSuccessfulActionAt, lastWebhookAt, lastError
+  - Test connection: `POST /api/integrations/hubspot/test` with workspaceId/integrationId
+- **Diagnostics & rollback**
+  - `GET /api/integrations/diagnostics?workspaceId=...` for breaker state/errors/kill switches
+  - Clear breaker: `clearCircuitBreaker` helper (lib/integrations/ops.ts)
+  - Soft disable: `softDisableIntegration` helper
+- **Disable CRM per workspace**
+  - OWNER/ADMIN can disconnect via `/api/workspaces/{workspaceId}/integrations` (POST with integrationId) or remove credentials in DB; circuit breaker also skips actions when open.
+- **SLOs**
+  - Defined in `docs/SLOs.md` (webhook availability, action success/timeout, circuit opens, automation completion/guardrails)
+- **Exports**
+  - Audit export: `GET /api/exports/audit` (OWNER/ADMIN, CSV/JSON)
+  - CRM ops snapshot: `GET /api/exports/crm-ops` (OWNER/ADMIN)
+- **Alerting readiness**
+  - Documented thresholds and owners in `docs/ALERTING_READINESS.md`; policy only, no integrations yet

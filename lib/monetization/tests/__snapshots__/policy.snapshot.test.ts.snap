@@ -1,0 +1,67 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`monetization policy snapshots default input (minimal fields) 1`] = `
+{
+  "allowed": false,
+  "reason": "monetization_disabled",
+}
+`;
+
+exports[`monetization policy snapshots explicit entitlement key 1`] = `
+{
+  "allowed": false,
+  "reason": "monetization_disabled",
+}
+`;
+
+exports[`monetization policy snapshots workspace + user context 1`] = `
+{
+  "allowed": false,
+  "reason": "monetization_disabled",
+}
+`;
+
+exports[`monetization policy snapshots plan provided (free / pro / enterprise) 1`] = `
+[
+  {
+    "allowed": false,
+    "reason": "monetization_disabled",
+  },
+  {
+    "allowed": false,
+    "reason": "monetization_disabled",
+  },
+  {
+    "allowed": false,
+    "reason": "monetization_disabled",
+  },
+]
+`;
+
+exports[`monetization policy snapshots repeated identical input yields identical output 1`] = `
+{
+  "allowed": false,
+  "reason": "monetization_disabled",
+}
+`;
+
+exports[`monetization policy snapshots multiple different inputs are all denied 1`] = `
+[
+  {
+    "allowed": false,
+    "reason": "monetization_disabled",
+  },
+  {
+    "allowed": false,
+    "reason": "monetization_disabled",
+  },
+  {
+    "allowed": false,
+    "reason": "monetization_disabled",
+  },
+  {
+    "allowed": false,
+    "reason": "monetization_disabled",
+  },
+]
+`;

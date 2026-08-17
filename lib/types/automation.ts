@@ -3,6 +3,11 @@
 // -------------------------------------------------------------
 
 import type { Node, Edge } from 'reactflow'
+import {
+  parseFlowJson,
+  type FlowNode,
+  type FlowEdge,
+} from '@/lib/builder/schema/flow'
 // JSON-safe flow used in DB
 export interface AutomationFlowJson {
   nodes: any[]
@@ -18,10 +23,12 @@ export interface AutomationFlow {
 
 // Convert unknown DB JSON → typed flow
 export function asAutomationFlow(raw: any): AutomationFlow {
+  const parsed = parseFlowJson(raw)
   return {
-    id: raw?.id ?? '',
-    nodes: Array.isArray(raw?.nodes) ? raw.nodes : [],
-    edges: Array.isArray(raw?.edges) ? raw.edges : [],
+    id: parsed.id,
+    // Backward compatible: FlowNode is assignable to ReactFlow Node with data/position
+    nodes: parsed.nodes as FlowNode[] as Node[],
+    edges: parsed.edges as FlowEdge[] as Edge[],
   }
 }
 

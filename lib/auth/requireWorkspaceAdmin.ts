@@ -24,7 +24,7 @@ type RequireAdminResult = {
  *   const { workspace, profile } = await requireWorkspaceAdmin(params.workspaceSlug)
  */
 export async function requireWorkspaceAdmin(
-  workspaceSlug: string,
+  workspaceSlug?: string | null,
 ): Promise<RequireAdminResult> {
   const { userId: clerkId } = auth()
 
@@ -40,17 +40,39 @@ export async function requireWorkspaceAdmin(
     redirect('/sign-in')
   }
 
-  const workspace = await prisma.workspace.findUnique({
-    where: { slug: workspaceSlug },
-    include: {
-      members: {
-        where: {
-          userId: profile!.id,
+  const workspace = workspaceSlug
+    ? await prisma.workspace.findUnique({
+        where: { slug: workspaceSlug },
+        include: {
+          members: {
+            where: {
+              userId: profile!.id,
+            },
+            select: { role: true },
+          },
         },
-        select: { role: true },
-      },
-    },
-  })
+      })
+    : (
+        await prisma.workspaceMember.findFirst({
+          where: {
+            userId: profile!.id,
+            role: { in: ['OWNER', 'ADMIN'] },
+          },
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: {
+                    userId: profile!.id,
+                  },
+                  select: { role: true },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        })
+      )?.workspace
 
   if (!workspace) {
     notFound()
