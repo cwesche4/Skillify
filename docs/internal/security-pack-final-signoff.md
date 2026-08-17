@@ -28,7 +28,7 @@ Feature-complete; long-term ownership assigned. No shared accountability.
 
 - Security Pack declared feature-complete as of this record.
 - Signoffs:
-  - Compliance Owner: ****\_\_**** Date: ****\_\_****
-  - Engineering Owner: ****\_\_**** Date: ****\_\_****
-  - Sales Enablement Lead: ****\_\_**** Date: ****\_\_****
-  - Security/Compliance Lead (Incident response): ****\_\_**** Date: ****\_\_****
+  - Compliance Owner: \***\*\_\_\*\*** Date: \***\*\_\_\*\***
+  - Engineering Owner: \***\*\_\_\*\*** Date: \***\*\_\_\*\***
+  - Sales Enablement Lead: \***\*\_\_\*\*** Date: \***\*\_\_\*\***
+  - Security/Compliance Lead (Incident response): \***\*\_\_\*\*** Date: \***\*\_\_\*\***
