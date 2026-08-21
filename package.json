@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "type-check": "tsc -p tsconfig.app.json",
     "prisma:generate": "prisma generate",
+    "postinstall": "prisma generate",
     "prisma:format": "prisma format",
     "prisma:migrate": "prisma migrate dev",
     "prisma:reset": "prisma migrate reset",
