@@ -1,9 +1,43 @@
 // app/api/admin/users/route.ts
 
 import { auth } from '@clerk/nextjs/server'
+import type { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/db'
+
+const adminUserSelect = {
+  id: true,
+  clerkId: true,
+  fullName: true,
+  email: true,
+  role: true,
+  createdAt: true,
+  subscription: {
+    select: {
+      plan: true,
+      status: true,
+    },
+  },
+  memberships: {
+    orderBy: { createdAt: 'asc' },
+    select: {
+      role: true,
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          ownerId: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.UserProfileSelect
+
+type AdminUser = Prisma.UserProfileGetPayload<{
+  select: typeof adminUserSelect
+}>
 
 async function requireAdmin() {
   const { userId } = auth()
@@ -27,37 +61,10 @@ export async function GET() {
 
     const users = await prisma.userProfile.findMany({
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        clerkId: true,
-        fullName: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        subscription: {
-          select: {
-            plan: true,
-            status: true,
-          },
-        },
-        memberships: {
-          orderBy: { createdAt: 'asc' },
-          select: {
-            role: true,
-            workspace: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                ownerId: true,
-              },
-            },
-          },
-        },
-      },
+      select: adminUserSelect,
     })
 
-    const result = users.map((user) => ({
+    const result = users.map((user: AdminUser) => ({
       id: user.id,
       clerkId: user.clerkId,
       fullName: user.fullName,
