@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client'
+
 type PrismaTransaction = Record<string, any>
 
 async function deleteMany(
@@ -25,6 +27,12 @@ export async function deleteWorkspaceCascade(
   tx: PrismaTransaction,
   workspaceId: string,
 ) {
+  // Serialize workspace deletion with transactions that perform a final
+  // workspace-scoped delivery check before inserting durable notifications.
+  await tx.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "Workspace" WHERE "id" = ${workspaceId} FOR UPDATE`,
+  )
+
   await deleteMany(tx, 'inspectorPresetShare', {
     OR: [
       { sourceWorkspaceId: workspaceId },
@@ -64,6 +72,12 @@ export async function deleteWorkspaceCascade(
     run: { is: { workspaceId } },
   })
   await deleteMany(tx, 'automationRun', { workspaceId })
+
+  // Simple Automation rows use RESTRICT workspace/automation foreign keys.
+  // Remove the idempotency ledger and installation ownership rows before the
+  // linked managed Automations and workspace are deleted.
+  await deleteMany(tx, 'simpleAutomationDispatch', { workspaceId })
+  await deleteMany(tx, 'simpleAutomationInstallation', { workspaceId })
 
   await deleteMany(tx, 'upsellRequest', { workspaceId })
   await deleteMany(tx, 'enterpriseConsultRequest', { workspaceId })
@@ -120,6 +134,17 @@ export async function deleteWorkspaceCascade(
   await deleteMany(tx, 'dashboardPreference', { workspaceId })
   await deleteMany(tx, 'auditLog', { workspaceId })
   await deleteMany(tx, 'workspaceInvite', { workspaceId })
+
+  // Durable operational history uses restrictive workspace/member foreign
+  // keys, so children must be removed explicitly during workspace deletion.
+  await deleteMany(tx, 'workItem', { workspaceId })
+  await deleteMany(tx, 'job', { workspaceId })
+
+  // Leads may reference their converted Customer with a restrictive FK.
+  // Delete Leads before Customers, then remove both before assigned members.
+  await deleteMany(tx, 'lead', { workspaceId })
+  await deleteMany(tx, 'customer', { workspaceId })
+
   await deleteMany(tx, 'workspaceTeamMember', { workspaceId })
   await deleteMany(tx, 'workspaceTeam', { workspaceId })
   await deleteMany(tx, 'workspaceLocation', { workspaceId })

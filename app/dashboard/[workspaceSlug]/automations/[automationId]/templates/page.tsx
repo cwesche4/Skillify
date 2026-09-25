@@ -15,14 +15,16 @@ interface Template {
 }
 
 export default function AutomationTemplatesPage() {
-  const params = useParams<{ automationId: string }>()
+  const params = useParams<{ workspaceSlug: string; automationId: string }>()
   const router = useRouter()
 
   const [templates, setTemplates] = useState<Template[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/automations/templates')
+    fetch(
+      `/api/automations/templates?workspaceSlug=${encodeURIComponent(params.workspaceSlug)}`,
+    )
       .then((res) => res.json())
       .then((json) => {
         if (!json.success) {
@@ -32,7 +34,7 @@ export default function AutomationTemplatesPage() {
         setTemplates(json.data.templates ?? [])
       })
       .catch(() => setError('Unable to load templates.'))
-  }, [])
+  }, [params.workspaceSlug])
 
   const handleUseTemplate = async (tpl: Template) => {
     // simple redirect to builder – you could also add an endpoint

@@ -238,7 +238,7 @@ export function Notifications({ workspaceId }: { workspaceId: string }) {
                 Notifications
               </div>
               <div className="text-xs text-white/45">
-                Scheduling updates and reminders
+                Updates and reminders from across Skillify
               </div>
             </div>
             <div className="flex shrink-0 gap-1">

@@ -11,9 +11,15 @@ import { resetBreakerIfNeeded } from '@/lib/integrations/circuit'
 import { runAutomation } from '@/lib/automations/executor'
 import { normalizeCRMAuditMeta } from '@/lib/integrations/auditMeta'
 import { classifyCRMError } from '@/lib/integrations/failureCategory'
+import { dispatchSimpleAutomationEvent } from '@/lib/automations/simpleAutomationDispatch'
+import {
+  HUBSPOT_WEBHOOK_AGGREGATE_TYPE,
+  HUBSPOT_WEBHOOK_TOPIC,
+  hubSpotWebhookEventIdentity,
+} from '@/lib/domain-events/hubspotWebhookEvents'
 
-type ProcessResult =
-  | { ok: true; triggered: number }
+export type ProcessResult =
+  | { ok: true; triggered: number; accepted?: number }
   | { ok: false; status: number; error: string }
 
 /**
@@ -27,34 +33,83 @@ type ProcessResult =
 export async function processWebhookPayload(
   provider: IntegrationProvider,
   payload: IntegrationWebhookPayload,
-  opts: { workspaceId?: string } = {},
+  opts: {
+    workspaceId?: string
+    expectedIntegrationId?: string
+    durableAcceptance?: boolean
+    failOnAutomationError?: boolean
+  } = {},
 ): Promise<ProcessResult> {
+  if (
+    opts.workspaceId &&
+    payload.workspaceId &&
+    opts.workspaceId !== payload.workspaceId
+  ) {
+    return { ok: false, status: 400, error: 'Workspace context mismatch' }
+  }
+
   // Guardrail: kill switches checked before any CRM work to avoid blocking the HTTP thread
   // Resolve integration/workspace by portal/hubId if available
+  const workspaceId = opts.workspaceId ?? payload.workspaceId
   const portalId =
     (payload as any).portalId ?? (payload as any).accountId ?? null
-  const integration = portalId
+  const integrationCandidates = payload.integrationId
     ? await prisma.integration.findFirst({
         where: {
+          id: payload.integrationId,
           provider,
           status: 'connected',
-          workspaceId: opts.workspaceId ?? undefined,
-          metadata: {
-            path: ['hubId'],
-            equals: portalId,
-          } as any,
+          workspaceId: workspaceId ?? undefined,
         },
       })
-    : await prisma.integration.findFirst({
-        where: {
-          provider,
-          status: 'connected',
-          workspaceId: opts.workspaceId ?? undefined,
-        },
-      })
+    : portalId
+      ? await prisma.integration.findMany({
+          where: {
+            provider,
+            status: 'connected',
+            workspaceId: workspaceId ?? undefined,
+            metadata: {
+              path: ['hubId'],
+              equals: portalId,
+            } as any,
+          },
+          take: 2,
+        })
+      : workspaceId
+        ? await prisma.integration.findMany({
+            where: {
+              provider,
+              status: 'connected',
+              workspaceId,
+            },
+            take: 2,
+          })
+        : null
+
+  const integration = Array.isArray(integrationCandidates)
+    ? integrationCandidates.length === 1
+      ? integrationCandidates[0]
+      : null
+    : integrationCandidates
 
   if (!integration) {
-    return { ok: false, status: 404, error: 'No active integration' }
+    return {
+      ok: false,
+      status:
+        Array.isArray(integrationCandidates) && integrationCandidates.length > 1
+          ? 409
+          : 404,
+      error:
+        Array.isArray(integrationCandidates) && integrationCandidates.length > 1
+          ? 'Ambiguous integration workspace context'
+          : 'No active integration for this workspace context',
+    }
+  }
+  if (
+    opts.expectedIntegrationId &&
+    integration.id !== opts.expectedIntegrationId
+  ) {
+    return { ok: false, status: 400, error: 'Integration context mismatch' }
   }
 
   // Kill switches (env-driven, lazy) — now we can audit with workspace context
@@ -223,6 +278,55 @@ export async function processWebhookPayload(
     return { ok: false, status: 202, error: 'Circuit open' }
   }
 
+  if (opts.durableAcceptance) {
+    if (provider !== 'hubspot') {
+      return { ok: false, status: 400, error: 'Unsupported durable provider' }
+    }
+    const deduplicationKey = hubSpotWebhookEventIdentity(
+      integration.id,
+      payload,
+    )
+    await prisma.domainOutboxEvent.upsert({
+      where: { deduplicationKey },
+      create: {
+        workspaceId: integration.workspaceId,
+        topic: HUBSPOT_WEBHOOK_TOPIC,
+        aggregateType: HUBSPOT_WEBHOOK_AGGREGATE_TYPE,
+        aggregateId: integration.id,
+        deduplicationKey,
+        payload: {
+          workspaceId: integration.workspaceId,
+          integrationId: integration.id,
+          webhook: {
+            provider: 'hubspot',
+            objectType: payload.objectType,
+            externalId: payload.externalId,
+            event: payload.event,
+            payload: payload.payload ?? null,
+            ...(payload.occurredAt === undefined
+              ? {}
+              : { occurredAt: payload.occurredAt }),
+            ...(payload.eventId === undefined
+              ? {}
+              : { eventId: payload.eventId }),
+            ...(payload.portalId === undefined
+              ? {}
+              : { portalId: payload.portalId }),
+            ...(payload.rawLength === undefined
+              ? {}
+              : { rawLength: payload.rawLength }),
+            ...(payload.eventCount === undefined
+              ? {}
+              : { eventCount: payload.eventCount }),
+          },
+        },
+      },
+      update: {},
+      select: { id: true },
+    })
+    return { ok: true, triggered: 0, accepted: 1 }
+  }
+
   await logAudit({
     workspaceId: integration.workspaceId,
     action: 'CRM_WEBHOOK_RECEIVED',
@@ -265,13 +369,34 @@ export async function processWebhookPayload(
       workspaceId: integration.workspaceId,
       status: 'ACTIVE',
     },
-    select: { id: true, flow: true },
+    select: {
+      id: true,
+      flow: true,
+      simpleAutomationInstallation: {
+        select: { id: true, definitionKey: true, removedAt: true },
+      },
+    },
   })
 
   const matching = automations.filter((a: any) => {
     const flow = a.flow as any
     if (!flow?.nodes) return false
     return flow.nodes.some((n: any) => {
+      if (n.type === 'simple-new-lead-trigger') {
+        const sources = Array.isArray(n.data?.sources) ? n.data.sources : []
+        return sources.some(
+          (source: any) =>
+            source?.kind === 'crm' &&
+            matchTriggerNode({
+              nodeProvider: source.provider,
+              nodeObjectType: source.objectType,
+              nodeEvent: source.event,
+              eventProvider: payload.provider,
+              eventObjectType: payload.objectType,
+              eventName: payload.event,
+            }),
+        )
+      }
       if (n.type !== 'crm-trigger') return false
       return matchTriggerNode({
         nodeProvider: n.data?.provider ?? payload.provider,
@@ -308,7 +433,12 @@ export async function processWebhookPayload(
   const toRun = matching.slice(0, RATE_LIMIT)
 
   // Dedup guard: avoid triggering same automation twice for same external event
-  const dedupeKey = `${payload.provider}:${payload.objectType}:${payload.externalId}:${payload.event}:${(payload as any).occurredAt ?? ''}`
+  // Provider event IDs are useful but are not assumed globally unique. Keep
+  // the occurrence timestamp in the identity when both are available.
+  const eventIdentity = [payload.eventId, payload.occurredAt]
+    .filter((value) => value !== undefined && value !== null)
+    .join(':')
+  const dedupeKey = `${payload.provider}:${payload.objectType}:${payload.externalId}:${payload.event}:${eventIdentity}`
 
   let fired = 0
   for (const a of toRun) {
@@ -326,17 +456,42 @@ export async function processWebhookPayload(
       })
       if (already) continue
 
-      await runAutomation(a.id, {
-        triggerPayload: {
-          provider,
-          objectType: payload.objectType,
-          event: payload.event,
-          externalId: payload.externalId,
-          occurredAt: (payload as any).occurredAt ?? Date.now(),
-          raw: payload.payload,
-        },
-        userProfileId: null,
-      })
+      const triggerPayload = {
+        provider,
+        objectType: payload.objectType,
+        event: payload.event,
+        externalId: payload.externalId,
+        occurredAt: (payload as any).occurredAt ?? null,
+        eventId: payload.eventId ?? null,
+        raw: payload.payload,
+        simpleEventKey: dedupeKey,
+      }
+      const managedInstallation = a.simpleAutomationInstallation
+      if (managedInstallation) {
+        // A managed Automation must never fall through to the Advanced
+        // executor. Removed or unsupported installations fail closed even if
+        // their linked status is inconsistent because of stale external data.
+        if (
+          managedInstallation.removedAt ||
+          managedInstallation.definitionKey !== 'new-lead-alert'
+        ) {
+          continue
+        }
+        const dispatch = await dispatchSimpleAutomationEvent({
+          installationId: managedInstallation.id,
+          automationId: a.id,
+          workspaceId: integration.workspaceId,
+          eventKey: dedupeKey,
+          triggerPayload,
+        })
+        if (!dispatch.dispatched) continue
+      } else {
+        await runAutomation(a.id, {
+          triggerPayload,
+          userProfileId: null,
+          expectedWorkspaceId: integration.workspaceId,
+        })
+      }
 
       fired += 1
 
@@ -358,6 +513,7 @@ export async function processWebhookPayload(
         }),
       })
     } catch (err) {
+      if (opts.failOnAutomationError) throw err
       console.error('Failed to run automation from CRM webhook', err)
     }
   }

@@ -1,10 +1,21 @@
 import { prisma } from '@/lib/db'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 export type VersionTag = 'Stable' | 'Live' | 'Draft' | 'Archived' | string
 
-export async function listVersions(automationId: string) {
+export async function listVersions(params: {
+  automationId: string
+  workspaceId: string
+  viewerUserId: string
+}) {
   const versions = await prisma.automationVersion.findMany({
-    where: { automationId },
+    where: {
+      automationId: params.automationId,
+      workspaceId: params.workspaceId,
+      automation: {
+        workspace: { members: { some: { userId: params.viewerUserId } } },
+      },
+    },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
@@ -42,6 +53,24 @@ export async function createVersion(params: {
   tag?: VersionTag
   note?: string
 }) {
+  const automation = await prisma.automation.findFirst({
+    where: {
+      id: params.automationId,
+      workspaceId: params.workspaceId,
+      simpleAutomationInstallation: null,
+      workspace: {
+        members: {
+          some: {
+            userId: params.createdByUserId,
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
+      },
+    },
+    select: { id: true },
+  })
+  if (!automation) throw new Error('Automation not found')
+
   // Immutable version + snapshot; never overwrite
   const version = await prisma.automationVersion.create({
     data: {
@@ -74,14 +103,42 @@ export async function createVersion(params: {
 export async function activateVersion(params: {
   automationId: string
   versionId: string
+  workspaceId: string
+  actorUserId: string
 }) {
-  // Deactivate current PUBLISHED, activate target. No deletes.
-  await prisma.automationVersion.updateMany({
-    where: { automationId: params.automationId, status: 'PUBLISHED' },
-    data: { status: 'ARCHIVED' },
+  const version = await prisma.automationVersion.findFirst({
+    where: {
+      id: params.versionId,
+      automationId: params.automationId,
+      workspaceId: params.workspaceId,
+      automation: {
+        simpleAutomationInstallation: null,
+        workspace: {
+          members: {
+            some: {
+              userId: params.actorUserId,
+              role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+            },
+          },
+        },
+      },
+    },
+    select: { id: true },
   })
-  return prisma.automationVersion.update({
-    where: { id: params.versionId },
-    data: { status: 'PUBLISHED' },
+  if (!version) throw new Error('Version not found')
+
+  return prisma.$transaction(async (tx) => {
+    await tx.automationVersion.updateMany({
+      where: {
+        automationId: params.automationId,
+        workspaceId: params.workspaceId,
+        status: 'PUBLISHED',
+      },
+      data: { status: 'ARCHIVED' },
+    })
+    return tx.automationVersion.update({
+      where: { id: version.id },
+      data: { status: 'PUBLISHED' },
+    })
   })
 }

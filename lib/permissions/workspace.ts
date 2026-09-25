@@ -3,6 +3,7 @@ import {
   canManageOperations,
   canManageWorkspace as canManageWorkspaceRole,
 } from '@/lib/workspaces/workspaceRoles'
+import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
 
 export function canManageWorkspace(role: string) {
   return canManageWorkspaceRole(role)
@@ -32,14 +33,24 @@ type SalesPipelineGlobalRole = string | null
 export function canAccessServiceRequests(params: {
   workspaceRole?: ServiceRequestWorkspaceRole
   globalRole?: ServiceRequestGlobalRole
+  businessModel?: string | null
 }) {
   const workspaceRole = params.workspaceRole?.toUpperCase()
   const globalRole = params.globalRole?.toLowerCase()
+  const isSimpleServiceMember =
+    params.businessModel === WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS &&
+    workspaceRole === 'MEMBER'
 
-  // Service Requests is the internal workspace operations queue.
+  // Simple Service uses this route for durable Jobs, where Members need
+  // read access to execute only their own assigned Job Steps. Other workspace
+  // models retain the existing management-only Service Requests policy.
   // Client-facing intake/portal requests should be built separately later.
   // TODO: Add OPS/SUPPORT workspace roles here if they are introduced.
-  return canManageOperations(workspaceRole) || globalRole === 'admin'
+  return (
+    isSimpleServiceMember ||
+    canManageOperations(workspaceRole) ||
+    globalRole === 'admin'
+  )
 }
 
 export function canAccessSalesPipeline(params: {

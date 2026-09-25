@@ -839,7 +839,7 @@ function HudMenu({
   setHeatmapMode,
   canvasMode,
   setCanvasMode,
-  workspaceId,
+  workspaceSlug,
   settingsStorageKey,
   autosaveEnabled,
   setAutosaveEnabled,
@@ -886,7 +886,7 @@ function HudMenu({
   setHeatmapMode: (v: HeatmapVisibilityMode) => void
   canvasMode: CanvasMode
   setCanvasMode: (v: CanvasMode) => void
-  workspaceId: string
+  workspaceSlug: string
   settingsStorageKey: string
   autosaveEnabled: boolean
   setAutosaveEnabled: (v: boolean) => void
@@ -1422,7 +1422,7 @@ function HudMenu({
               className="mt-3 w-full rounded-lg border border-slate-800/70 bg-slate-950/40 px-3 py-2 text-left text-xs text-slate-300 transition hover:border-slate-700 hover:bg-slate-900/70"
               onClick={() =>
                 window.open(
-                  `/dashboard/${workspaceId}/settings/run-insights`,
+                  `/dashboard/${workspaceSlug}/settings/run-insights`,
                   '_self',
                 )
               }
@@ -1813,11 +1813,13 @@ function CommandPalette({
 interface BuilderInnerProps {
   automationId: string
   workspaceId: string
+  workspaceSlug: string
 }
 
 export default function BuilderInner({
   automationId,
   workspaceId,
+  workspaceSlug,
 }: BuilderInnerProps) {
   const router = useRouter()
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -1919,7 +1921,7 @@ export default function BuilderInner({
   /* --------------------------------
     Hooks
  -------------------------------- */
-  const { planLabel, plan, canUseFeature } = usePermissions()
+  const { planLabel, plan, canUseFeature } = usePermissions(workspaceId)
   const canUseFeatureUnsafe = canUseFeature as unknown as (
     feature: string,
   ) => boolean
@@ -6584,16 +6586,16 @@ export default function BuilderInner({
   const exitBuilderNow = useCallback(
     (target: 'previous' | 'automations' = 'previous') => {
       if (target === 'automations') {
-        router.push(`/dashboard/${workspaceId}/automations`)
+        router.push(`/dashboard/${workspaceSlug}/automations/advanced`)
         return
       }
       if (typeof window !== 'undefined' && window.history.length > 1) {
         router.back()
         return
       }
-      router.push(`/dashboard/${workspaceId}`)
+      router.push(`/dashboard/${workspaceSlug}`)
     },
-    [router, workspaceId],
+    [router, workspaceSlug],
   )
 
   const requestExitBuilder = useCallback(
@@ -11524,7 +11526,7 @@ export default function BuilderInner({
             setHeatmapMode={setHeatmapMode}
             canvasMode={canvasMode}
             setCanvasMode={setCanvasMode}
-            workspaceId={workspaceId}
+            workspaceSlug={workspaceSlug}
             settingsStorageKey={builderSettingsKey}
             autosaveEnabled={autosaveEnabled}
             setAutosaveEnabled={setAutosaveEnabled}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/internal/domain-events/process",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/scheduling/notifications",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/scheduling/notifications/recovery",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/internal/scheduling/recurrence-horizon",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}

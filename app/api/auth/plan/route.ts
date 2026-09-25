@@ -1,20 +1,36 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
 
-export async function GET() {
+export async function GET(req: Request) {
   const { userId } = auth()
-  if (!userId) return NextResponse.json({ plan: 'Free' })
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-  const sub = await prisma.subscription.findFirst({
-    where: { user: { clerkId: userId } },
+  const workspaceId = new URL(req.url).searchParams.get('workspaceId')
+  if (!workspaceId) {
+    return NextResponse.json(
+      { error: 'workspaceId is required' },
+      { status: 400 },
+    )
+  }
+
+  const access = await authorizeWorkspaceAccess({
+    workspaceId,
+    access: 'view',
   })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
+
+  const plan = await getWorkspacePlan(workspaceId)
 
   return NextResponse.json({
-    plan: sub?.plan ?? 'Free',
-    status: sub?.status ?? 'inactive',
-    trialEndsAt: (sub as any)?.trialEndsAt ?? null,
-    complimentaryEndsAt: (sub as any)?.complimentaryEndsAt ?? null,
-    paymentMethodRequired: (sub as any)?.paymentMethodRequired ?? null,
+    plan,
   })
 }

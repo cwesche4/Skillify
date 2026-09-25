@@ -6,6 +6,7 @@ import type {
   Collaborator,
   PresenceCursor,
 } from '@/lib/collaboration/types'
+import { authorizeAutomationAccess } from '@/lib/automations/authorization'
 
 /*
   In-memory presence store (per workspace+automation).
@@ -41,6 +42,18 @@ export async function GET(
     )
   }
 
+  const access = await authorizeAutomationAccess({
+    workspaceId,
+    automationId,
+    access: 'view',
+  })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
+
   const k = key(workspaceId, automationId)
   const session = store.get(k) ?? {
     automationId,
@@ -67,17 +80,26 @@ export async function POST(
     )
   }
 
+  const access = await authorizeAutomationAccess({
+    workspaceId,
+    automationId,
+    access: 'view',
+  })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
+
   const body = await req.json().catch(() => ({}))
-  const { userId, name, cursor } = body as {
-    userId?: string
+  const { name, cursor } = body as {
     name?: string
     cursor?: { x: number; y: number; viewport?: any }
     mode?: 'view' | 'edit'
   }
 
-  if (!userId) {
-    return NextResponse.json({ error: 'userId required' }, { status: 400 })
-  }
+  const userId = access.userProfileId
 
   const k = key(workspaceId, automationId)
   const session: CollaborationSession = store.get(k) ?? {

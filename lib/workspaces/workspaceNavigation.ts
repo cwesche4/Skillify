@@ -122,6 +122,11 @@ export function buildWorkspaceNavigation({
                         label: capabilities.terminology.leadPlural,
                         href: `/dashboard/${workspaceSlug}/leads`,
                         icon: 'leads' as const,
+                        roles: [
+                          'owner',
+                          'admin',
+                          'manager',
+                        ] as WorkspaceNavigationRole[],
                       },
                     ]
                   : []),
@@ -131,6 +136,11 @@ export function buildWorkspaceNavigation({
                         label: capabilities.terminology.customerPlural,
                         href: `/dashboard/${workspaceSlug}/clients`,
                         icon: 'customers' as const,
+                        roles: [
+                          'owner',
+                          'admin',
+                          'manager',
+                        ] as WorkspaceNavigationRole[],
                       },
                     ]
                   : []),
@@ -149,7 +159,7 @@ export function buildWorkspaceNavigation({
                     ]
                   : []),
                 {
-                  label: capabilities.terminology.taskPlural,
+                  label: 'My To-Dos',
                   href: `/dashboard/${workspaceSlug}/tasks`,
                   icon: 'tasks',
                 },
@@ -289,16 +299,6 @@ function workflowGroup(workspaceSlug: string): WorkspaceNavigationGroup {
         label: 'Automations',
         href: `/dashboard/${workspaceSlug}/automations`,
         icon: 'automations',
-      },
-      {
-        label: 'Executions',
-        href: `/dashboard/${workspaceSlug}/executions`,
-        icon: 'executions',
-      },
-      {
-        label: 'Templates',
-        href: `/dashboard/${workspaceSlug}/templates`,
-        icon: 'templates',
       },
     ],
   }

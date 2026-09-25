@@ -14,6 +14,8 @@ import {
   type Prisma,
 } from '@prisma/client'
 
+import { buildScheduleChangeSnapshot } from '@/lib/automations/simpleScheduleChangeNotification'
+
 import { prisma, type DB } from '@/lib/db'
 import {
   assertSchedulingEventStatusTransition,
@@ -936,13 +938,34 @@ async function updateEventInTransaction({
     summary: 'Event updated.',
     metadata: { beforeStatus: statusFromPrisma(existing.status) },
   })
+  const updated = await getScopedEvent(tx, workspaceId, eventId)
+  const scheduleChange = buildScheduleChangeSnapshot({
+    eventId: updated.id,
+    eventTypeKey: updated.eventTypeKey,
+    title: updated.title,
+    timezone: updated.timezone,
+    recurrenceSeriesId: updated.recurrenceSeriesId,
+    occurrenceOriginalAt: updated.occurrenceOriginalAt,
+    occurrenceState: updated.occurrenceState,
+    scope: updated.recurrenceSeriesId ? 'thisOccurrence' : 'single',
+    before: {
+      startsAtUtc: existing.startsAtUtc,
+      status: statusFromPrisma(existing.status),
+      assignments: existing.assignments,
+    },
+    after: {
+      startsAtUtc: updated.startsAtUtc,
+      status: statusFromPrisma(updated.status),
+      assignments: updated.assignments,
+    },
+  })
   await appendOutbox(tx, {
     workspaceId,
     topic: 'scheduling.event.updated',
     aggregateId: eventId,
-    payload: { eventId },
+    payload: { eventId, ...(scheduleChange ? { scheduleChange } : {}) },
   })
-  return eventToDomain(await getScopedEvent(tx, workspaceId, eventId))
+  return eventToDomain(updated)
 }
 
 type MaterializationSeries = Prisma.SchedulingRecurrenceSeriesGetPayload<{
@@ -1233,6 +1256,7 @@ async function materializeRecurrenceSeries({
     rangeEnd,
   })
   const materializedIds: string[] = []
+  const newlyCreatedIds: string[] = []
   for (const occurrence of generated) {
     const existing = await db.schedulingEvent.findFirst({
       where: {
@@ -1290,6 +1314,7 @@ async function materializeRecurrenceSeries({
       eventId: created.id,
     })
     materializedIds.push(created.id)
+    newlyCreatedIds.push(created.id)
   }
 
   const generatedThroughUtc =
@@ -1308,6 +1333,17 @@ async function materializeRecurrenceSeries({
     await db.schedulingRecurrenceSeries.update({
       where: { id: series.id },
       data: { generatedThroughUtc, version: { increment: 1 } },
+    })
+  }
+  if (newlyCreatedIds.length > 0) {
+    await appendOutbox(db, {
+      workspaceId,
+      topic: 'scheduling.recurrence.materialized',
+      aggregateId: series.id,
+      payload: {
+        seriesId: series.id,
+        materializedOccurrenceIds: newlyCreatedIds,
+      },
     })
   }
   return materializedIds
@@ -1360,6 +1396,94 @@ async function materializeActiveRecurrenceSeriesForRange({
         })
       },
     })
+  }
+}
+
+export async function extendSchedulingRecurrenceHorizon({
+  nowUtc = new Date(),
+  batchSize = 25,
+}: {
+  nowUtc?: Date
+  batchSize?: number
+} = {}) {
+  const boundedBatchSize = Math.min(Math.max(Math.trunc(batchSize), 1), 100)
+  const rangeStart = new Date(
+    nowUtc.getTime() - RECURRENCE_MATERIALIZATION_DAYS_BEHIND * 86_400_000,
+  )
+  const rangeEnd = new Date(
+    nowUtc.getTime() + RECURRENCE_MATERIALIZATION_DAYS_AHEAD * 86_400_000,
+  )
+  const candidates = await prisma.schedulingRecurrenceSeries.findMany({
+    where: {
+      status: PrismaSchedulingRecurrenceSeriesStatus.ACTIVE,
+      AND: [
+        { OR: [{ untilUtc: null }, { untilUtc: { gte: nowUtc } }] },
+        {
+          OR: [
+            { generatedThroughUtc: null },
+            { generatedThroughUtc: { lt: rangeEnd } },
+          ],
+        },
+      ],
+    },
+    orderBy: [{ generatedThroughUtc: 'asc' }, { createdAt: 'asc' }],
+    take: boundedBatchSize,
+    select: {
+      id: true,
+      workspaceId: true,
+      generatedThroughUtc: true,
+    },
+  })
+
+  let extended = 0
+  for (const candidate of candidates) {
+    const generatedThroughUtc = await runRecurrenceTransaction({
+      workspaceId: candidate.workspaceId,
+      seriesIds: [candidate.id],
+      mutationKind: 'materialize',
+      request: {
+        source: 'recurrence-horizon-worker',
+        rangeStart: rangeStart.toISOString(),
+        rangeEnd: rangeEnd.toISOString(),
+      },
+      callback: async (tx) => {
+        const series = await tx.schedulingRecurrenceSeries.findFirst({
+          where: {
+            id: candidate.id,
+            workspaceId: candidate.workspaceId,
+            status: PrismaSchedulingRecurrenceSeriesStatus.ACTIVE,
+          },
+          include: { masterEvent: { include: eventInclude } },
+        })
+        if (!series) return null
+        await materializeRecurrenceSeries({
+          db: tx,
+          workspaceId: candidate.workspaceId,
+          series,
+          rangeStart,
+          rangeEnd,
+        })
+        const refreshed = await tx.schedulingRecurrenceSeries.findUnique({
+          where: { id: candidate.id },
+          select: { generatedThroughUtc: true },
+        })
+        return refreshed?.generatedThroughUtc ?? null
+      },
+    })
+    if (
+      generatedThroughUtc &&
+      (!candidate.generatedThroughUtc ||
+        generatedThroughUtc > candidate.generatedThroughUtc)
+    ) {
+      extended += 1
+    }
+  }
+
+  return {
+    considered: candidates.length,
+    extended,
+    hasMore: candidates.length === boundedBatchSize,
+    targetThroughUtc: rangeEnd.toISOString(),
   }
 }
 
@@ -1639,6 +1763,32 @@ async function splitRecurringSeries({
         splitBoundaryUtc: boundaryUtc.toISOString(),
       },
     })
+    const canceledOccurrence =
+      mode === 'cancel'
+        ? await getScopedEvent(tx, workspaceId, occurrenceId)
+        : null
+    const scheduleChange = canceledOccurrence
+      ? buildScheduleChangeSnapshot({
+          eventId: canceledOccurrence.id,
+          eventTypeKey: canceledOccurrence.eventTypeKey,
+          title: canceledOccurrence.title,
+          timezone: canceledOccurrence.timezone,
+          recurrenceSeriesId: canceledOccurrence.recurrenceSeriesId,
+          occurrenceOriginalAt: canceledOccurrence.occurrenceOriginalAt,
+          occurrenceState: canceledOccurrence.occurrenceState,
+          scope: 'thisAndFollowing',
+          before: {
+            startsAtUtc: occurrence.startsAtUtc,
+            status: statusFromPrisma(occurrence.status),
+            assignments: occurrence.assignments,
+          },
+          after: {
+            startsAtUtc: canceledOccurrence.startsAtUtc,
+            status: 'canceled',
+            assignments: canceledOccurrence.assignments,
+          },
+        })
+      : null
     await appendOutbox(tx, {
       workspaceId,
       topic:
@@ -1652,6 +1802,7 @@ async function splitRecurringSeries({
         scope: 'thisAndFollowing',
         actorUserId,
         splitBoundaryUtc: boundaryUtc.toISOString(),
+        ...(scheduleChange ? { scheduleChange } : {}),
       },
     })
     return {
@@ -1957,6 +2108,31 @@ async function splitRecurringSeries({
       removedGeneratedIds: generatedIds,
     },
   })
+  const changedOccurrence = targets[0]
+    ? await getScopedEvent(tx, workspaceId, targets[0].id)
+    : null
+  const scheduleChange = changedOccurrence
+    ? buildScheduleChangeSnapshot({
+        eventId: changedOccurrence.id,
+        eventTypeKey: changedOccurrence.eventTypeKey,
+        title: changedOccurrence.title,
+        timezone: changedOccurrence.timezone,
+        recurrenceSeriesId: changedOccurrence.recurrenceSeriesId,
+        occurrenceOriginalAt: changedOccurrence.occurrenceOriginalAt,
+        occurrenceState: changedOccurrence.occurrenceState,
+        scope: 'thisAndFollowing',
+        before: {
+          startsAtUtc: occurrence.startsAtUtc,
+          status: statusFromPrisma(occurrence.status),
+          assignments: occurrence.assignments,
+        },
+        after: {
+          startsAtUtc: changedOccurrence.startsAtUtc,
+          status: statusFromPrisma(changedOccurrence.status),
+          assignments: changedOccurrence.assignments,
+        },
+      })
+    : null
   await appendOutbox(tx, {
     workspaceId,
     topic: 'scheduling.recurrence.series_split',
@@ -1972,6 +2148,7 @@ async function splitRecurringSeries({
       remappedOverrideIds,
       overrideRemapDecisions: remapDecisions,
       removedGeneratedIds: generatedIds,
+      ...(scheduleChange ? { scheduleChange } : {}),
     },
   })
   return {
@@ -2648,7 +2825,7 @@ export const schedulingRepository = {
           })
         }
         const defaultRange = getDefaultMaterializationRange()
-        await materializeRecurrenceSeries({
+        const materializedIds = await materializeRecurrenceSeries({
           db: tx,
           workspaceId,
           series: updatedSeries,
@@ -2670,6 +2847,37 @@ export const schedulingRepository = {
             seriesVersionAfter: series.version + 1,
           },
         })
+        const updatedOccurrence =
+          (await tx.schedulingEvent.findFirst({
+            where: {
+              id: { in: materializedIds },
+              workspaceId,
+              recurrenceSeriesId: series.id,
+              deletedAt: null,
+            },
+            orderBy: { startsAtUtc: 'asc' },
+            include: eventInclude,
+          })) ?? occurrence
+        const scheduleChange = buildScheduleChangeSnapshot({
+          eventId: updatedOccurrence.id,
+          eventTypeKey: updatedOccurrence.eventTypeKey,
+          title: updatedOccurrence.title,
+          timezone: updatedOccurrence.timezone,
+          recurrenceSeriesId: updatedOccurrence.recurrenceSeriesId,
+          occurrenceOriginalAt: updatedOccurrence.occurrenceOriginalAt,
+          occurrenceState: updatedOccurrence.occurrenceState,
+          scope: 'entireSeries',
+          before: {
+            startsAtUtc: occurrence.startsAtUtc,
+            status: statusFromPrisma(occurrence.status),
+            assignments: occurrence.assignments,
+          },
+          after: {
+            startsAtUtc: updatedOccurrence.startsAtUtc,
+            status: statusFromPrisma(updatedOccurrence.status),
+            assignments: updatedOccurrence.assignments,
+          },
+        })
         await appendOutbox(tx, {
           workspaceId,
           topic: 'scheduling.recurrence.series_updated',
@@ -2682,18 +2890,9 @@ export const schedulingRepository = {
             boundaryUtc: boundary.toISOString(),
             seriesVersionBefore: series.version,
             seriesVersionAfter: series.version + 1,
+            ...(scheduleChange ? { scheduleChange } : {}),
           },
         })
-        const updatedOccurrence =
-          (await tx.schedulingEvent.findFirst({
-            where: {
-              workspaceId,
-              recurrenceSeriesId: series.id,
-              occurrenceOriginalAt: boundary,
-              deletedAt: null,
-            },
-            include: eventInclude,
-          })) ?? occurrence
         return eventToDomain(updatedOccurrence)
       },
     })
@@ -2747,11 +2946,42 @@ export const schedulingRepository = {
             summary: 'This occurrence canceled.',
             metadata: { from, to: 'canceled', scope, seriesId },
           })
+          const canceledOccurrence = await getScopedEvent(
+            tx,
+            workspaceId,
+            occurrenceId,
+          )
+          const scheduleChange = buildScheduleChangeSnapshot({
+            eventId: canceledOccurrence.id,
+            eventTypeKey: canceledOccurrence.eventTypeKey,
+            title: canceledOccurrence.title,
+            timezone: canceledOccurrence.timezone,
+            recurrenceSeriesId: canceledOccurrence.recurrenceSeriesId,
+            occurrenceOriginalAt: canceledOccurrence.occurrenceOriginalAt,
+            occurrenceState: canceledOccurrence.occurrenceState,
+            scope: 'thisOccurrence',
+            before: {
+              startsAtUtc: existing.startsAtUtc,
+              status: from,
+              assignments: existing.assignments,
+            },
+            after: {
+              startsAtUtc: canceledOccurrence.startsAtUtc,
+              status: 'canceled',
+              assignments: canceledOccurrence.assignments,
+            },
+          })
           await appendOutbox(tx, {
             workspaceId,
             topic: 'scheduling.recurrence.occurrence_canceled',
             aggregateId: occurrenceId,
-            payload: { occurrenceId, scope, actorUserId, seriesId },
+            payload: {
+              occurrenceId,
+              scope,
+              actorUserId,
+              seriesId,
+              ...(scheduleChange ? { scheduleChange } : {}),
+            },
           })
         },
       })
@@ -2966,13 +3196,39 @@ export const schedulingRepository = {
         summary: `Status changed from ${from} to ${status}.`,
         metadata: { from, to: status },
       })
+      const updated = await getScopedEvent(tx, workspaceId, eventId)
+      const scheduleChange = buildScheduleChangeSnapshot({
+        eventId: updated.id,
+        eventTypeKey: updated.eventTypeKey,
+        title: updated.title,
+        timezone: updated.timezone,
+        recurrenceSeriesId: updated.recurrenceSeriesId,
+        occurrenceOriginalAt: updated.occurrenceOriginalAt,
+        occurrenceState: updated.occurrenceState,
+        scope: updated.recurrenceSeriesId ? 'thisOccurrence' : 'single',
+        before: {
+          startsAtUtc: existing.startsAtUtc,
+          status: from,
+          assignments: existing.assignments,
+        },
+        after: {
+          startsAtUtc: updated.startsAtUtc,
+          status,
+          assignments: updated.assignments,
+        },
+      })
       await appendOutbox(tx, {
         workspaceId,
         topic: `scheduling.event.${status === 'canceled' ? 'canceled' : status === 'completed' ? 'completed' : 'status_changed'}`,
         aggregateId: eventId,
-        payload: { eventId, from, to: status },
+        payload: {
+          eventId,
+          from,
+          to: status,
+          ...(scheduleChange ? { scheduleChange } : {}),
+        },
       })
-      return eventToDomain(await getScopedEvent(tx, workspaceId, eventId))
+      return eventToDomain(updated)
     })
   },
 
@@ -3032,6 +3288,27 @@ export const schedulingRepository = {
           summary: `Recurring occurrence status changed from ${from} to ${status}.`,
           metadata: { from, to: status, scope: 'thisOccurrence', seriesId },
         })
+        const updated = await getScopedEvent(tx, workspaceId, occurrenceId)
+        const scheduleChange = buildScheduleChangeSnapshot({
+          eventId: updated.id,
+          eventTypeKey: updated.eventTypeKey,
+          title: updated.title,
+          timezone: updated.timezone,
+          recurrenceSeriesId: updated.recurrenceSeriesId,
+          occurrenceOriginalAt: updated.occurrenceOriginalAt,
+          occurrenceState: updated.occurrenceState,
+          scope: 'thisOccurrence',
+          before: {
+            startsAtUtc: existing.startsAtUtc,
+            status: from,
+            assignments: existing.assignments,
+          },
+          after: {
+            startsAtUtc: updated.startsAtUtc,
+            status,
+            assignments: updated.assignments,
+          },
+        })
         await appendOutbox(tx, {
           workspaceId,
           topic: 'scheduling.event.status_changed',
@@ -3042,11 +3319,10 @@ export const schedulingRepository = {
             to: status,
             scope: 'thisOccurrence',
             seriesId,
+            ...(scheduleChange ? { scheduleChange } : {}),
           },
         })
-        return eventToDomain(
-          await getScopedEvent(tx, workspaceId, occurrenceId),
-        )
+        return eventToDomain(updated)
       },
     })
   },
@@ -3570,6 +3846,17 @@ export const schedulingRepository = {
             'not_found',
           )
         }
+        const nextOccurrence = await tx.schedulingEvent.findFirst({
+          where: {
+            workspaceId,
+            recurrenceSeriesId: seriesId,
+            occurrenceState: PrismaSchedulingOccurrenceState.GENERATED,
+            startsAtUtc: { gte: new Date() },
+            deletedAt: null,
+          },
+          orderBy: { startsAtUtc: 'asc' },
+          include: eventInclude,
+        })
         await tx.schedulingRecurrenceSeries.update({
           where: { id: seriesId },
           data: {
@@ -3592,6 +3879,32 @@ export const schedulingRepository = {
             updatedByUserId: actorUserId,
           },
         })
+        const canceledOccurrence = nextOccurrence
+          ? await getScopedEvent(tx, workspaceId, nextOccurrence.id)
+          : null
+        const scheduleChange =
+          nextOccurrence && canceledOccurrence
+            ? buildScheduleChangeSnapshot({
+                eventId: canceledOccurrence.id,
+                eventTypeKey: canceledOccurrence.eventTypeKey,
+                title: canceledOccurrence.title,
+                timezone: canceledOccurrence.timezone,
+                recurrenceSeriesId: canceledOccurrence.recurrenceSeriesId,
+                occurrenceOriginalAt: canceledOccurrence.occurrenceOriginalAt,
+                occurrenceState: canceledOccurrence.occurrenceState,
+                scope: 'entireSeries',
+                before: {
+                  startsAtUtc: nextOccurrence.startsAtUtc,
+                  status: statusFromPrisma(nextOccurrence.status),
+                  assignments: nextOccurrence.assignments,
+                },
+                after: {
+                  startsAtUtc: canceledOccurrence.startsAtUtc,
+                  status: 'canceled',
+                  assignments: canceledOccurrence.assignments,
+                },
+              })
+            : null
         await appendOutbox(tx, {
           workspaceId,
           topic: 'scheduling.recurrence_series.canceled',
@@ -3601,6 +3914,7 @@ export const schedulingRepository = {
             actorUserId,
             seriesVersionBefore: existing.version,
             seriesVersionAfter: existing.version + 1,
+            ...(scheduleChange ? { scheduleChange } : {}),
           },
         })
       },

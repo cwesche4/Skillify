@@ -1,47 +1,43 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-
-async function isManager(workspaceId: string, clerkId: string) {
-  const membership = await prisma.workspaceMember.findFirst({
-    where: {
-      workspaceId,
-      user: { clerkId },
-    },
-    select: { role: true },
-  })
-  if (!membership) return false
-  return membership.role === 'OWNER' || membership.role === 'ADMIN'
-}
+import { authorizeAutomationAccess } from '@/lib/automations/authorization'
+import { renameAutomationSchema } from '@/lib/validations/automation'
+import { getAdvancedAutomationMutationError } from '@/lib/automations/policy'
 
 export async function DELETE(
   _req: Request,
   { params }: { params: { workspaceId: string; automationId: string } },
 ) {
-  const { userId } = auth()
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const allowed = await isManager(params.workspaceId, userId)
-  if (!allowed) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const automation = await prisma.automation.findFirst({
-    where: { id: params.automationId, workspaceId: params.workspaceId },
-    select: { id: true },
+  const access = await authorizeAutomationAccess({
+    workspaceId: params.workspaceId,
+    automationId: params.automationId,
+    access: 'manage',
   })
-  if (!automation) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
+  const ownershipError = getAdvancedAutomationMutationError(
+    Boolean(access.automation.managedBySimple),
+  )
+  if (ownershipError) {
+    return NextResponse.json({ error: ownershipError }, { status: 409 })
   }
 
   try {
     await prisma.$transaction(async (tx) => {
       await tx.automationRun.deleteMany({
-        where: { automationId: params.automationId },
+        where: {
+          automationId: params.automationId,
+          workspaceId: params.workspaceId,
+        },
       })
-      await tx.automation.delete({ where: { id: params.automationId } })
+      const deleted = await tx.automation.deleteMany({
+        where: { id: params.automationId, workspaceId: params.workspaceId },
+      })
+      if (deleted.count !== 1) throw new Error('Automation not found')
     })
 
     return NextResponse.json({ ok: true })
@@ -55,35 +51,42 @@ export async function PATCH(
   req: Request,
   { params }: { params: { workspaceId: string; automationId: string } },
 ) {
-  const { userId } = auth()
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const allowed = await isManager(params.workspaceId, userId)
-  if (!allowed) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const body = await req.json().catch(() => ({}))
-  const name = typeof body.name === 'string' ? body.name.trim() : ''
-  if (!name) {
-    return NextResponse.json({ error: 'Name is required' }, { status: 400 })
-  }
-
-  const automation = await prisma.automation.findFirst({
-    where: { id: params.automationId, workspaceId: params.workspaceId },
-    select: { id: true },
+  const access = await authorizeAutomationAccess({
+    workspaceId: params.workspaceId,
+    automationId: params.automationId,
+    access: 'manage',
   })
-  if (!automation) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
+  const ownershipError = getAdvancedAutomationMutationError(
+    Boolean(access.automation.managedBySimple),
+  )
+  if (ownershipError) {
+    return NextResponse.json({ error: ownershipError }, { status: 409 })
+  }
+
+  const parsed = renameAutomationSchema.safeParse(
+    await req.json().catch(() => null),
+  )
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Only a valid name may be updated here' },
+      { status: 400 },
+    )
   }
 
   try {
-    await prisma.automation.update({
-      where: { id: params.automationId },
-      data: { name },
+    const updated = await prisma.automation.updateMany({
+      where: { id: params.automationId, workspaceId: params.workspaceId },
+      data: { name: parsed.data.name },
     })
+    if (updated.count !== 1) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('Rename automation failed', err)

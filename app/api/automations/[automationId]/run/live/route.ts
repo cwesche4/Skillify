@@ -1,31 +1,48 @@
 // app/api/automations/[automationId]/run/live/route.ts
-import { auth } from '@clerk/nextjs/server'
-
+import { authorizeAutomationAccess } from '@/lib/automations/authorization'
 import { executeAutomationLive } from '@/lib/automations/executor'
 import { prisma } from '@/lib/db'
+import { getAdvancedAutomationMutationError } from '@/lib/automations/policy'
 
 interface Params {
   params: { automationId: string }
 }
 
 export async function GET(_req: Request, { params }: Params) {
-  const { userId } = await auth()
-  if (!userId) {
-    return new Response('Unauthorized', { status: 401 })
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'manage',
+  })
+  if (!access.allowed) {
+    return new Response(access.message, { status: access.status })
   }
 
-  const automation = await prisma.automation.findUnique({
-    where: { id: params.automationId },
+  const ownershipError = getAdvancedAutomationMutationError(
+    Boolean(access.automation.managedBySimple),
+  )
+  if (ownershipError) {
+    return new Response(ownershipError, { status: 409 })
+  }
+
+  const automation = await prisma.automation.findFirst({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
     select: {
       id: true,
       workspaceId: true,
       name: true,
+      status: true,
       flow: true,
     },
   })
 
   if (!automation) {
     return new Response('Automation not found', { status: 404 })
+  }
+  if (automation.status !== 'ACTIVE') {
+    return new Response('Automation is not active', { status: 409 })
   }
 
   const flow = (automation.flow as any) ?? { nodes: [], edges: [] }
@@ -80,6 +97,11 @@ export async function GET(_req: Request, { params }: Params) {
 
               // Stream to frontend
               send('node', evt)
+            },
+            {
+              workspaceId: automation.workspaceId,
+              automationId: automation.id,
+              userProfileId: access.userProfileId,
             },
           )
 

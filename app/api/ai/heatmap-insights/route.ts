@@ -3,12 +3,21 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requirePlan } from '@/lib/auth/route-guard'
 import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 
 export async function POST(req: Request) {
   const { workspaceId } = await req.json()
 
   if (!workspaceId) {
     return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 })
+  }
+
+  const access = await authorizeWorkspaceAccess({ workspaceId, access: 'view' })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
   }
 
   const aiGuard = await assertAiActionsEnabled(workspaceId)

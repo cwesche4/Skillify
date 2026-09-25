@@ -1,3 +1,5 @@
+import crypto from 'crypto'
+
 import type {
   IntegrationAdapter,
   IntegrationActionResult,
@@ -169,27 +171,69 @@ function mapWebhookEvent(subType: string): {
   return null
 }
 
-async function verifySignature(req: Request): Promise<boolean> {
-  const signature = req.headers.get('X-HubSpot-Signature')
-  const version = req.headers.get('X-HubSpot-Signature-Version')
-  if (!signature || version !== 'v3') return false
+const HUBSPOT_SIGNATURE_MAX_AGE_MS = 5 * 60_000
 
-  const env = loadIntegrationEnv()
-  const secret = env.HUBSPOT_CLIENT_SECRET
-  const url = new URL(req.url)
-  const body = await req.text()
-  const baseString = secret + req.method + url.pathname + body
-  const calc = crypto
-    .createHmac('sha256', secret)
-    .update(baseString)
-    .digest('hex')
-  const sigBuf = Buffer.from(signature)
-  const calcBuf = Buffer.from(calc)
-  if (sigBuf.length !== calcBuf.length) return false
-  return crypto.timingSafeEqual(sigBuf, calcBuf)
+// HubSpot v3 requires only these encoded URI characters to be decoded before
+// signature calculation. decodeURIComponent would decode more than the
+// provider protocol specifies and can invalidate otherwise legitimate calls.
+const HUBSPOT_URI_DECODINGS: Record<string, string> = {
+  '%3A': ':',
+  '%2F': '/',
+  '%3F': '?',
+  '%40': '@',
+  '%21': '!',
+  '%24': '$',
+  '%27': "'",
+  '%28': '(',
+  '%29': ')',
+  '%2A': '*',
+  '%2C': ',',
+  '%3B': ';',
 }
 
-import crypto from 'crypto'
+function decodeHubSpotRequestUri(uri: string) {
+  return uri.replace(
+    /%3A|%2F|%3F|%40|%21|%24|%27|%28|%29|%2A|%2C|%3B/gi,
+    (encoded) => HUBSPOT_URI_DECODINGS[encoded.toUpperCase()] ?? encoded,
+  )
+}
+
+export function verifyHubSpotV3Signature(input: {
+  method: string
+  url: string
+  body: string
+  signature: string | null
+  timestamp: string | null
+  secret: string | undefined
+  now?: number
+}) {
+  if (!input.signature || !input.timestamp || !input.secret) return false
+
+  const timestamp = Number(input.timestamp)
+  const now = input.now ?? Date.now()
+  if (
+    !Number.isFinite(timestamp) ||
+    Math.abs(now - timestamp) > HUBSPOT_SIGNATURE_MAX_AGE_MS
+  ) {
+    return false
+  }
+
+  const source =
+    input.method +
+    decodeHubSpotRequestUri(input.url) +
+    input.body +
+    input.timestamp
+  const expected = crypto
+    .createHmac('sha256', input.secret)
+    .update(source)
+    .digest('base64')
+  const actualBuffer = Buffer.from(input.signature)
+  const expectedBuffer = Buffer.from(expected)
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(actualBuffer, expectedBuffer)
+  )
+}
 
 export const hubspotAdapter: IntegrationAdapter = {
   provider: 'hubspot',
@@ -288,12 +332,21 @@ export const hubspotAdapter: IntegrationAdapter = {
     }
   },
 
-  async verifyWebhook(req: Request): Promise<IntegrationWebhookPayload | null> {
+  async verifyWebhook(
+    req: Request,
+  ): Promise<IntegrationWebhookPayload | IntegrationWebhookPayload[] | null> {
     try {
-      const valid = await verifySignature(req)
+      const bodyText = await req.text()
+      const valid = verifyHubSpotV3Signature({
+        method: req.method,
+        url: req.url,
+        body: bodyText,
+        signature: req.headers.get('X-HubSpot-Signature-v3'),
+        timestamp: req.headers.get('X-HubSpot-Request-Timestamp'),
+        secret: process.env.HUBSPOT_CLIENT_SECRET,
+      })
       if (!valid) return null
 
-      const bodyText = await req.text()
       const rawLength = Buffer.byteLength(bodyText)
       let parsed: any = null
       try {
@@ -303,25 +356,37 @@ export const hubspotAdapter: IntegrationAdapter = {
       }
 
       const events = Array.isArray(parsed) ? parsed : []
-      const first = events[0]
-      if (!first) return null
+      if (!events.length || events.length > 50) return null
 
-      const mapped = mapWebhookEvent(first.subscriptionType ?? '')
-      if (!mapped) return null
+      const normalized = events.flatMap(
+        (event): IntegrationWebhookPayload[] => {
+          const mapped = mapWebhookEvent(event.subscriptionType ?? '')
+          const externalId = String(event.objectId ?? '')
+          if (!mapped || !externalId) return []
 
-      return {
-        provider: 'hubspot',
-        objectType: mapped.objectType,
-        externalId: String(first.objectId ?? ''),
-        event: mapped.event as any,
-        payload: first,
-        occurredAt: first.occurredAt ?? first.timestamp ?? Date.now(),
-        workspaceId: undefined,
-        integrationId: undefined,
-        portalId: first.portalId ?? first.accountId ?? null,
-        rawLength,
-        eventCount: events.length,
-      }
+          const occurredAt = Number(event.occurredAt ?? event.timestamp)
+          return [
+            {
+              provider: 'hubspot',
+              objectType: mapped.objectType,
+              externalId,
+              event: mapped.event as any,
+              payload: event,
+              occurredAt: Number.isFinite(occurredAt) ? occurredAt : undefined,
+              eventId:
+                event.eventId === undefined ? undefined : String(event.eventId),
+              workspaceId: undefined,
+              integrationId: undefined,
+              portalId: event.portalId ?? event.accountId ?? null,
+              rawLength,
+              eventCount: events.length,
+            },
+          ]
+        },
+      )
+
+      if (!normalized.length) return null
+      return normalized.length === 1 ? normalized[0] : normalized
     } catch (err) {
       return null
     }

@@ -10,11 +10,11 @@ import {
   parseSchedulingWorkerRequest,
   withSchedulingWorkerAuth,
 } from '../_lib/workerRuntime'
+import { withInternalCronAuth } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
-  return withSchedulingWorkerAuth(request, async () => {
+async function runSchedulingWorker(request: NextRequest) {
     const runtime = await parseSchedulingWorkerRequest(request)
     if (runtime.dryRun) {
       return Response.json({
@@ -36,5 +36,12 @@ export async function POST(request: NextRequest) {
       reminders,
       deliveries,
     })
-  })
+}
+
+export async function POST(request: NextRequest) {
+  return withSchedulingWorkerAuth(request, () => runSchedulingWorker(request))
+}
+
+export async function GET(request: NextRequest) {
+  return withInternalCronAuth(request, () => runSchedulingWorker(request))
 }

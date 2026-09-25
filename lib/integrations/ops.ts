@@ -7,12 +7,13 @@ export async function clearCircuitBreaker(
   workspaceId: string,
   actorId?: string,
 ) {
-  const integration = await prisma.integration.findUnique({
-    where: { id: integrationId },
+  const integration = await prisma.integration.findFirst({
+    where: { id: integrationId, workspaceId },
   })
+  if (!integration) throw new Error('Integration not found')
   const meta = (integration?.metadata as any) || {}
-  await prisma.integration.update({
-    where: { id: integrationId },
+  await prisma.integration.updateMany({
+    where: { id: integrationId, workspaceId },
     data: {
       metadata: {
         ...meta,
@@ -39,12 +40,13 @@ export async function softDisableIntegration(
   disabled: boolean,
   actorId?: string,
 ) {
-  const integration = await prisma.integration.findUnique({
-    where: { id: integrationId },
+  const integration = await prisma.integration.findFirst({
+    where: { id: integrationId, workspaceId },
   })
+  if (!integration) throw new Error('Integration not found')
   const meta = (integration?.metadata as any) || {}
-  await prisma.integration.update({
-    where: { id: integrationId },
+  await prisma.integration.updateMany({
+    where: { id: integrationId, workspaceId },
     data: {
       metadata: { ...meta, disabled },
     },
@@ -84,7 +86,7 @@ export async function rerunLastFailedAction(
   }
 
   try {
-    await runAutomation(automationId)
+    await runAutomation(automationId, { expectedWorkspaceId: workspaceId })
     await logAudit({
       workspaceId,
       actorId,

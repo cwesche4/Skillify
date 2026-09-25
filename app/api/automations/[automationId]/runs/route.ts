@@ -1,53 +1,81 @@
-'use server'
-
 import { NextResponse } from 'next/server'
+import { authorizeAutomationAccess } from '@/lib/automations/authorization'
+import { prisma } from '@/lib/db'
 import type { RunEvent } from '@/lib/runtime/types'
 
-// READ-ONLY backend stub for run timelines; no mutations or side effects.
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { automationId: string } },
 ) {
   const { automationId } = params
+  const access = await authorizeAutomationAccess({
+    automationId,
+    access: 'view',
+  })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
 
-  // Example deterministic data; replace with real persistence when available.
-  const runs = [
-    {
-      id: 'run-1',
+  const runRecords = await prisma.automationRun.findMany({
+    where: {
       automationId,
-      startedAt: Date.now() - 60_000,
-      finishedAt: Date.now() - 30_000,
+      workspaceId: access.automation.workspaceId,
     },
-  ]
+    orderBy: { startedAt: 'desc' },
+    take: 50,
+    select: {
+      id: true,
+      automationId: true,
+      startedAt: true,
+      finishedAt: true,
+    },
+  })
+  const runs = runRecords.map((run) => ({
+    id: run.id,
+    automationId: run.automationId,
+    startedAt: run.startedAt.getTime(),
+    finishedAt: run.finishedAt?.getTime(),
+  }))
 
-  const events: RunEvent[] = [
-    {
-      nodeId: 'trigger-1',
-      status: 'SUCCESS',
-      timestamp: runs[0].startedAt,
-      duration: 1200,
-    },
-    {
-      nodeId: 'action-1',
-      status: 'SUCCESS',
-      timestamp: runs[0].startedAt + 3000,
-      duration: 1800,
-    },
-    {
-      nodeId: 'action-2',
-      status: 'FAILED',
-      timestamp: runs[0].startedAt + 7000,
-      duration: 900,
-    },
-  ]
+  const requestedRunId = new URL(req.url).searchParams.get('runId')
+  const selectedRunId = requestedRunId ?? runRecords[0]?.id
+  const selectedRun = selectedRunId
+    ? await prisma.automationRun.findFirst({
+        where: {
+          id: selectedRunId,
+          automationId,
+          workspaceId: access.automation.workspaceId,
+        },
+        include: { events: { orderBy: { createdAt: 'asc' } } },
+      })
+    : null
+
+  if (requestedRunId && !selectedRun) {
+    return NextResponse.json({ error: 'Run not found' }, { status: 404 })
+  }
+
+  const events: RunEvent[] =
+    selectedRun?.events.map((event) => ({
+      nodeId: event.nodeId,
+      status: event.status === 'PENDING' ? 'RUNNING' : event.status,
+      timestamp: event.createdAt.getTime(),
+      duration: 0,
+    })) ?? []
 
   return NextResponse.json({
     runs,
-    timeline: {
-      runId: runs[0].id,
-      startedAt: runs[0].startedAt,
-      finishedAt: runs[0].finishedAt,
-      events,
-    },
+    timeline: selectedRun
+      ? {
+          runId: selectedRun.id,
+          startedAt: selectedRun.startedAt.getTime(),
+          finishedAt: (
+            selectedRun.finishedAt ?? selectedRun.startedAt
+          ).getTime(),
+          events,
+        }
+      : null,
   })
 }

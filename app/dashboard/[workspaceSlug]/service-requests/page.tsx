@@ -1,18 +1,13 @@
+import React from 'react'
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
-import { ServiceRequestsClient } from '@/components/dashboard/service-requests/ServiceRequestsClient'
-import { createMockWorkspaceClients } from '@/lib/clients/mockClients'
-import { createMockServiceRequests } from '@/lib/service-requests/mockServiceRequests'
+import { JobsClient } from '@/components/dashboard/jobs/JobsClient'
 import { prisma } from '@/lib/db'
 import { canAccessServiceRequests } from '@/lib/permissions/workspace'
-import {
-  canManageWorkspaceOwners,
-  createDemoWorkspaceOwners,
-} from '@/lib/workspace-ownership'
-import { getWorkspaceCapabilities } from '@/lib/workspaces/getWorkspaceCapabilities'
-import { getWorkspaceRecordTerminology } from '@/lib/workspaces/workspacePresentation'
+import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
+import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
 type PageProps = {
   params: { workspaceSlug: string }
@@ -33,8 +28,15 @@ export default async function ServiceRequestsPage({ params }: PageProps) {
     include: {
       members: {
         select: {
+          id: true,
           userId: true,
           role: true,
+          user: {
+            select: {
+              fullName: true,
+              email: true,
+            },
+          },
         },
       },
     },
@@ -51,24 +53,26 @@ export default async function ServiceRequestsPage({ params }: PageProps) {
     !canAccessServiceRequests({
       workspaceRole: membership.role,
       globalRole: profile.role,
+      businessModel: workspace.businessModel,
     })
   ) {
     redirect(`/dashboard/${params.workspaceSlug}`)
   }
-  const capabilities = getWorkspaceCapabilities(workspace as any)
-  const terminology = getWorkspaceRecordTerminology(capabilities)
-
-  const requests = createMockServiceRequests(workspace.id)
-  const clients = createMockWorkspaceClients(workspace.id)
-
   return (
     <DashboardShell className="max-w-7xl">
-      <ServiceRequestsClient
-        requests={requests}
-        clients={clients}
-        workspaceOwners={createDemoWorkspaceOwners(workspace.id)}
-        canEditOwners={canManageWorkspaceOwners(membership.role)}
-        terminology={terminology}
+      <JobsClient
+        workspaceId={workspace.id}
+        currentMemberId={membership.id}
+        canManage={canManageOperations(membership.role)}
+        durableCustomersEnabled={
+          workspace.businessModel ===
+          WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS
+        }
+        members={workspace.members.map((member) => ({
+          id: member.id,
+          role: member.role,
+          name: member.user.fullName || member.user.email || 'Workspace member',
+        }))}
       />
     </DashboardShell>
   )

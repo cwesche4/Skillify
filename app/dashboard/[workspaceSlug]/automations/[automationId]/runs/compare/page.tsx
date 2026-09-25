@@ -52,7 +52,7 @@ function diffLogs(logA: string, logB: string) {
 
 export default function RunComparePage() {
   const search = useSearchParams()
-  const params = useParams<{ automationId: string }>()
+  const params = useParams<{ workspaceSlug: string; automationId: string }>()
 
   const runAId = search.get('a')
   const runBId = search.get('b')
@@ -67,15 +67,19 @@ export default function RunComparePage() {
     setLoading(true)
 
     Promise.all([
-      fetch(`/api/runs/${runAId}`).then((r) => r.json()),
-      fetch(`/api/runs/${runBId}`).then((r) => r.json()),
+      fetch(
+        `/api/automations/${params.automationId}/runs/${encodeURIComponent(runAId)}`,
+      ).then((r) => r.json()),
+      fetch(
+        `/api/automations/${params.automationId}/runs/${encodeURIComponent(runBId)}`,
+      ).then((r) => r.json()),
     ])
       .then(([aRes, bRes]) => {
-        setRunA(aRes.data ?? null)
-        setRunB(bRes.data ?? null)
+        setRunA(aRes.run ?? null)
+        setRunB(bRes.run ?? null)
       })
       .finally(() => setLoading(false))
-  }, [runAId, runBId])
+  }, [params.automationId, runAId, runBId])
 
   const diff = useMemo(() => {
     if (!runA || !runB) return []
@@ -91,7 +95,7 @@ export default function RunComparePage() {
     )
   }
 
-  const runsUrl = `/dashboard/automations/${params.automationId}/runs`
+  const runsUrl = `/dashboard/${params.workspaceSlug}/automations/${params.automationId}/runs`
 
   return (
     <div className="page space-y-6">

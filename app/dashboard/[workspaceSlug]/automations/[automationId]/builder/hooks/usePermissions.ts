@@ -38,7 +38,7 @@ function normalizePlan(plan: string | null | undefined): PlanId {
   return 'basic'
 }
 
-export function usePermissions() {
+export function usePermissions(workspaceId: string) {
   const [plan, setPlan] = useState<PlanId>('basic')
   const [loading, setLoading] = useState(true)
 
@@ -47,7 +47,9 @@ export function usePermissions() {
 
     async function loadPlan() {
       try {
-        const res = await fetch('/api/auth/plan')
+        const res = await fetch(
+          `/api/auth/plan?workspaceId=${encodeURIComponent(workspaceId)}`,
+        )
         if (!res.ok) throw new Error('Failed to load plan')
         const json = await res.json()
         if (cancelled) return
@@ -63,7 +65,7 @@ export function usePermissions() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [workspaceId])
 
   const canUseFeature = useCallback(
     (feature: FeatureKey) => {

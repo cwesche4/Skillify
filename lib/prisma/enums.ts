@@ -57,6 +57,55 @@ export const QualifiedLeadBehavior = {
 export type QualifiedLeadBehavior =
   (typeof QualifiedLeadBehavior)[keyof typeof QualifiedLeadBehavior]
 
+export const OperationsPriority = {
+  LOW: 'LOW',
+  NORMAL: 'NORMAL',
+  HIGH: 'HIGH',
+  URGENT: 'URGENT',
+} as const
+
+export type OperationsPriority =
+  (typeof OperationsPriority)[keyof typeof OperationsPriority]
+
+export const JobStatus = {
+  OPEN: 'OPEN',
+  SCHEDULED: 'SCHEDULED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
+  COMPLETED: 'COMPLETED',
+  CANCELED: 'CANCELED',
+} as const
+
+export type JobStatus = (typeof JobStatus)[keyof typeof JobStatus]
+
+export const WorkItemKind = {
+  JOB_STEP: 'JOB_STEP',
+  TODO: 'TODO',
+} as const
+
+export type WorkItemKind = (typeof WorkItemKind)[keyof typeof WorkItemKind]
+
+export const WorkItemStatus = {
+  OPEN: 'OPEN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CANCELED: 'CANCELED',
+} as const
+
+export type WorkItemStatus =
+  (typeof WorkItemStatus)[keyof typeof WorkItemStatus]
+
+export const LeadStage = {
+  NEW: 'NEW',
+  CONTACTED: 'CONTACTED',
+  ESTIMATE_VISIT: 'ESTIMATE_VISIT',
+  FOLLOW_UP: 'FOLLOW_UP',
+  WON: 'WON',
+  LOST: 'LOST',
+} as const
+
+export type LeadStage = (typeof LeadStage)[keyof typeof LeadStage]
+
 export const WorkspaceTeamType = {
   GENERAL: 'GENERAL',
   OFFICE: 'OFFICE',

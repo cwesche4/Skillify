@@ -15,6 +15,7 @@ export type SchedulingOutboxTopic =
   | 'scheduling.recurrence.occurrence_canceled'
   | 'scheduling.recurrence.occurrence_deleted'
   | 'scheduling.recurrence.repaired'
+  | 'scheduling.recurrence.materialized'
   | 'scheduling.availability.changed'
   | 'scheduling.time_off.created'
   | 'scheduling.time_off.updated'

@@ -1,16 +1,16 @@
 // app/api/workspaces/[workspaceId]/activity/route.ts
-import { auth } from '@clerk/nextjs/server'
-
 import { fail, ok } from '@/lib/api/responses'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 import { prisma } from '@/lib/db'
 
 export async function GET(_: Request, { params }: any) {
-  const { userId } = await auth()
-  if (!userId) return fail('Unauthorized', 401)
-
   const { workspaceId } = params
+  const access = await authorizeWorkspaceAccess({
+    workspaceId,
+    access: 'view',
+  })
+  if (!access.allowed) return fail(access.message, access.status)
 
-  // TODO: optionally enforce membership, but for now assume dashboard routes are protected
   const runs = await prisma.automationRun.findMany({
     where: { workspaceId },
     include: {

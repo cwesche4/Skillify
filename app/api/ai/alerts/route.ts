@@ -15,6 +15,9 @@ export async function GET() {
 
   // recent 100 runs across all workspaces the user belongs to
   const runs: RunSample[] = await prisma.automationRun.findMany({
+    where: {
+      workspace: { members: { some: { user: { clerkId: userId } } } },
+    },
     orderBy: { startedAt: 'desc' },
     take: 100,
     select: {

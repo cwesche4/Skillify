@@ -342,6 +342,7 @@ export default function WorkspaceShell({
     const canViewServiceRequests = canAccessServiceRequests({
       workspaceRole: role,
       globalRole,
+      businessModel: capabilitiesForNav.businessModel,
     })
 
     return buildWorkspaceNavigation({

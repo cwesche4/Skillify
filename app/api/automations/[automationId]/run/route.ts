@@ -1,35 +1,34 @@
-import { auth } from '@clerk/nextjs/server'
-
 import { fail, ok } from '@/lib/api/responses'
-import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
+import { authorizeAutomationAccess } from '@/lib/automations/authorization'
 import { runAutomation } from '@/lib/automations/executor'
-import { hasFeature } from '@/lib/subscriptions/hasFeature'
-import { normalizePlan } from '@/lib/subscriptions/normalizePlan'
+import { getAdvancedAutomationMutationError } from '@/lib/automations/policy'
+import { runAutomationSchema } from '@/lib/validations/automation'
 
 export async function POST(
   req: Request,
   { params }: { params: { automationId: string } },
 ) {
-  const { userId } = await auth()
-  if (!userId) return fail('Unauthorized', 401)
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'manage',
+  })
+  if (!access.allowed) return fail(access.message, access.status)
 
-  // Convert lowercase TierKey → capitalized Plan
-  const tier = await getUserPlanByClerkId(userId)
-  const plan = normalizePlan(tier)
+  const ownershipError = getAdvancedAutomationMutationError(
+    Boolean(access.automation.managedBySimple),
+  )
+  if (ownershipError) return fail(ownershipError, 409)
 
-  // Replay = Elite-only feature (FeatureMatrix key MUST match)
-  if (!hasFeature(plan, 'builder.history')) {
-    // 'builder.history' IS the "replay/history" premium feature gate
-    // We allow running automations anyway, but restrict replay.
-  }
-
-  const body = await req.json().catch(() => ({}))
-  const triggerPayload = (body && body.payload) ?? null
+  const parsed = runAutomationSchema.safeParse(
+    await req.json().catch(() => ({})),
+  )
+  if (!parsed.success) return fail('Invalid run request', 400)
 
   try {
     const runId = await runAutomation(params.automationId, {
-      triggerPayload,
-      userProfileId: null,
+      triggerPayload: parsed.data.payload ?? null,
+      userProfileId: access.userProfileId,
+      expectedWorkspaceId: access.automation.workspaceId,
     })
     return ok({ runId })
   } catch (err: any) {

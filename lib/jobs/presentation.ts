@@ -1,0 +1,184 @@
+import {
+  JobStatus,
+  OperationsPriority,
+  WorkItemStatus,
+  type JobStatus as JobStatusValue,
+  type OperationsPriority as OperationsPriorityValue,
+  type WorkItemStatus as WorkItemStatusValue,
+} from '@/lib/prisma/enums'
+import type { JobClientRecord } from '@/lib/jobs/clientTypes'
+
+export type JobSavedView =
+  | 'all'
+  | 'open'
+  | 'urgent'
+  | 'scheduled-today'
+  | 'waiting'
+  | 'completed'
+
+export const jobSavedViews: Array<{
+  id: JobSavedView
+  label: string
+  tone: 'cyan' | 'rose' | 'purple' | 'amber' | 'green' | 'slate'
+}> = [
+  { id: 'all', label: 'All Jobs', tone: 'slate' },
+  { id: 'open', label: 'Open', tone: 'cyan' },
+  { id: 'urgent', label: 'Urgent', tone: 'rose' },
+  { id: 'scheduled-today', label: 'Scheduled Today', tone: 'purple' },
+  { id: 'waiting', label: 'Waiting on Client', tone: 'amber' },
+  { id: 'completed', label: 'Completed', tone: 'green' },
+]
+
+export const jobStatusLabels: Record<JobStatusValue, string> = {
+  OPEN: 'Open',
+  SCHEDULED: 'Scheduled',
+  IN_PROGRESS: 'In Progress',
+  WAITING_ON_CLIENT: 'Waiting on Client',
+  COMPLETED: 'Completed',
+  CANCELED: 'Canceled',
+}
+
+export const workItemStatusLabels: Record<WorkItemStatusValue, string> = {
+  OPEN: 'Open',
+  IN_PROGRESS: 'In Progress',
+  COMPLETED: 'Completed',
+  CANCELED: 'Canceled',
+}
+
+export const priorityLabels: Record<OperationsPriorityValue, string> = {
+  LOW: 'Low',
+  NORMAL: 'Normal',
+  HIGH: 'High',
+  URGENT: 'Urgent',
+}
+
+export function isOpenJob(job: JobClientRecord) {
+  return job.status !== JobStatus.COMPLETED && job.status !== JobStatus.CANCELED
+}
+
+export function isScheduledToday(job: JobClientRecord, now = new Date()) {
+  if (!job.scheduledStartAt) return false
+  const scheduled = new Date(job.scheduledStartAt)
+  return (
+    scheduled.getFullYear() === now.getFullYear() &&
+    scheduled.getMonth() === now.getMonth() &&
+    scheduled.getDate() === now.getDate()
+  )
+}
+
+export function matchesJobSavedView(
+  job: JobClientRecord,
+  view: JobSavedView,
+  now = new Date(),
+) {
+  switch (view) {
+    case 'open':
+      return isOpenJob(job)
+    case 'urgent':
+      return isOpenJob(job) && job.priority === OperationsPriority.URGENT
+    case 'scheduled-today':
+      return isOpenJob(job) && isScheduledToday(job, now)
+    case 'waiting':
+      return job.status === JobStatus.WAITING_ON_CLIENT
+    case 'completed':
+      return job.status === JobStatus.COMPLETED
+    case 'all':
+      return true
+  }
+}
+
+export function filterJobs(
+  jobs: JobClientRecord[],
+  view: JobSavedView,
+  search: string,
+  now = new Date(),
+) {
+  const query = search.trim().toLowerCase()
+  const priorityRank: Record<OperationsPriorityValue, number> = {
+    URGENT: 0,
+    HIGH: 1,
+    NORMAL: 2,
+    LOW: 3,
+  }
+  return jobs
+    .filter((job) => !job.archivedAt)
+    .filter((job) => matchesJobSavedView(job, view, now))
+    .filter((job) =>
+      query
+        ? [job.title, job.customerDisplayName, job.description, job.notes]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+            .includes(query)
+        : true,
+    )
+    .sort((first, second) => {
+      const priority =
+        priorityRank[first.priority] - priorityRank[second.priority]
+      if (priority) return priority
+      return (
+        new Date(second.createdAt).getTime() -
+        new Date(first.createdAt).getTime()
+      )
+    })
+}
+
+export function getAllowedJobStatuses(current: JobStatusValue) {
+  const transitions: Record<JobStatusValue, JobStatusValue[]> = {
+    OPEN: [
+      JobStatus.OPEN,
+      JobStatus.SCHEDULED,
+      JobStatus.IN_PROGRESS,
+      JobStatus.WAITING_ON_CLIENT,
+      JobStatus.COMPLETED,
+      JobStatus.CANCELED,
+    ],
+    SCHEDULED: [
+      JobStatus.SCHEDULED,
+      JobStatus.OPEN,
+      JobStatus.IN_PROGRESS,
+      JobStatus.WAITING_ON_CLIENT,
+      JobStatus.COMPLETED,
+      JobStatus.CANCELED,
+    ],
+    IN_PROGRESS: [
+      JobStatus.IN_PROGRESS,
+      JobStatus.OPEN,
+      JobStatus.SCHEDULED,
+      JobStatus.WAITING_ON_CLIENT,
+      JobStatus.COMPLETED,
+      JobStatus.CANCELED,
+    ],
+    WAITING_ON_CLIENT: [
+      JobStatus.WAITING_ON_CLIENT,
+      JobStatus.OPEN,
+      JobStatus.SCHEDULED,
+      JobStatus.IN_PROGRESS,
+      JobStatus.COMPLETED,
+      JobStatus.CANCELED,
+    ],
+    COMPLETED: [JobStatus.COMPLETED, JobStatus.IN_PROGRESS],
+    CANCELED: [JobStatus.CANCELED, JobStatus.OPEN],
+  }
+  return transitions[current]
+}
+
+export function getAllowedWorkItemStatuses(current: WorkItemStatusValue) {
+  const transitions: Record<WorkItemStatusValue, WorkItemStatusValue[]> = {
+    OPEN: [
+      WorkItemStatus.OPEN,
+      WorkItemStatus.IN_PROGRESS,
+      WorkItemStatus.COMPLETED,
+      WorkItemStatus.CANCELED,
+    ],
+    IN_PROGRESS: [
+      WorkItemStatus.IN_PROGRESS,
+      WorkItemStatus.OPEN,
+      WorkItemStatus.COMPLETED,
+      WorkItemStatus.CANCELED,
+    ],
+    COMPLETED: [WorkItemStatus.COMPLETED, WorkItemStatus.OPEN],
+    CANCELED: [WorkItemStatus.CANCELED, WorkItemStatus.OPEN],
+  }
+  return transitions[current]
+}

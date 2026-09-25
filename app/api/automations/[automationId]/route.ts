@@ -1,17 +1,34 @@
 // app/api/automations/[automationId]/route.ts
-import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { fail, ok } from '@/lib/api/responses'
 import { logAudit } from '@/lib/audit/log'
+import { authorizeAutomationAccess } from '@/lib/automations/authorization'
+import {
+  getAutomationActivationError,
+  getAdvancedAutomationMutationError,
+  getAutomationStatusTransitionError,
+} from '@/lib/automations/policy'
+import { updateAutomationSchema } from '@/lib/validations/automation'
 
 interface Params {
   params: { automationId: string }
 }
 
 export async function GET(_: Request, { params }: Params) {
-  const automation = await prisma.automation.findUnique({
-    where: { id: params.automationId },
-    include: { runs: true },
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'view',
+  })
+  if (!access.allowed) return fail(access.message, access.status)
+
+  const automation = await prisma.automation.findFirst({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
+    include: {
+      runs: { where: { workspaceId: access.automation.workspaceId } },
+    },
   })
 
   if (!automation) return fail('Not found', 404)
@@ -19,80 +36,126 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
-  const { userId: clerkId } = auth()
-  if (!clerkId) return fail('Unauthorized', 401)
-
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkId },
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'manage',
   })
-  if (!profile) return fail('User not found', 404)
+  if (!access.allowed) return fail(access.message, access.status)
+  const ownershipError = getAdvancedAutomationMutationError(
+    Boolean(access.automation.managedBySimple),
+  )
+  if (ownershipError) return fail(ownershipError, 409)
 
-  const body = await req.json().catch(() => ({}))
+  const parsed = updateAutomationSchema.safeParse(
+    await req.json().catch(() => null),
+  )
+  if (!parsed.success) return fail('Unsupported or invalid update fields', 400)
+  if (Object.keys(parsed.data).length === 0) {
+    return fail('No supported update fields provided', 400)
+  }
 
-  const before = await prisma.automation.findUnique({
-    where: { id: params.automationId },
+  const before = await prisma.automation.findFirst({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
     select: {
       id: true,
       name: true,
       workspaceId: true,
       status: true,
+      flow: true,
       updatedAt: true,
     },
   })
   if (!before) return fail('Not found', 404)
 
-  const updated = await prisma.automation.update({
-    where: { id: params.automationId },
-    data: body,
+  if (parsed.data.status) {
+    const transitionError = getAutomationStatusTransitionError(
+      before.status,
+      parsed.data.status,
+    )
+    if (transitionError) return fail(transitionError, 409)
+    const activationError = getAutomationActivationError(
+      parsed.data.status,
+      before.flow,
+    )
+    if (activationError) return fail(activationError, 409)
+  }
+
+  const updated = await prisma.automation.updateMany({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
+    data: parsed.data,
   })
+  if (updated.count !== 1) return fail('Not found', 404)
+
+  const after = await prisma.automation.findFirst({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
+  })
+  if (!after) return fail('Not found', 404)
 
   // 🔒 AUDIT LOG — AUTOMATION UPDATED
   await logAudit({
-    workspaceId: updated.workspaceId,
-    actorId: profile.id,
+    workspaceId: after.workspaceId,
+    actorId: access.userProfileId,
     action: 'AUTOMATION_UPDATED',
     targetType: 'Automation',
-    targetId: updated.id,
+    targetId: after.id,
     meta: {
-      name: updated.name,
-      changedFields: Object.keys(body ?? {}),
+      name: after.name,
+      changedFields: Object.keys(parsed.data),
       // keep this light; no secrets / huge payloads
       before: {
         name: before.name,
         status: before.status,
       },
       after: {
-        name: updated.name,
-        status: updated.status,
+        name: after.name,
+        status: after.status,
       },
     },
   })
 
-  return ok(updated)
+  return ok(after)
 }
 
 export async function DELETE(_: Request, { params }: Params) {
-  const { userId: clerkId } = auth()
-  if (!clerkId) return fail('Unauthorized', 401)
-
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkId },
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'manage',
   })
-  if (!profile) return fail('User not found', 404)
+  if (!access.allowed) return fail(access.message, access.status)
+  const ownershipError = getAdvancedAutomationMutationError(
+    Boolean(access.automation.managedBySimple),
+  )
+  if (ownershipError) return fail(ownershipError, 409)
 
-  const automation = await prisma.automation.findUnique({
-    where: { id: params.automationId },
+  const automation = await prisma.automation.findFirst({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
   })
   if (!automation) return fail('Not found', 404)
 
-  await prisma.automation.delete({
-    where: { id: params.automationId },
+  const deleted = await prisma.automation.deleteMany({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
   })
+  if (deleted.count !== 1) return fail('Not found', 404)
 
   // 🔒 AUDIT LOG — AUTOMATION DELETED
   await logAudit({
     workspaceId: automation.workspaceId,
-    actorId: profile.id,
+    actorId: access.userProfileId,
     action: 'AUTOMATION_DELETED',
     targetType: 'Automation',
     targetId: automation.id,

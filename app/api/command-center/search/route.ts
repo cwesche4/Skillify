@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 
 import type {
   AutomationStatus,
@@ -11,6 +12,11 @@ import { AutomationStatus as A, RunStatus as R } from '@/lib/prisma/enums'
 import type { NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(req.url)
   const query = (searchParams.get('q') ?? '').trim()
 
@@ -23,6 +29,7 @@ export async function GET(req: NextRequest) {
   // Workspaces
   const workspaces = await prisma.workspace.findMany({
     where: {
+      members: { some: { user: { clerkId: userId } } },
       OR: [
         { name: { contains: q, mode: 'insensitive' } },
         { slug: { contains: q, mode: 'insensitive' } },
@@ -36,6 +43,7 @@ export async function GET(req: NextRequest) {
   const automations = await prisma.automation.findMany({
     where: {
       name: { contains: q, mode: 'insensitive' },
+      workspace: { members: { some: { user: { clerkId: userId } } } },
     },
     include: {
       workspace: true,
@@ -51,6 +59,7 @@ export async function GET(req: NextRequest) {
   const runs = await prisma.automationRun.findMany({
     where: {
       log: query ? { contains: q, mode: 'insensitive' } : undefined,
+      workspace: { members: { some: { user: { clerkId: userId } } } },
     },
     include: {
       automation: {
@@ -65,6 +74,7 @@ export async function GET(req: NextRequest) {
 
   const members = await prisma.workspaceMember.findMany({
     where: {
+      workspace: { members: { some: { user: { clerkId: userId } } } },
       OR: [
         {
           workspace: {

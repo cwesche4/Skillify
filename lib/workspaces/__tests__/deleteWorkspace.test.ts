@@ -9,6 +9,7 @@ function delegate() {
 describe('deleteWorkspaceCascade', () => {
   it('deletes AI and dependent workspace records before deleting the workspace', async () => {
     const tx: Record<string, any> = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'ws_1' }]),
       workspaceAIActivity: delegate(),
       workspaceAIProfile: delegate(),
       aiActionAudit: delegate(),
@@ -39,9 +40,15 @@ describe('deleteWorkspaceCascade', () => {
       schedulingRecurrenceSeries: delegate(),
       automationRunEvent: delegate(),
       automationRun: delegate(),
+      simpleAutomationDispatch: delegate(),
+      simpleAutomationInstallation: delegate(),
       automation: delegate(),
       integrationCredential: delegate(),
       integration: delegate(),
+      workItem: delegate(),
+      job: delegate(),
+      customer: delegate(),
+      lead: delegate(),
       workspaceTeamMember: delegate(),
       workspaceTeam: delegate(),
       workspaceLocation: delegate(),
@@ -50,6 +57,11 @@ describe('deleteWorkspaceCascade', () => {
     }
 
     await deleteWorkspaceCascade(tx, 'ws_1')
+
+    expect(tx.$queryRaw).toHaveBeenCalledOnce()
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.schedulingNotification.deleteMany.mock.invocationCallOrder[0],
+    )
 
     expect(tx.workspaceAIActivity.deleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'ws_1' },
@@ -73,9 +85,45 @@ describe('deleteWorkspaceCascade', () => {
     expect(tx.calendarConnection.deleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'ws_1' },
     })
+    expect(tx.simpleAutomationDispatch.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws_1' },
+    })
+    expect(tx.simpleAutomationInstallation.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws_1' },
+    })
+    expect(
+      tx.simpleAutomationInstallation.deleteMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(tx.automation.deleteMany.mock.invocationCallOrder[0])
     expect(tx.workspaceTeamMember.deleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'ws_1' },
     })
+    expect(tx.workItem.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws_1' },
+    })
+    expect(tx.job.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws_1' },
+    })
+    expect(tx.workItem.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.job.deleteMany.mock.invocationCallOrder[0],
+    )
+    expect(tx.lead.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws_1' },
+    })
+    expect(tx.domainOutboxEvent.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.lead.deleteMany.mock.invocationCallOrder[0],
+    )
+    expect(tx.job.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.lead.deleteMany.mock.invocationCallOrder[0],
+    )
+    expect(tx.lead.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.customer.deleteMany.mock.invocationCallOrder[0],
+    )
+    expect(tx.customer.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.workspaceMember.deleteMany.mock.invocationCallOrder[0],
+    )
+    expect(tx.lead.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.workspaceMember.deleteMany.mock.invocationCallOrder[0],
+    )
     expect(tx.workspace.delete).toHaveBeenCalledWith({
       where: { id: 'ws_1' },
     })

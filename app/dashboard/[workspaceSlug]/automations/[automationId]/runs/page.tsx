@@ -18,10 +18,11 @@ interface AutomationRunRecord {
 interface AutomationRecord {
   id: string
   name: string
+  workspaceId: string
 }
 
 interface PageProps {
-  params: { automationId: string }
+  params: { workspaceSlug: string; automationId: string }
 }
 
 export default async function AutomationRunsPage({ params }: PageProps) {
@@ -29,11 +30,18 @@ export default async function AutomationRunsPage({ params }: PageProps) {
   if (!userId) redirect('/sign-in')
 
   // Fetch automation info
-  const automation: AutomationRecord | null =
-    await prisma.automation.findUnique({
-      where: { id: params.automationId },
-      select: { id: true, name: true },
-    })
+  const automation: AutomationRecord | null = await prisma.automation.findFirst(
+    {
+      where: {
+        id: params.automationId,
+        workspace: {
+          slug: params.workspaceSlug,
+          members: { some: { user: { clerkId: userId } } },
+        },
+      },
+      select: { id: true, name: true, workspaceId: true },
+    },
+  )
 
   if (!automation) {
     redirect('/dashboard/automations')
@@ -41,7 +49,10 @@ export default async function AutomationRunsPage({ params }: PageProps) {
 
   // Fetch run history
   const runs: AutomationRunRecord[] = await prisma.automationRun.findMany({
-    where: { automationId: automation.id },
+    where: {
+      automationId: automation.id,
+      workspaceId: automation.workspaceId,
+    },
     orderBy: { startedAt: 'desc' },
     take: 50,
   })

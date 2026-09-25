@@ -1,22 +1,40 @@
-import { auth } from '@clerk/nextjs/server'
-
 import { fail, ok } from '@/lib/api/responses'
+import {
+  authorizeAutomationAccess,
+  buildAutomationRunScope,
+} from '@/lib/automations/authorization'
 import { prisma } from '@/lib/db'
 
 export async function GET(
   req: Request,
   { params }: { params: { automationId: string; runId: string } },
 ) {
-  const { userId } = await auth()
-  if (!userId) return fail('Unauthorized', 401)
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'view',
+  })
+  if (!access.allowed) return fail(access.message, access.status)
+
+  const run = await prisma.automationRun.findFirst({
+    where: buildAutomationRunScope({
+      runId: params.runId,
+      automationId: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    }),
+    select: { id: true },
+  })
+  if (!run) return fail('Run not found', 404)
 
   const url = new URL(req.url)
   const cursor = url.searchParams.get('cursor')
   const cursorDate = cursor ? new Date(cursor) : null
+  if (cursorDate && Number.isNaN(cursorDate.getTime())) {
+    return fail('Invalid cursor', 400)
+  }
 
   const events = await prisma.automationRunEvent.findMany({
     where: {
-      runId: params.runId,
+      runId: run.id,
       createdAt: cursorDate ? { gt: cursorDate } : undefined,
     },
     orderBy: { createdAt: 'asc' },

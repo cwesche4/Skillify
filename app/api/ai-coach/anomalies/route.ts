@@ -4,10 +4,28 @@ import { prisma } from '@/lib/db'
 import { RunStatus } from '@/lib/prisma/enums'
 import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
 import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const workspaceId = url.searchParams.get('workspaceId')
+  if (!workspaceId) {
+    return NextResponse.json(
+      { error: 'workspaceId is required' },
+      { status: 400 },
+    )
+  }
+
+  const access = await authorizeWorkspaceAccess({
+    workspaceId,
+    access: 'view',
+  })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
 
   const aiGuard = await assertAiActionsEnabled(workspaceId)
   if (aiGuard) return aiGuard
@@ -20,11 +38,9 @@ export async function GET(req: Request) {
     }),
   )
 
-  const whereBase = workspaceId ? { workspaceId } : {}
-
   const recentFailed = await prisma.automationRun.findMany({
     where: {
-      ...whereBase,
+      workspaceId,
       status: 'FAILED' satisfies RunStatus,
       startedAt: {
         gte: new Date(Date.now() - 1000 * 60 * 60 * 6),

@@ -13,6 +13,28 @@ import {
 
 import { prisma } from '@/lib/db'
 import {
+  APPOINTMENT_REMINDER_DEFINITION_VERSION,
+  APPOINTMENT_REMINDER_LIFECYCLE_ERRORS,
+  SIMPLE_APPOINTMENT_REMINDER_SOURCE,
+  appointmentReminderEventKey,
+  appointmentReminderMetadataSchema,
+  buildAppointmentReminderScheduleRevision,
+  getAppointmentReminderOffsetMinutes,
+  isAppointmentReminderEventType,
+  isAppointmentReminderOccurrenceStateEligible,
+} from '@/lib/automations/simpleAppointmentReminder'
+import { dispatchSimpleAutomationEvent } from '@/lib/automations/simpleAutomationDispatch'
+import { getSimpleAutomationReadiness } from '@/lib/automations/simpleAutomationReadiness'
+import {
+  SCHEDULE_CHANGE_DEFINITION_VERSION,
+  SCHEDULE_CHANGE_LIFECYCLE_ERRORS,
+  SIMPLE_SCHEDULE_CHANGE_SOURCE,
+  scheduleChangeEventKey,
+  scheduleChangeSnapshotSchema,
+  scheduleChangeWorkMetadataSchema,
+  normalizedScheduleAssignmentKeys,
+} from '@/lib/automations/simpleScheduleChangeNotification'
+import {
   categoryFromSchedulingOutboxTopic,
   buildSchedulingActionUrl,
   deliveryStatusToPrisma,
@@ -65,6 +87,7 @@ type ClaimedOutboxRecord = {
   aggregateId: string
   payload: Prisma.JsonValue
   attempts: number
+  createdAt: Date
 }
 
 type ClaimedReminderRecord = {
@@ -82,6 +105,7 @@ type ClaimedReminderRecord = {
   scheduledForUtc: Date
   eventStartsAtUtc: Date | null
   timezone: string
+  source: string
   attempts: number
   metadata: Prisma.JsonValue
 }
@@ -108,6 +132,20 @@ type ClaimedDeliveryRecord = {
 
 function stableHash(value: unknown) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex')
+}
+
+function scheduleChangeWorkIdempotencyKey({
+  outboxEventId,
+  revision,
+}: {
+  outboxEventId: string
+  revision: string
+}) {
+  return stableHash({
+    source: SIMPLE_SCHEDULE_CHANGE_SOURCE,
+    outboxEventId,
+    revision,
+  })
 }
 
 function asRecord(value: Prisma.JsonValue): Record<string, unknown> {
@@ -263,13 +301,21 @@ async function claimOutboxRecords({
         "updatedAt" = ${nowUtc}
     FROM candidates
     WHERE outbox.id = candidates.id
-    RETURNING outbox.id, outbox."workspaceId", outbox.topic, outbox."aggregateType", outbox."aggregateId", outbox.payload, outbox.attempts
+    RETURNING outbox.id, outbox."workspaceId", outbox.topic, outbox."aggregateType", outbox."aggregateId", outbox.payload, outbox.attempts, outbox."createdAt"
   `
 }
 
-async function markOutboxProcessed(id: string, nowUtc: Date) {
-  await prisma.domainOutboxEvent.update({
-    where: { id },
+async function markOutboxProcessed(
+  id: string,
+  nowUtc: Date,
+  workerId: string,
+) {
+  await prisma.domainOutboxEvent.updateMany({
+    where: {
+      id,
+      status: DomainOutboxStatus.PROCESSING,
+      claimedBy: workerId,
+    },
     data: {
       status: DomainOutboxStatus.PROCESSED,
       processedAt: nowUtc,
@@ -285,16 +331,22 @@ async function markOutboxProcessed(id: string, nowUtc: Date) {
 async function markOutboxFailed({
   record,
   nowUtc,
+  workerId,
   error,
 }: {
   record: ClaimedOutboxRecord
   nowUtc: Date
+  workerId: string
   error: unknown
 }) {
   const attempts = record.attempts
   const dead = attempts >= maxNotificationWorkerAttempts
-  await prisma.domainOutboxEvent.update({
-    where: { id: record.id },
+  await prisma.domainOutboxEvent.updateMany({
+    where: {
+      id: record.id,
+      status: DomainOutboxStatus.PROCESSING,
+      claimedBy: workerId,
+    },
     data: {
       status: dead ? DomainOutboxStatus.DEAD : DomainOutboxStatus.FAILED,
       nextAttemptAt: dead ? null : addMs(nowUtc, getRetryDelayMs(attempts)),
@@ -566,36 +618,185 @@ async function createNotificationForRecipient({
   return { created: true, suppressed: false }
 }
 
-async function processSingleOutboxRecord({
+async function establishScheduleChangeWork({
   record,
+  payload,
   nowUtc,
 }: {
   record: ClaimedOutboxRecord
+  payload: Record<string, unknown>
   nowUtc: Date
 }) {
+  const change = scheduleChangeSnapshotSchema.safeParse(payload.scheduleChange)
+  if (!change.success) return false
+
+  const installation = await prisma.simpleAutomationInstallation.findFirst({
+    where: {
+      workspaceId: record.workspaceId,
+      definitionKey: 'schedule-change-notification',
+      definitionVersion: SCHEDULE_CHANGE_DEFINITION_VERSION,
+      updatedAt: { lt: record.createdAt },
+      removedAt: null,
+      automation: { status: 'ACTIVE', updatedAt: { lt: record.createdAt } },
+    },
+    select: {
+      id: true,
+      definitionVersion: true,
+      config: true,
+      automation: { select: { id: true } },
+    },
+  })
+  if (!installation) return false
+  const readiness = await getSimpleAutomationReadiness({
+    workspaceId: record.workspaceId,
+    definitionKey: 'schedule-change-notification',
+    definitionVersion: installation.definitionVersion,
+    config: installation.config,
+  })
+  if (!readiness.ready) return false
+  const config = asRecord(installation.config)
+  const configuredChanges = Array.isArray(config.changes)
+    ? config.changes.filter((value): value is string => typeof value === 'string')
+    : []
+  if (!change.data.changeTypes.some((type) => configuredChanges.includes(type))) {
+    return false
+  }
+
+  const idempotencyKey = scheduleChangeWorkIdempotencyKey({
+    outboxEventId: record.id,
+    revision: change.data.revision,
+  })
+  await prisma.schedulingReminderSchedule.upsert({
+    where: {
+      workspaceId_idempotencyKey: {
+        workspaceId: record.workspaceId,
+        idempotencyKey,
+      },
+    },
+    create: {
+      workspaceId: record.workspaceId,
+      schedulingEventId: change.data.eventId,
+      recurrenceSeriesId: change.data.recurrenceSeriesId,
+      occurrenceId: change.data.occurrenceOriginalAt
+        ? change.data.eventId
+        : null,
+      occurrenceOriginalAt: change.data.occurrenceOriginalAt
+        ? new Date(change.data.occurrenceOriginalAt)
+        : null,
+      recipientType: 'simpleAutomation',
+      channel: PrismaSchedulingNotificationChannel.IN_APP,
+      offsetMinutes: 0,
+      scheduledForUtc: nowUtc,
+      eventStartsAtUtc: new Date(change.data.after.startsAtUtc),
+      timezone: change.data.timezone,
+      status: PrismaSchedulingReminderStatus.SCHEDULED,
+      idempotencyKey,
+      source: SIMPLE_SCHEDULE_CHANGE_SOURCE,
+      nextAttemptAt: nowUtc,
+      metadata: jsonInput({
+        installationId: installation.id,
+        automationId: installation.automation.id,
+        outboxEventId: record.id,
+        change: change.data,
+      }),
+    },
+    update: {},
+  })
+  return true
+}
+
+async function processSingleOutboxRecord({
+  record,
+  nowUtc,
+  workerId,
+}: {
+  record: ClaimedOutboxRecord
+  nowUtc: Date
+  workerId: string
+}) {
   const payload = asRecord(record.payload)
+  const seriesIds = Array.from(
+    new Set(
+      ['seriesId', 'originalSeriesId', 'newSeriesId']
+        .map((key) => payload[key])
+        .filter((value): value is string => typeof value === 'string'),
+    ),
+  )
+  async function reconcileSeriesRecords() {
+    for (const seriesId of seriesIds) {
+      await reconcileSchedulingReminders({
+        workspaceId: record.workspaceId,
+        seriesId,
+        reason: record.topic,
+        nowUtc,
+        establishedAt: record.createdAt,
+      })
+    }
+  }
+  const parsedScheduleChange = scheduleChangeSnapshotSchema.safeParse(
+    payload.scheduleChange,
+  )
+  if (parsedScheduleChange.success) {
+    // Reconcile ordinary reminder work first. Schedule-change work is excluded
+    // here because every committed change must remain independently eligible;
+    // final locked state validation suppresses stale transitions.
+    await reconcileSchedulingReminders({
+      workspaceId: record.workspaceId,
+      eventId: parsedScheduleChange.data.eventId,
+      seriesId: parsedScheduleChange.data.recurrenceSeriesId,
+      reason: record.topic,
+      nowUtc,
+      establishedAt: record.createdAt,
+    })
+    await reconcileSeriesRecords()
+  }
+  const scheduleChangeEstablished = await establishScheduleChangeWork({
+    record,
+    payload,
+    nowUtc,
+  })
+  if (scheduleChangeEstablished) {
+    await markOutboxProcessed(record.id, nowUtc, workerId)
+    return { processed: 1, skipped: 1, notificationsCreated: 0 }
+  }
   if (payload.notificationEligible === false) {
-    await markOutboxProcessed(record.id, nowUtc)
+    await reconcileSeriesRecords()
+    await markOutboxProcessed(record.id, nowUtc, workerId)
     return { processed: 1, skipped: 1, notificationsCreated: 0 }
   }
   const category = categoryFromSchedulingOutboxTopic(record.topic, payload)
   if (!category) {
-    await markOutboxProcessed(record.id, nowUtc)
+    await reconcileSeriesRecords()
+    await markOutboxProcessed(record.id, nowUtc, workerId)
     return { processed: 1, skipped: 1, notificationsCreated: 0 }
   }
   const eventId =
-    typeof payload.eventId === 'string' ? payload.eventId : record.aggregateId
+    typeof payload.eventId === 'string'
+      ? payload.eventId
+      : typeof payload.occurrenceId === 'string'
+        ? payload.occurrenceId
+        : typeof payload.masterEventId === 'string'
+          ? payload.masterEventId
+          : record.aggregateId
   const event = await loadEventForNotification({
     workspaceId: record.workspaceId,
     eventId,
   })
   if (!event || event.deletedAt) {
-    await markOutboxProcessed(record.id, nowUtc)
+    await reconcileSchedulingReminders({
+      workspaceId: record.workspaceId,
+      eventId,
+      reason: record.topic,
+      nowUtc,
+      establishedAt: record.createdAt,
+    })
+    await reconcileSeriesRecords()
+    await markOutboxProcessed(record.id, nowUtc, workerId)
     return { processed: 1, skipped: 1, notificationsCreated: 0 }
   }
   const context = await getWorkspaceNotificationContext(record.workspaceId)
   if (!context) {
-    await markOutboxProcessed(record.id, nowUtc)
+    await markOutboxProcessed(record.id, nowUtc, workerId)
     return { processed: 1, skipped: 1, notificationsCreated: 0 }
   }
   const assignedMemberIds = event.assignments
@@ -654,8 +855,21 @@ async function processSingleOutboxRecord({
     seriesId: event.recurrenceSeriesId ?? event.masterSeries?.id,
     reason: record.topic,
     nowUtc,
+    establishedAt: record.createdAt,
   })
-  await markOutboxProcessed(record.id, nowUtc)
+  for (const seriesId of seriesIds) {
+    if (seriesId === event.recurrenceSeriesId || seriesId === event.masterSeries?.id) {
+      continue
+    }
+    await reconcileSchedulingReminders({
+      workspaceId: record.workspaceId,
+      seriesId,
+      reason: record.topic,
+      nowUtc,
+      establishedAt: record.createdAt,
+    })
+  }
+  await markOutboxProcessed(record.id, nowUtc, workerId)
   return {
     processed: 1,
     skipped: 0,
@@ -684,14 +898,14 @@ export async function processSchedulingNotificationOutbox({
   }
   for (const record of records) {
     try {
-      const item = await processSingleOutboxRecord({ record, nowUtc })
+      const item = await processSingleOutboxRecord({ record, nowUtc, workerId })
       result.processed += item.processed
       result.skipped += item.skipped
       result.notificationsCreated += item.notificationsCreated
       result.suppressed += item.suppressed ?? 0
     } catch (error) {
       result.failed += 1
-      await markOutboxFailed({ record, nowUtc, error })
+      await markOutboxFailed({ record, nowUtc, workerId, error })
     }
   }
   console.info('[scheduling notifications outbox]', result)
@@ -713,21 +927,62 @@ function getReminderPolicyForEvent({
   return workspacePreferences.defaultReminders ?? []
 }
 
+async function getActiveAppointmentReminderInstallation(
+  workspaceId: string,
+  establishedAt: Date,
+) {
+  const installation = await prisma.simpleAutomationInstallation.findFirst({
+    where: {
+      workspaceId,
+      definitionKey: 'appointment-reminder',
+      definitionVersion: APPOINTMENT_REMINDER_DEFINITION_VERSION,
+      // A Scheduling outbox record that predates activation must never become
+      // eligible on retry. Use a strict boundary so equal-millisecond writes
+      // fail closed instead of guessing causal order from timestamp equality.
+      updatedAt: { lt: establishedAt },
+      removedAt: null,
+      automation: { status: 'ACTIVE', updatedAt: { lt: establishedAt } },
+    },
+    select: {
+      id: true,
+      definitionVersion: true,
+      config: true,
+      automation: { select: { id: true } },
+    },
+  })
+  if (!installation) return null
+  const offsetMinutes = getAppointmentReminderOffsetMinutes(
+    installation.config,
+  )
+  if (!offsetMinutes) return null
+  const readiness = await getSimpleAutomationReadiness({
+    workspaceId,
+    definitionKey: 'appointment-reminder',
+    definitionVersion: installation.definitionVersion,
+    config: installation.config,
+  })
+  return readiness.ready ? { ...installation, offsetMinutes } : null
+}
+
 export async function reconcileSchedulingReminders({
   workspaceId,
   eventId,
   seriesId,
   reason,
   nowUtc = new Date(),
+  establishedAt = nowUtc,
 }: {
   workspaceId: string
   eventId?: string
   seriesId?: string | null
   reason: string
   nowUtc?: Date
+  establishedAt?: Date
 }) {
   const context = await getWorkspaceNotificationContext(workspaceId)
   if (!context) return { created: 0, canceled: 0, skipped: 0 }
+  const appointmentInstallation =
+    await getActiveAppointmentReminderInstallation(workspaceId, establishedAt)
   const events = await prisma.schedulingEvent.findMany({
     where: {
       workspaceId,
@@ -754,6 +1009,7 @@ export async function reconcileSchedulingReminders({
     workspaceId,
     schedulingEventId: eventId ? eventId : undefined,
     recurrenceSeriesId: !eventId && seriesId ? seriesId : undefined,
+    source: { not: SIMPLE_SCHEDULE_CHANGE_SOURCE },
     status: {
       in: [
         PrismaSchedulingReminderStatus.SCHEDULED,
@@ -783,7 +1039,87 @@ export async function reconcileSchedulingReminders({
     const assignedTeamIds = event.assignments
       .map((assignment) => assignment.teamId)
       .filter(Boolean) as string[]
+    const appointmentReminderEligible =
+      appointmentInstallation &&
+      isAppointmentReminderEventType(event.eventTypeKey) &&
+      (event.status === PrismaSchedulingEventStatus.SCHEDULED ||
+        event.status === PrismaSchedulingEventStatus.CONFIRMED)
+    if (appointmentReminderEligible) {
+      const scheduledForUtc = addMs(
+        event.startsAtUtc,
+        -appointmentInstallation.offsetMinutes * 60_000,
+      )
+      // V2 never catches up a reminder whose promised lead time has passed.
+      if (scheduledForUtc <= nowUtc) {
+        skipped += 1
+      } else {
+        const scheduleRevision = buildAppointmentReminderScheduleRevision({
+          installationId: appointmentInstallation.id,
+          eventId: event.id,
+          eventStartsAtUtc: event.startsAtUtc,
+          occurrenceOriginalAt: event.occurrenceOriginalAt,
+          offsetMinutes: appointmentInstallation.offsetMinutes,
+        })
+        const idempotencyKey = stableHash({
+          source: SIMPLE_APPOINTMENT_REMINDER_SOURCE,
+          scheduleRevision,
+        })
+        await prisma.schedulingReminderSchedule.upsert({
+          where: {
+            workspaceId_idempotencyKey: { workspaceId, idempotencyKey },
+          },
+          create: {
+            workspaceId,
+            schedulingEventId: event.id,
+            recurrenceSeriesId: event.recurrenceSeriesId,
+            occurrenceId: event.occurrenceOriginalAt ? event.id : null,
+            occurrenceOriginalAt: event.occurrenceOriginalAt,
+            recipientType: 'simpleAutomation',
+            channel: PrismaSchedulingNotificationChannel.IN_APP,
+            offsetMinutes: appointmentInstallation.offsetMinutes,
+            scheduledForUtc,
+            eventStartsAtUtc: event.startsAtUtc,
+            timezone: event.timezone,
+            status: PrismaSchedulingReminderStatus.SCHEDULED,
+            idempotencyKey,
+            source: SIMPLE_APPOINTMENT_REMINDER_SOURCE,
+            nextAttemptAt: scheduledForUtc,
+            metadata: jsonInput({
+              installationId: appointmentInstallation.id,
+              automationId: appointmentInstallation.automation.id,
+              definitionVersion: APPOINTMENT_REMINDER_DEFINITION_VERSION,
+              offsetMinutes: appointmentInstallation.offsetMinutes,
+              eventStartsAtUtc: event.startsAtUtc.toISOString(),
+              occurrenceOriginalAt:
+                event.occurrenceOriginalAt?.toISOString() ?? null,
+              scheduleRevision,
+            }),
+          },
+          update: {
+            status: PrismaSchedulingReminderStatus.SCHEDULED,
+            scheduledForUtc,
+            eventStartsAtUtc: event.startsAtUtc,
+            canceledAt: null,
+            skippedAt: null,
+            failedAt: null,
+            nextAttemptAt: scheduledForUtc,
+          },
+        })
+        created += 1
+      }
+    }
     for (const reminder of reminders) {
+      // The Simple recipe owns this exact internal reminder when active. Other
+      // offsets and outbound Scheduling reminders remain distinct preferences.
+      if (
+        appointmentReminderEligible &&
+        reminder.channel === 'inApp' &&
+        reminder.offsetMinutes === appointmentInstallation.offsetMinutes &&
+        (!reminder.recipientGroup ||
+          reminder.recipientGroup === 'assignedMembers')
+      ) {
+        continue
+      }
       const recipients = resolveSchedulingNotificationRecipients({
         assignedMemberIds,
         assignedTeamIds,
@@ -876,6 +1212,227 @@ export async function reconcileSchedulingReminders({
   return { created, canceled: canceled.count, skipped }
 }
 
+async function processSimpleAppointmentReminder(
+  reminder: ClaimedReminderRecord,
+  event: NonNullable<Awaited<ReturnType<typeof loadEventForNotification>>>,
+  nowUtc: Date,
+  workerId: string,
+) {
+  const metadata = appointmentReminderMetadataSchema.safeParse(
+    reminder.metadata,
+  )
+  if (
+    !metadata.success ||
+    !reminder.schedulingEventId ||
+    reminder.offsetMinutes !== metadata.data.offsetMinutes ||
+    reminder.eventStartsAtUtc?.getTime() !==
+      new Date(metadata.data.eventStartsAtUtc).getTime() ||
+    event.workspaceId !== reminder.workspaceId ||
+    event.id !== reminder.schedulingEventId ||
+    event.startsAtUtc.getTime() !==
+      new Date(metadata.data.eventStartsAtUtc).getTime() ||
+    (event.occurrenceOriginalAt?.toISOString() ?? null) !==
+      metadata.data.occurrenceOriginalAt ||
+    !isAppointmentReminderEventType(event.eventTypeKey) ||
+    !isAppointmentReminderOccurrenceStateEligible(event.occurrenceState) ||
+    (event.status !== PrismaSchedulingEventStatus.SCHEDULED &&
+      event.status !== PrismaSchedulingEventStatus.CONFIRMED) ||
+    event.startsAtUtc <= nowUtc
+  ) {
+    return 'skipped' as const
+  }
+
+  const installation = await prisma.simpleAutomationInstallation.findFirst({
+    where: {
+      id: metadata.data.installationId,
+      workspaceId: reminder.workspaceId,
+      definitionKey: 'appointment-reminder',
+      definitionVersion: APPOINTMENT_REMINDER_DEFINITION_VERSION,
+      removedAt: null,
+      automation: {
+        id: metadata.data.automationId,
+        workspaceId: reminder.workspaceId,
+        status: 'ACTIVE',
+      },
+    },
+    select: {
+      id: true,
+      definitionVersion: true,
+      config: true,
+      automation: { select: { id: true } },
+    },
+  })
+  if (
+    !installation ||
+    getAppointmentReminderOffsetMinutes(installation.config) !==
+      metadata.data.offsetMinutes
+  ) {
+    return 'skipped' as const
+  }
+  const readiness = await getSimpleAutomationReadiness({
+    workspaceId: reminder.workspaceId,
+    definitionKey: 'appointment-reminder',
+    definitionVersion: installation.definitionVersion,
+    config: installation.config,
+  })
+  if (!readiness.ready) return 'skipped' as const
+
+  const eventKey = appointmentReminderEventKey(reminder.id)
+  try {
+    const dispatched = await dispatchSimpleAutomationEvent({
+      installationId: installation.id,
+      automationId: installation.automation.id,
+      workspaceId: reminder.workspaceId,
+      eventKey,
+      triggerPayload: {
+        source: 'skillify-native',
+        provider: 'Skillify',
+        objectType: 'scheduling-event',
+        event: 'scheduling.reminder.due',
+        externalId: event.id,
+        occurredAt: nowUtc.toISOString(),
+        simpleEventKey: eventKey,
+        reminderScheduleId: reminder.id,
+        reminderClaimedBy: workerId,
+        scheduleRevision: metadata.data.scheduleRevision,
+        eventStartsAtUtc: metadata.data.eventStartsAtUtc,
+        offsetMinutes: metadata.data.offsetMinutes,
+        raw: metadata.data,
+      },
+    })
+    if (dispatched.dispatched) return 'sent' as const
+    const prior = await prisma.simpleAutomationDispatch.findUnique({
+      where: {
+        installationId_eventKey: {
+          installationId: installation.id,
+          eventKey,
+        },
+      },
+      select: { status: true },
+    })
+    if (prior?.status === 'SUCCEEDED') return 'sent' as const
+    if (prior?.status === 'CANCELLED') return 'skipped' as const
+    throw new Error('Appointment reminder dispatch is still in progress.')
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      APPOINTMENT_REMINDER_LIFECYCLE_ERRORS.has(error.message)
+    ) {
+      return 'skipped' as const
+    }
+    throw error
+  }
+}
+
+async function processSimpleScheduleChange(
+  reminder: ClaimedReminderRecord,
+  event: Awaited<ReturnType<typeof loadEventForNotification>>,
+  nowUtc: Date,
+  workerId: string,
+) {
+  const metadata = scheduleChangeWorkMetadataSchema.safeParse(reminder.metadata)
+  if (!metadata.success || !event || event.deletedAt) return 'skipped' as const
+  const change = metadata.data.change
+  const currentAssignments = normalizedScheduleAssignmentKeys(event.assignments)
+  if (
+    reminder.workspaceId !== event.workspaceId ||
+    reminder.schedulingEventId !== event.id ||
+    change.eventId !== event.id ||
+    change.after.startsAtUtc !== event.startsAtUtc.toISOString() ||
+    change.after.status !== String(event.status).toLowerCase() ||
+    change.after.assignmentKeys.length !== currentAssignments.length ||
+    change.after.assignmentKeys.some(
+      (key, index) => key !== currentAssignments[index],
+    ) ||
+    (event.occurrenceOriginalAt?.toISOString() ?? null) !==
+      change.occurrenceOriginalAt ||
+    ['MASTER', 'SUPERSEDED', 'DELETED'].includes(event.occurrenceState ?? '')
+  ) {
+    return 'skipped' as const
+  }
+
+  const installation = await prisma.simpleAutomationInstallation.findFirst({
+    where: {
+      id: metadata.data.installationId,
+      workspaceId: reminder.workspaceId,
+      definitionKey: 'schedule-change-notification',
+      definitionVersion: SCHEDULE_CHANGE_DEFINITION_VERSION,
+      removedAt: null,
+      automation: {
+        id: metadata.data.automationId,
+        workspaceId: reminder.workspaceId,
+        status: 'ACTIVE',
+      },
+    },
+    select: {
+      id: true,
+      definitionVersion: true,
+      config: true,
+      automation: { select: { id: true } },
+    },
+  })
+  if (!installation) return 'skipped' as const
+  const readiness = await getSimpleAutomationReadiness({
+    workspaceId: reminder.workspaceId,
+    definitionKey: 'schedule-change-notification',
+    definitionVersion: installation.definitionVersion,
+    config: installation.config,
+  })
+  if (!readiness.ready) return 'skipped' as const
+  const config = asRecord(installation.config)
+  const selectedChanges = Array.isArray(config.changes)
+    ? config.changes.filter((value): value is string => typeof value === 'string')
+    : []
+  if (!change.changeTypes.some((type) => selectedChanges.includes(type))) {
+    return 'skipped' as const
+  }
+
+  const eventKey = scheduleChangeEventKey(reminder.id)
+  try {
+    const dispatched = await dispatchSimpleAutomationEvent({
+      installationId: installation.id,
+      automationId: installation.automation.id,
+      workspaceId: reminder.workspaceId,
+      eventKey,
+      triggerPayload: {
+        source: 'skillify-native',
+        provider: 'Skillify',
+        objectType: 'scheduling-event',
+        event: 'scheduling.schedule.changed',
+        externalId: event.id,
+        occurredAt: nowUtc.toISOString(),
+        simpleEventKey: eventKey,
+        reminderScheduleId: reminder.id,
+        reminderClaimedBy: workerId,
+        outboxEventId: metadata.data.outboxEventId,
+        changeRevision: change.revision,
+        raw: metadata.data,
+      },
+    })
+    if (dispatched.dispatched) return 'sent' as const
+    const prior = await prisma.simpleAutomationDispatch.findUnique({
+      where: {
+        installationId_eventKey: {
+          installationId: installation.id,
+          eventKey,
+        },
+      },
+      select: { status: true },
+    })
+    if (prior?.status === 'SUCCEEDED') return 'sent' as const
+    if (prior?.status === 'CANCELLED') return 'skipped' as const
+    throw new Error('Schedule change dispatch is still in progress.')
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      SCHEDULE_CHANGE_LIFECYCLE_ERRORS.has(error.message)
+    ) {
+      return 'skipped' as const
+    }
+    throw error
+  }
+}
+
 async function claimReminderRecords({
   nowUtc,
   batchSize,
@@ -932,6 +1489,40 @@ export async function processDueSchedulingReminders({
             eventId: reminder.schedulingEventId,
           })
         : null
+      if (reminder.source === SIMPLE_SCHEDULE_CHANGE_SOURCE) {
+        const outcome = await processSimpleScheduleChange(
+          reminder,
+          event,
+          nowUtc,
+          workerId,
+        )
+        await prisma.schedulingReminderSchedule.updateMany({
+          where: {
+            id: reminder.id,
+            status: PrismaSchedulingReminderStatus.PROCESSING,
+            claimedBy: workerId,
+            source: SIMPLE_SCHEDULE_CHANGE_SOURCE,
+          },
+          data: {
+            status:
+              outcome === 'sent'
+                ? PrismaSchedulingReminderStatus.SENT
+                : PrismaSchedulingReminderStatus.SKIPPED,
+            sentAt: outcome === 'sent' ? nowUtc : null,
+            skippedAt: outcome === 'skipped' ? nowUtc : null,
+            claimedAt: null,
+            claimedBy: null,
+            leaseExpiresAt: null,
+            lastErrorCode:
+              outcome === 'skipped'
+                ? 'AUTOMATION_SCHEDULE_CHANGE_NO_LONGER_CURRENT'
+                : null,
+            lastErrorMessage: null,
+          },
+        })
+        result[outcome] += 1
+        continue
+      }
       if (
         !event ||
         event.deletedAt ||
@@ -941,8 +1532,12 @@ export async function processDueSchedulingReminders({
         (event.endsAtUtc <= nowUtc &&
           reminder.scheduledForUtc < addMs(nowUtc, -reminderPastDueGraceMs))
       ) {
-        await prisma.schedulingReminderSchedule.update({
-          where: { id: reminder.id },
+        await prisma.schedulingReminderSchedule.updateMany({
+          where: {
+            id: reminder.id,
+            status: PrismaSchedulingReminderStatus.PROCESSING,
+            claimedBy: workerId,
+          },
           data: {
             status: PrismaSchedulingReminderStatus.SKIPPED,
             skippedAt: nowUtc,
@@ -953,6 +1548,40 @@ export async function processDueSchedulingReminders({
           },
         })
         result.skipped += 1
+        continue
+      }
+      if (reminder.source === SIMPLE_APPOINTMENT_REMINDER_SOURCE) {
+        const outcome = await processSimpleAppointmentReminder(
+          reminder,
+          event,
+          nowUtc,
+          workerId,
+        )
+        await prisma.schedulingReminderSchedule.updateMany({
+          where: {
+            id: reminder.id,
+            status: PrismaSchedulingReminderStatus.PROCESSING,
+            claimedBy: workerId,
+            source: SIMPLE_APPOINTMENT_REMINDER_SOURCE,
+          },
+          data: {
+            status:
+              outcome === 'sent'
+                ? PrismaSchedulingReminderStatus.SENT
+                : PrismaSchedulingReminderStatus.SKIPPED,
+            sentAt: outcome === 'sent' ? nowUtc : null,
+            skippedAt: outcome === 'skipped' ? nowUtc : null,
+            claimedAt: null,
+            claimedBy: null,
+            leaseExpiresAt: null,
+            lastErrorCode:
+              outcome === 'skipped'
+                ? 'AUTOMATION_REMINDER_NO_LONGER_CURRENT'
+                : null,
+            lastErrorMessage: null,
+          },
+        })
+        result[outcome] += 1
         continue
       }
       const outboxId = `reminder:${reminder.id}`
@@ -991,8 +1620,12 @@ export async function processDueSchedulingReminders({
         workspacePreferences: context.workspacePreferences,
         memberPreferences,
       })
-      await prisma.schedulingReminderSchedule.update({
-        where: { id: reminder.id },
+      await prisma.schedulingReminderSchedule.updateMany({
+        where: {
+          id: reminder.id,
+          status: PrismaSchedulingReminderStatus.PROCESSING,
+          claimedBy: workerId,
+        },
         data: {
           status: PrismaSchedulingReminderStatus.SENT,
           sentAt: nowUtc,
@@ -1004,8 +1637,12 @@ export async function processDueSchedulingReminders({
       result.sent += 1
     } catch (error) {
       const permanentlyFailed = reminder.attempts >= maxDeliveryAttempts
-      await prisma.schedulingReminderSchedule.update({
-        where: { id: reminder.id },
+      await prisma.schedulingReminderSchedule.updateMany({
+        where: {
+          id: reminder.id,
+          status: PrismaSchedulingReminderStatus.PROCESSING,
+          claimedBy: workerId,
+        },
         data: {
           status: permanentlyFailed
             ? PrismaSchedulingReminderStatus.PERMANENTLY_FAILED
@@ -1610,6 +2247,7 @@ export async function recoverSchedulingNotificationWorkerLeases({
   const [outbox, reminders, deliveries] = await prisma.$transaction([
     prisma.domainOutboxEvent.updateMany({
       where: {
+        topic: { startsWith: 'scheduling.' },
         status: DomainOutboxStatus.PROCESSING,
         leaseExpiresAt: { lte: nowUtc },
       },
@@ -1663,10 +2301,17 @@ export async function getSchedulingNotificationWorkerDiagnostics({
   const [
     outboxPending,
     outboxProcessing,
-    outboxFailed,
+    outboxRetryableFailed,
+    outboxDead,
+    oldestEligibleOutbox,
     deliveriesPending,
     deliveriesFailed,
-    reminderBacklog,
+    reminderPending,
+    reminderProcessing,
+    reminderRetryableFailed,
+    reminderPermanentlyFailed,
+    reminderOverdue,
+    oldestOverdueReminder,
     expiredOutboxLeases,
     expiredReminderLeases,
     expiredDeliveryLeases,
@@ -1689,8 +2334,32 @@ export async function getSchedulingNotificationWorkerDiagnostics({
     prisma.domainOutboxEvent.count({
       where: {
         topic: { startsWith: 'scheduling.' },
-        status: { in: [DomainOutboxStatus.FAILED, DomainOutboxStatus.DEAD] },
+        status: DomainOutboxStatus.FAILED,
       },
+    }),
+    prisma.domainOutboxEvent.count({
+      where: {
+        topic: { startsWith: 'scheduling.' },
+        status: DomainOutboxStatus.DEAD,
+      },
+    }),
+    prisma.domainOutboxEvent.findFirst({
+      where: {
+        topic: { startsWith: 'scheduling.' },
+        availableAt: { lte: nowUtc },
+        OR: [
+          { status: DomainOutboxStatus.PENDING },
+          {
+            status: DomainOutboxStatus.FAILED,
+            OR: [
+              { nextAttemptAt: null },
+              { nextAttemptAt: { lte: nowUtc } },
+            ],
+          },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true },
     }),
     prisma.schedulingNotificationDelivery.count({
       where: {
@@ -1715,8 +2384,44 @@ export async function getSchedulingNotificationWorkerDiagnostics({
     prisma.schedulingReminderSchedule.count({
       where: {
         status: PrismaSchedulingReminderStatus.SCHEDULED,
-        scheduledForUtc: { lte: nowUtc },
       },
+    }),
+    prisma.schedulingReminderSchedule.count({
+      where: {
+        status: PrismaSchedulingReminderStatus.PROCESSING,
+      },
+    }),
+    prisma.schedulingReminderSchedule.count({
+      where: {
+        status: PrismaSchedulingReminderStatus.FAILED,
+      },
+    }),
+    prisma.schedulingReminderSchedule.count({
+      where: {
+        status: PrismaSchedulingReminderStatus.PERMANENTLY_FAILED,
+      },
+    }),
+    prisma.schedulingReminderSchedule.count({
+      where: {
+        status: PrismaSchedulingReminderStatus.SCHEDULED,
+        scheduledForUtc: { lte: nowUtc },
+        OR: [
+          { nextAttemptAt: null },
+          { nextAttemptAt: { lte: nowUtc } },
+        ],
+      },
+    }),
+    prisma.schedulingReminderSchedule.findFirst({
+      where: {
+        status: PrismaSchedulingReminderStatus.SCHEDULED,
+        scheduledForUtc: { lte: nowUtc },
+        OR: [
+          { nextAttemptAt: null },
+          { nextAttemptAt: { lte: nowUtc } },
+        ],
+      },
+      orderBy: { scheduledForUtc: 'asc' },
+      select: { scheduledForUtc: true },
     }),
     prisma.domainOutboxEvent.count({
       where: {
@@ -1765,6 +2470,15 @@ export async function getSchedulingNotificationWorkerDiagnostics({
   ])
   const recoveredLeases =
     expiredOutboxLeases + expiredReminderLeases + expiredDeliveryLeases
+  const oldestEligiblePendingAgeMs = oldestEligibleOutbox
+    ? Math.max(0, nowUtc.getTime() - oldestEligibleOutbox.createdAt.getTime())
+    : null
+  const oldestOverdueAgeMs = oldestOverdueReminder
+    ? Math.max(
+        0,
+        nowUtc.getTime() - oldestOverdueReminder.scheduledForUtc.getTime(),
+      )
+    : null
   const lastSuccessfulExecution =
     [
       lastOutboxSuccess?.processedAt,
@@ -1777,11 +2491,20 @@ export async function getSchedulingNotificationWorkerDiagnostics({
   return {
     outboxPending,
     outboxProcessing,
-    outboxFailed,
+    outboxFailed: outboxRetryableFailed + outboxDead,
+    outboxRetryableFailed,
+    outboxDead,
+    oldestEligiblePendingAgeMs,
     notificationsPending: deliveriesPending,
     deliveriesPending,
     deliveriesFailed,
-    reminderBacklog,
+    reminderBacklog: reminderOverdue,
+    reminderPending,
+    reminderProcessing,
+    reminderRetryableFailed,
+    reminderPermanentlyFailed,
+    reminderOverdue,
+    oldestOverdueAgeMs,
     expiredLeases: {
       outbox: expiredOutboxLeases,
       reminders: expiredReminderLeases,

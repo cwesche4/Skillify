@@ -16,20 +16,29 @@ export async function POST(
     if (!adapter)
       return NextResponse.json({ error: 'Unknown provider' }, { status: 404 })
 
-    const payload = await adapter.verifyWebhook(req)
-    if (!payload) {
+    const verified = await adapter.verifyWebhook(req)
+    if (!verified) {
       return NextResponse.json({ error: 'Invalid webhook' }, { status: 400 })
     }
 
-    const result = await processWebhookPayload(provider, payload)
-    if (!result.ok) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: result.status },
-      )
+    const payloads = Array.isArray(verified) ? verified : [verified]
+    let triggered = 0
+    let accepted = 0
+    for (const payload of payloads) {
+      const result = await processWebhookPayload(provider, payload, {
+        durableAcceptance: provider === 'hubspot',
+      })
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: result.error },
+          { status: result.status },
+        )
+      }
+      triggered += result.triggered
+      accepted += result.accepted ?? 0
     }
 
-    return NextResponse.json({ ok: true, triggered: result.triggered })
+    return NextResponse.json({ ok: true, triggered, accepted })
   } catch (err) {
     console.error('CRM webhook handler error', err)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

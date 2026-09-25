@@ -8,11 +8,11 @@ import {
   parseSchedulingWorkerRequest,
   withSchedulingWorkerAuth,
 } from '../../_lib/workerRuntime'
+import { withInternalCronAuth } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
-  return withSchedulingWorkerAuth(request, async () => {
+async function runRecovery(request: NextRequest) {
     const runtime = await parseSchedulingWorkerRequest(request)
     const before = await getSchedulingNotificationWorkerDiagnostics({
       nowUtc: runtime.nowUtc,
@@ -39,5 +39,12 @@ export async function POST(request: NextRequest) {
         nowUtc: runtime.nowUtc,
       }),
     })
-  })
+}
+
+export async function POST(request: NextRequest) {
+  return withSchedulingWorkerAuth(request, () => runRecovery(request))
+}
+
+export async function GET(request: NextRequest) {
+  return withInternalCronAuth(request, () => runRecovery(request))
 }

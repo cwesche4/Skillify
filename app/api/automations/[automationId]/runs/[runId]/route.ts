@@ -1,6 +1,8 @@
 // app/api/automations/[automationId]/runs/[runId]/route.ts
-import { auth } from '@clerk/nextjs/server'
-
+import {
+  authorizeAutomationAccess,
+  buildAutomationRunScope,
+} from '@/lib/automations/authorization'
 import { prisma } from '@/lib/db'
 
 interface Params {
@@ -8,15 +10,22 @@ interface Params {
 }
 
 export async function GET(_req: Request, { params }: Params) {
-  const { userId } = await auth()
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'view',
+  })
+  if (!access.allowed) {
+    return new Response(JSON.stringify({ error: access.message }), {
+      status: access.status,
     })
   }
 
-  const run = await prisma.automationRun.findUnique({
-    where: { id: params.runId },
+  const run = await prisma.automationRun.findFirst({
+    where: buildAutomationRunScope({
+      runId: params.runId,
+      automationId: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    }),
     select: {
       id: true,
       status: true,

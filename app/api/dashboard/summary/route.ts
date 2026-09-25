@@ -1,10 +1,28 @@
 import { NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/db'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const workspace = searchParams.get('workspace') ?? 'skillify-hq'
+  const workspace = searchParams.get('workspace')
+  if (!workspace) {
+    return NextResponse.json(
+      { error: 'workspace is required' },
+      { status: 400 },
+    )
+  }
+
+  const access = await authorizeWorkspaceAccess({
+    workspaceId: workspace,
+    access: 'view',
+  })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
 
   try {
     const activeAutomations = await prisma.automation.count({

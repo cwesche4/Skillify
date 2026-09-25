@@ -2,7 +2,8 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import { getWorkspaceRole } from '@/lib/auth/getWorkspaceRole'
-import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
+import { prisma } from '@/lib/db'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
 
 type Plan = 'Free' | 'Basic' | 'Pro' | 'Elite'
 const planOrder: Plan[] = ['Free', 'Basic', 'Pro', 'Elite']
@@ -12,16 +13,13 @@ export async function requirePlan(required: Plan, workspaceId: string) {
 
   if (!userId) redirect('/sign-in')
 
-  const tier = await getUserPlanByClerkId(userId)
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { workspaceId, user: { clerkId: userId } },
+    select: { id: true },
+  })
+  if (!membership) redirect('/dashboard')
 
-  const plan: Plan =
-    tier === 'elite'
-      ? 'Elite'
-      : tier === 'pro'
-        ? 'Pro'
-        : tier === 'basic'
-          ? 'Basic'
-          : 'Free'
+  const plan = await getWorkspacePlan(workspaceId)
 
   const allowed = planOrder.indexOf(plan) >= planOrder.indexOf(required)
 

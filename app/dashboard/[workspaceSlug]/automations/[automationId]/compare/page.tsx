@@ -1,5 +1,6 @@
 // app/dashboard/[workspaceSlug]/automations/[automationId]/compare/page.tsx
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs/server'
 import { notFound } from 'next/navigation'
 
 import { Badge } from '@/components/ui/Badge'
@@ -21,10 +22,19 @@ export default async function CompareRunsPage({
   params,
   searchParams,
 }: CompareRunsPageProps) {
+  const { userId } = auth()
+  if (!userId) return notFound()
+
   const { automationId } = params
 
-  const automation = await prisma.automation.findUnique({
-    where: { id: automationId },
+  const automation = await prisma.automation.findFirst({
+    where: {
+      id: automationId,
+      workspace: {
+        slug: params.workspaceSlug,
+        members: { some: { user: { clerkId: userId } } },
+      },
+    },
     select: { id: true, name: true, workspaceId: true },
   })
 
@@ -32,21 +42,29 @@ export default async function CompareRunsPage({
 
   // Two run IDs: ?a=run1&b=run2
   const runA = searchParams.a
-    ? await prisma.automationRun.findUnique({
-        where: { id: searchParams.a },
+    ? await prisma.automationRun.findFirst({
+        where: {
+          id: searchParams.a,
+          automationId,
+          workspaceId: automation.workspaceId,
+        },
         include: { events: true },
       })
     : null
 
   const runB = searchParams.b
-    ? await prisma.automationRun.findUnique({
-        where: { id: searchParams.b },
+    ? await prisma.automationRun.findFirst({
+        where: {
+          id: searchParams.b,
+          automationId,
+          workspaceId: automation.workspaceId,
+        },
         include: { events: true },
       })
     : null
 
   const recentRuns = await prisma.automationRun.findMany({
-    where: { automationId },
+    where: { automationId, workspaceId: automation.workspaceId },
     orderBy: { startedAt: 'desc' },
     take: 10,
   })
@@ -64,7 +82,7 @@ export default async function CompareRunsPage({
         </div>
 
         <Link
-          href={`/dashboard/automations/${automationId}`}
+          href={`/dashboard/${params.workspaceSlug}/automations/${automationId}`}
           className="btn btn-secondary"
         >
           Back to Automation

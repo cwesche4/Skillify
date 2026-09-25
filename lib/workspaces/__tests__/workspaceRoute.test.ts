@@ -88,7 +88,9 @@ describe('workspace creation route', () => {
       subscription: {
         id: 'sub_1',
         status: 'trialing',
-        trialEndsAt: new Date('2026-08-27T12:00:00.000Z'),
+        // Keep this fixture active independently of the wall-clock date. The
+        // route test exercises workspace creation, not trial expiration.
+        trialEndsAt: new Date('2099-08-27T12:00:00.000Z'),
         complimentaryEndsAt: null,
       },
     })

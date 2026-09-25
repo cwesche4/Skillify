@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { cloneTemplateData } from '@/lib/templates/cloneTemplate'
 import { validateNodeData } from '@/lib/builder/node-schemas'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 /**
  * Create a draft automation from a template.
@@ -13,6 +14,16 @@ export async function createAutomationFromTemplate(params: {
   workspaceId: string
   userId: string
 }) {
+  const membership = await prisma.workspaceMember.findFirst({
+    where: {
+      workspaceId: params.workspaceId,
+      userId: params.userId,
+      role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+    },
+    select: { id: true },
+  })
+  if (!membership) throw new Error('Forbidden')
+
   const clone = cloneTemplateData(params.template)
 
   const automation = await prisma.automation.create({

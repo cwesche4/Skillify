@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
-import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
+import { planAtLeast } from '@/lib/subscriptions/features'
 import { ensureIntegrationAdapters } from '@/lib/integrations/register-default'
 import { getIntegrationAdapter } from '@/lib/integrations/registry'
 import type { IntegrationProvider } from '@/lib/integrations/types'
@@ -13,14 +14,6 @@ import {
 } from '@/lib/integrations/providerRegistry'
 
 ensureIntegrationAdapters()
-
-async function assertProPlan(userId: string) {
-  const plan = await getUserPlanByClerkId(userId)
-  if (plan === 'basic') {
-    return false
-  }
-  return true
-}
 
 async function handleConnect(
   provider: IntegrationProvider,
@@ -42,6 +35,9 @@ async function handleConnect(
   }
   if (member.role !== 'OWNER' && member.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (!planAtLeast(await getWorkspacePlan(workspaceId), 'Pro')) {
+    return NextResponse.json({ error: 'Pro plan required' }, { status: 403 })
   }
 
   // For HubSpot, kick off OAuth redirect with state
@@ -111,17 +107,10 @@ export async function POST(
   if (!clerkId)
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!(await assertProPlan(clerkId))) {
-    return NextResponse.json({ error: 'Pro plan required' }, { status: 403 })
-  }
-
   const body = (await req.json().catch(() => ({}))) as {
     workspaceId?: string
   }
   const workspaceId = body.workspaceId
-  if (!workspaceId) {
-    return NextResponse.json({ error: 'workspaceId required' }, { status: 400 })
-  }
   if (!workspaceId) {
     return NextResponse.json({ error: 'workspaceId required' }, { status: 400 })
   }
@@ -142,10 +131,6 @@ export async function GET(
   const { userId: clerkId } = auth()
   if (!clerkId)
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  if (!(await assertProPlan(clerkId))) {
-    return NextResponse.json({ error: 'Pro plan required' }, { status: 403 })
-  }
 
   const url = new URL(req.url)
   const workspaceId = url.searchParams.get('workspaceId')

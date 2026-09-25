@@ -1718,11 +1718,13 @@ export function WorkspaceCommandCenter({
   }
 
   const openTaskHref = (task: DashboardTaskSummary) =>
-    task.id
-      ? `/dashboard/${data.workspaceSlug}/tasks?taskId=${encodeURIComponent(
-          task.id,
-        )}#tasks-workspace`
-      : `/dashboard/${data.workspaceSlug}/tasks?view=due-or-overdue#tasks-workspace`
+    isServiceBusinessDashboard
+      ? `/dashboard/${data.workspaceSlug}/service-requests`
+      : task.id
+        ? `/dashboard/${data.workspaceSlug}/tasks?taskId=${encodeURIComponent(
+            task.id,
+          )}#tasks-workspace`
+        : `/dashboard/${data.workspaceSlug}/tasks?view=due-or-overdue#tasks-workspace`
 
   const openClientHref = (client: DashboardClientSummary) =>
     `/dashboard/${data.workspaceSlug}/clients?${
@@ -1916,11 +1918,15 @@ export function WorkspaceCommandCenter({
           detail: `${task.owner} · ${task.due} · ${task.priority}`,
           tone:
             task.priority === 'Urgent' ? ('rose' as const) : ('amber' as const),
-          cta: `View ${terminology.taskPlural.toLowerCase()}`,
+          cta: isServiceBusinessDashboard
+            ? 'View Jobs'
+            : `View ${terminology.taskPlural.toLowerCase()}`,
           onClick: () => {
-            window.location.href = `/dashboard/${data.workspaceSlug}/tasks?view=due-or-overdue${
-              task.id ? `&taskId=${encodeURIComponent(task.id)}` : ''
-            }#tasks-workspace`
+            window.location.href = isServiceBusinessDashboard
+              ? `/dashboard/${data.workspaceSlug}/service-requests`
+              : `/dashboard/${data.workspaceSlug}/tasks?view=due-or-overdue${
+                  task.id ? `&taskId=${encodeURIComponent(task.id)}` : ''
+                }#tasks-workspace`
           },
         })),
         ...dashboardInsights.slice(0, 1).map((insight) => ({
@@ -1965,7 +1971,11 @@ export function WorkspaceCommandCenter({
           />
           <PreviewField
             label="Recommended Next Action"
-            value="Review and complete the task before the due window closes."
+            value={
+              isServiceBusinessDashboard
+                ? 'Open the Job and complete this Job Step before the due window closes.'
+                : 'Review and complete the task before the due window closes.'
+            }
           />
         </div>
         {preview.task.description ? (
@@ -1983,14 +1993,16 @@ export function WorkspaceCommandCenter({
             href={openTaskHref(preview.task)}
             className={previewButtonClass}
           >
-            Open task
+            {isServiceBusinessDashboard ? 'Open Job' : 'Open task'}
           </Link>
           <button
             type="button"
             className={previewSecondaryButtonClass}
             onClick={() =>
               showPreviewMessage(
-                'Task completion will connect when workspace task workflows are enabled.',
+                isServiceBusinessDashboard
+                  ? 'Job Step completion is managed inside its Job.'
+                  : 'Task completion will connect when workspace task workflows are enabled.',
               )
             }
           >
@@ -2393,7 +2405,11 @@ export function WorkspaceCommandCenter({
         description={
           data.commerceEnabled
             ? 'Commerce setup and catalog work Skillify would move first.'
-            : `The most important work Skillify would move first across ${terminology.taskPlural.toLowerCase()}, automations, and ${terminology.customerPlural.toLowerCase()}${
+            : `The most important work Skillify would move first across ${
+                isServiceBusinessDashboard
+                  ? 'job steps'
+                  : terminology.taskPlural.toLowerCase()
+              }, automations, and ${terminology.customerPlural.toLowerCase()}${
                 modules.sales || modules.opportunities
                   ? ', and revenue work'
                   : ''
@@ -2741,20 +2757,28 @@ export function WorkspaceCommandCenter({
           <SectionCard
             title={
               data.taskMetricScope === 'serviceRequestChildren'
-                ? `${terminology.taskPlural} Priorities`
+                ? 'Job Step Priorities'
                 : 'Workspace Task Priorities'
             }
             description={
               data.taskMetricScope === 'serviceRequestChildren'
-                ? `Open ${terminology.taskPlural.toLowerCase()} attached to ${terminology.serviceRequestPlural.toLowerCase()}, ordered by due date and priority.`
+                ? `Open job steps inside ${terminology.serviceRequestPlural.toLowerCase()}, ordered by due date and priority.`
                 : 'Workspace-wide open work, ordered by overdue, due today, priority, and upcoming due dates.'
             }
-            href={`/dashboard/${data.workspaceSlug}/tasks?view=due-or-overdue#tasks-workspace`}
+            href={
+              isServiceBusinessDashboard
+                ? `/dashboard/${data.workspaceSlug}/service-requests`
+                : `/dashboard/${data.workspaceSlug}/tasks?view=due-or-overdue#tasks-workspace`
+            }
           >
             <div className="space-y-2">
               {tasksDue.length === 0 ? (
                 <DashboardEmptyState
-                  label={`No open ${terminology.taskPlural.toLowerCase()} priorities`}
+                  label={
+                    data.taskMetricScope === 'serviceRequestChildren'
+                      ? 'No open job step priorities'
+                      : `No open ${terminology.taskPlural.toLowerCase()} priorities`
+                  }
                 />
               ) : (
                 tasksDue.slice(0, 5).map((task) => (
@@ -2766,7 +2790,9 @@ export function WorkspaceCommandCenter({
                       setPreview({ type: 'task', task })
                     }}
                     className="recommendation-card-surface group block w-full rounded-xl border p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50"
-                    aria-label={`Open task ${task.title}`}
+                    aria-label={`Open ${
+                      isServiceBusinessDashboard ? 'Job Step' : 'task'
+                    } ${task.title}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -3071,6 +3097,10 @@ export function WorkspaceAnalyticsCharts({
     : modules.opportunities
       ? 'Closed-won revenue compared with active pipeline.'
       : 'Recognized revenue from completed work.'
+  const taskMetricLabel =
+    data.taskMetricScope === 'serviceRequestChildren'
+      ? 'Job Steps'
+      : terminology.taskPlural
 
   return (
     <div className="space-y-5">
@@ -3204,12 +3234,12 @@ export function WorkspaceAnalyticsCharts({
         ) : null}
         {modules.tasks ? (
           <SectionCard
-            title={`${terminology.taskPlural} metrics`}
-            description={`${terminology.taskPlural} by current status.`}
+            title={`${taskMetricLabel} metrics`}
+            description={`${taskMetricLabel} by current status.`}
           >
             <CompactBarChart
               data={data.taskStatus}
-              valueLabel={terminology.taskPlural}
+              valueLabel={taskMetricLabel}
             />
           </SectionCard>
         ) : null}

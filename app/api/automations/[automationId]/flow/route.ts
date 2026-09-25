@@ -1,4 +1,11 @@
 // app/api/automations/[automationId]/flow/route.ts
+import { Prisma } from '@prisma/client'
+import { fail, ok } from '@/lib/api/responses'
+import { authorizeAutomationAccess } from '@/lib/automations/authorization'
+import { prisma } from '@/lib/db'
+import { automationFlowSchema } from '@/lib/validations/automation'
+import { getAdvancedAutomationMutationError } from '@/lib/automations/policy'
+
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
@@ -7,25 +14,18 @@ interface Params {
   params: { automationId: string }
 }
 
-async function getRequestContext() {
-  const [{ auth }, { prisma }] = await Promise.all([
-    import('@clerk/nextjs/server'),
-    import('@/lib/db'),
-  ])
-  const { userId } = await auth()
-  return { userId, prisma }
-}
-
 export async function GET(_req: Request, { params }: Params) {
-  const { userId, prisma } = await getRequestContext()
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-    })
-  }
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'view',
+  })
+  if (!access.allowed) return fail(access.message, access.status)
 
-  const automation = await prisma.automation.findUnique({
-    where: { id: params.automationId },
+  const automation = await prisma.automation.findFirst({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
     select: {
       id: true,
       name: true,
@@ -55,29 +55,37 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
-  const { userId, prisma } = await getRequestContext()
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-    })
-  }
+  const access = await authorizeAutomationAccess({
+    automationId: params.automationId,
+    access: 'manage',
+  })
+  if (!access.allowed) return fail(access.message, access.status)
+  const ownershipError = getAdvancedAutomationMutationError(
+    Boolean(access.automation.managedBySimple),
+  )
+  if (ownershipError) return fail(ownershipError, 409)
 
-  const body = await req.json()
+  const parsed = automationFlowSchema.safeParse(
+    await req.json().catch(() => null),
+  )
+  if (!parsed.success)
+    return fail('Flow must contain nodes and edges arrays', 400)
 
-  // Very basic validation: expect nodes & edges arrays
-  const flow = {
-    nodes: Array.isArray(body.nodes) ? body.nodes : [],
-    edges: Array.isArray(body.edges) ? body.edges : [],
-  }
+  const updated = await prisma.automation.updateMany({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
+    data: { flow: parsed.data as Prisma.InputJsonValue },
+  })
+  if (updated.count !== 1) return fail('Automation not found', 404)
 
-  const automation = await prisma.automation.update({
-    where: { id: params.automationId },
-    data: { flow },
+  const automation = await prisma.automation.findFirst({
+    where: {
+      id: params.automationId,
+      workspaceId: access.automation.workspaceId,
+    },
     select: { id: true, name: true, status: true, flow: true },
   })
-
-  return new Response(JSON.stringify({ automation }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return ok({ automation })
 }

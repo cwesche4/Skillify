@@ -72,7 +72,7 @@ describe('workspace navigation', () => {
     ])
     expect(operations?.items.map((item) => item.label)).toEqual([
       'Jobs',
-      'Job Steps',
+      'My To-Dos',
     ])
 
     const labels = groups.flatMap((group) =>
@@ -80,6 +80,52 @@ describe('workspace navigation', () => {
     )
     expect(labels).not.toContain('Opportunities')
     expect(labels).not.toContain('Sales')
+  })
+
+  it('limits durable Simple Service Customers navigation to management roles', () => {
+    for (const role of ['owner', 'admin', 'manager'] as const) {
+      const labels = buildWorkspaceNavigation({
+        capabilities: getWorkspaceCapabilities({
+          businessModel: WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
+        }),
+        workspaceSlug: 'acme',
+        role,
+        canViewSalesPipeline: false,
+        canViewServiceRequests: true,
+      }).flatMap((group) => group.items.map((item) => item.label))
+      expect(labels).toContain('Leads')
+      expect(labels).toContain('Customers')
+    }
+
+    const memberLabels = buildWorkspaceNavigation({
+      capabilities: getWorkspaceCapabilities({
+        businessModel: WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
+      }),
+      workspaceSlug: 'acme',
+      role: 'member',
+      canViewSalesPipeline: false,
+      canViewServiceRequests: true,
+    }).flatMap((group) => group.items.map((item) => item.label))
+    expect(memberLabels).not.toContain('Customers')
+    expect(memberLabels).not.toContain('Leads')
+    expect(memberLabels).toContain('Jobs')
+    expect(memberLabels).toContain('My To-Dos')
+  })
+
+  it('does not apply the durable Customer role gate to legacy Client navigation', () => {
+    for (const model of [
+      WorkspaceBusinessModel.DIRECT_SALES,
+      WorkspaceBusinessModel.CONSULTATIVE_SALES,
+    ]) {
+      const labels = buildWorkspaceNavigation({
+        capabilities: getWorkspaceCapabilities({ businessModel: model }),
+        workspaceSlug: 'acme',
+        role: 'member',
+        canViewSalesPipeline: false,
+        canViewServiceRequests: false,
+      }).flatMap((group) => group.items.map((item) => item.label))
+      expect(labels).toContain('Clients')
+    }
   })
 
   it('orders Simple Service groups with Operations before Scheduling and Workflows', () => {
@@ -96,6 +142,28 @@ describe('workspace navigation', () => {
         'SETTINGS',
       ],
     )
+  })
+
+  it('keeps Simple and Advanced automation navigation inside one sidebar entry', () => {
+    const groups = buildWorkspaceNavigation({
+      capabilities: getWorkspaceCapabilities({
+        businessModel: WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
+      }),
+      workspaceSlug: 'acme',
+      role: 'owner',
+      canViewSalesPipeline: true,
+      canViewServiceRequests: true,
+    })
+    const workflowItems = groups.find(
+      (group) => group.section === 'WORKFLOWS',
+    )?.items
+
+    expect(workflowItems).toEqual([
+      expect.objectContaining({
+        label: 'Automations',
+        href: '/dashboard/acme/automations',
+      }),
+    ])
   })
 
   it('shows commerce modules and hides service CRM modules for Product Commerce', () => {
@@ -153,6 +221,8 @@ describe('workspace navigation', () => {
     expect(labels).toContain('Opportunities')
     expect(labels).toContain('Sales')
     expect(labels).toContain('Clients')
+    expect(labels).toContain('Tasks')
+    expect(labels).not.toContain('My To-Dos')
     expect(labels).not.toContain('Products')
     expect(labels).not.toContain('Orders')
     expect(labels).not.toContain('Fulfillment')
@@ -165,6 +235,8 @@ describe('workspace navigation', () => {
     expect(labels).not.toContain('Opportunities')
     expect(labels).toContain('Sales')
     expect(labels).toContain('Clients')
+    expect(labels).toContain('Tasks')
+    expect(labels).not.toContain('My To-Dos')
     expect(labels).not.toContain('Products')
   })
 

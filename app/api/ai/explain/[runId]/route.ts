@@ -1,16 +1,27 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 
 export async function GET(
   _: Request,
   { params }: { params: { runId: string } },
 ) {
-  const run = await prisma.automationRun.findUnique({
-    where: { id: params.runId },
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const run = await prisma.automationRun.findFirst({
+    where: {
+      id: params.runId,
+      workspace: { members: { some: { user: { clerkId: userId } } } },
+    },
     include: { automation: true },
   })
 
-  if (!run) return NextResponse.json({ steps: [] })
+  if (!run) {
+    return NextResponse.json({ error: 'Run not found' }, { status: 404 })
+  }
 
   const steps = [
     `Automation "${run.automation.name}" started at ${run.startedAt.toLocaleString()}.`,

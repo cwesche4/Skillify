@@ -58,6 +58,9 @@ export interface IntegrationAdapter {
     objectType: CRMObjectType,
     externalId: string,
   ): Promise<IntegrationActionResult>
-  // REQUIRED: Verify webhook signature and normalize to IntegrationWebhookPayload (or return null).
-  verifyWebhook(req: Request): Promise<IntegrationWebhookPayload | null>
+  // REQUIRED: Verify webhook signature and normalize to one or more payloads
+  // (or return null). Some providers deliver several events in one signed body.
+  verifyWebhook(
+    req: Request,
+  ): Promise<IntegrationWebhookPayload | IntegrationWebhookPayload[] | null>
 }

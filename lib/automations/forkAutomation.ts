@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { logAuditEvent } from '@/lib/audit/log'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 // Automation forking.
 // Lineage is informational only.
@@ -12,8 +13,19 @@ export async function forkAutomation({
   automationId: string
   userId: string
 }) {
-  const source = await prisma.automation.findUnique({
-    where: { id: automationId },
+  const source = await prisma.automation.findFirst({
+    where: {
+      id: automationId,
+      simpleAutomationInstallation: null,
+      workspace: {
+        members: {
+          some: {
+            userId,
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
+      },
+    },
   })
   if (!source) throw new Error('Source automation not found')
 

@@ -39,6 +39,7 @@ export interface IntegrationWebhookPayload {
   event: CRMTrigger
   payload: any
   occurredAt?: number
+  eventId?: string
   workspaceId?: string
   integrationId?: string
   portalId?: string | number | null

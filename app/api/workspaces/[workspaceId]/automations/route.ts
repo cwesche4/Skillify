@@ -1,49 +1,45 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
+import { createWorkspaceAutomationSchema } from '@/lib/validations/automation'
 
 export async function POST(
   req: Request,
   { params }: { params: { workspaceId: string } },
 ) {
-  const { userId } = auth()
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const body = await req.json().catch(() => ({}))
-  const { name, description, flow } = body as {
-    name?: string
-    description?: string
-    flow?: unknown
-  }
-
-  const member = await prisma.workspaceMember.findFirst({
-    where: {
-      workspaceId: params.workspaceId,
-      user: { clerkId: userId },
-    },
-    include: { user: true },
+  const access = await authorizeWorkspaceAccess({
+    workspaceId: params.workspaceId,
+    access: 'manage',
   })
-
-  if (!member) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
   }
 
-  const cleanedName = (name ?? '').trim()
-  if (!cleanedName) {
-    return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+  const parsed = createWorkspaceAutomationSchema.safeParse(
+    await req.json().catch(() => null),
+  )
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Unsupported or invalid automation fields' },
+      { status: 400 },
+    )
   }
+
+  const { name, description, flow } = parsed.data
 
   try {
     const automation = await prisma.automation.create({
       data: {
         workspaceId: params.workspaceId,
-        userId: member.userId,
-        name: cleanedName,
+        userId: access.userProfileId,
+        name,
         description: description ?? null,
         status: 'INACTIVE',
-        flow: flow ?? {},
+        flow: (flow ?? {}) as Prisma.InputJsonValue,
       },
     })
 

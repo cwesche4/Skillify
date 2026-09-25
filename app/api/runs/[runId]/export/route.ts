@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { redactTimeline } from '@/lib/runs/export/redact'
 import { requireWorkspaceRole } from '@/lib/auth/requireRole'
 import type { TimelineItem } from '@/lib/runs/timeline/types'
+import { auth } from '@clerk/nextjs/server'
 
 // Compliance export.
 // Redacted evidence only.
@@ -11,11 +12,22 @@ export async function GET(
   _: Request,
   { params }: { params: { runId: string } },
 ) {
-  const run = await prisma.automationRun.findUnique({
-    where: { id: params.runId },
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const run = await prisma.automationRun.findFirst({
+    where: {
+      id: params.runId,
+      workspace: { members: { some: { user: { clerkId: userId } } } },
+    },
     include: { automation: true },
   })
   if (!run) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (run.workspaceId !== run.automation.workspaceId) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
 
   const guard = await requireWorkspaceRole(run.automation.workspaceId, [
     'owner',

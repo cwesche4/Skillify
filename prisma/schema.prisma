@@ -57,6 +57,43 @@ enum RevenueTransactionStatus {
   VOIDED
 }
 
+enum OperationsPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum JobStatus {
+  OPEN
+  SCHEDULED
+  IN_PROGRESS
+  WAITING_ON_CLIENT
+  COMPLETED
+  CANCELED
+}
+
+enum WorkItemKind {
+  JOB_STEP
+  TODO
+}
+
+enum WorkItemStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  ESTIMATE_VISIT
+  FOLLOW_UP
+  WON
+  LOST
+}
+
 enum WorkspaceTeamType {
   GENERAL
   OFFICE
@@ -721,17 +758,23 @@ model UserProfile {
   accessCodeRedemptions     AccessCodeRedemption[]
 
   // Scheduling relations
-  calendarAccounts      CalendarAccount[]
-  bookingTypesCreated   BookingType[]          @relation("BookingTypeCreator")
-  bookingTypesAssigned  BookingType[]          @relation("BookingTypeAssignedUser")
-  bookingsScheduledFor  Booking[]              @relation("BookingScheduledFor")
-  bookingsCreated       Booking[]              @relation("BookingCreatedBy")
-  auditLogs             AuditLog[]
-  aiActionAudits        AiActionAudit[]
-  collaborationSessions CollaborationSession[]
-  presenceStates        PresenceState[]
-  nodeLocks             NodeLock[]
-  automationVersions    AutomationVersion[]
+  calendarAccounts                        CalendarAccount[]
+  bookingTypesCreated                     BookingType[]                  @relation("BookingTypeCreator")
+  bookingTypesAssigned                    BookingType[]                  @relation("BookingTypeAssignedUser")
+  bookingsScheduledFor                    Booking[]                      @relation("BookingScheduledFor")
+  bookingsCreated                         Booking[]                      @relation("BookingCreatedBy")
+  auditLogs                               AuditLog[]
+  aiActionAudits                          AiActionAudit[]
+  collaborationSessions                   CollaborationSession[]
+  presenceStates                          PresenceState[]
+  nodeLocks                               NodeLock[]
+  automationVersions                      AutomationVersion[]
+  simpleAutomationInstallationsCreated    SimpleAutomationInstallation[] @relation("SimpleAutomationInstallationCreatedBy")
+  simpleAutomationInstallationsConfigured SimpleAutomationInstallation[] @relation("SimpleAutomationInstallationConfiguredBy")
+  jobsCreated                             Job[]                          @relation("JobCreatedBy")
+  workItemsCreated                        WorkItem[]                     @relation("WorkItemCreatedBy")
+  customersCreated                        Customer[]                     @relation("CustomerCreatedBy")
+  leadsCreated                            Lead[]                         @relation("LeadCreatedBy")
 
   @@index([clerkId])
 }
@@ -865,8 +908,14 @@ model Workspace {
   presenceStates                    PresenceState[]
   nodeLocks                         NodeLock[]
   automationVersions                AutomationVersion[]
+  simpleAutomationInstallations     SimpleAutomationInstallation[]
+  simpleAutomationDispatches        SimpleAutomationDispatch[]
   inspectorPresets                  InspectorPreset[]
   schedulingRecurrenceMutations     SchedulingRecurrenceMutation[]
+  jobs                              Job[]
+  workItems                         WorkItem[]
+  customers                         Customer[]
+  leads                             Lead[]
 
   @@index([ownerId])
   @@index([slug])
@@ -886,10 +935,171 @@ model WorkspaceMember {
   teamMemberships              WorkspaceTeamMember[]
   ownedCalendarConnections     CalendarConnection[]  @relation("CalendarConnectionOwner")
   connectedCalendarConnections CalendarConnection[]  @relation("CalendarConnectionConnector")
+  assignedJobs                 Job[]                 @relation("JobAssignee")
+  assignedWorkItems            WorkItem[]            @relation("WorkItemAssignee")
+  assignedCustomers            Customer[]            @relation("CustomerAssignee")
+  assignedLeads                Lead[]                @relation("LeadAssignee")
 
   @@unique([userId, workspaceId])
+  @@unique([id, workspaceId])
   @@index([workspaceId])
   @@index([userId])
+}
+
+model Job {
+  id          String             @id @default(cuid())
+  workspaceId String
+  title       String
+  description String?
+  notes       String?
+  status      JobStatus          @default(OPEN)
+  priority    OperationsPriority @default(NORMAL)
+
+  // Legacy opaque context retained for compatibility; do not interpret as Customer.id.
+  customerReferenceId String?
+  customerId          String?
+  // Historical snapshot captured when the durable Customer association changes.
+  customerDisplayName String?
+  valueCents          Int?
+  currency            String  @default("USD")
+
+  // Operational scheduling context; intentionally not coupled to SchedulingEvent.
+  scheduledStartAt DateTime?
+  scheduledEndAt   DateTime?
+
+  completedAt      DateTime?
+  assigneeMemberId String?
+  createdByUserId  String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  archivedAt       DateTime?
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  customer  Customer?        @relation("JobCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  assignee  WorkspaceMember? @relation("JobAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy UserProfile      @relation("JobCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  workItems WorkItem[]
+
+  @@unique([id, workspaceId])
+  @@index([workspaceId, archivedAt, status])
+  @@index([workspaceId, assigneeMemberId, archivedAt])
+  @@index([workspaceId, scheduledStartAt])
+  @@index([workspaceId, customerId, archivedAt])
+  @@index([workspaceId, customerReferenceId])
+  @@index([createdByUserId])
+}
+
+model WorkItem {
+  id          String             @id @default(cuid())
+  workspaceId String
+  kind        WorkItemKind
+  jobId       String?
+  title       String
+  description String?
+  notes       String?
+  status      WorkItemStatus     @default(OPEN)
+  priority    OperationsPriority @default(NORMAL)
+  dueAt       DateTime?
+  completedAt DateTime?
+
+  assigneeMemberId String?
+  createdByUserId  String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  archivedAt       DateTime?
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  job       Job?             @relation(fields: [jobId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  assignee  WorkspaceMember? @relation("WorkItemAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy UserProfile      @relation("WorkItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, archivedAt, kind, status])
+  @@index([workspaceId, jobId, archivedAt])
+  @@index([workspaceId, assigneeMemberId, archivedAt])
+  @@index([workspaceId, dueAt])
+  @@index([createdByUserId])
+}
+
+model Customer {
+  id          String @id @default(cuid())
+  workspaceId String
+
+  displayName String
+  companyName String?
+  contactName String?
+  email       String?
+  phone       String?
+
+  serviceAddressLine1      String?
+  serviceAddressLine2      String?
+  serviceAddressCity       String?
+  serviceAddressRegion     String?
+  serviceAddressPostalCode String?
+  serviceAddressCountry    String?
+
+  notes String?
+
+  assignedMemberId String?
+  createdByUserId  String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  archivedAt       DateTime?
+
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  jobs          Job[]            @relation("JobCustomer")
+  convertedLead Lead?            @relation("LeadConvertedCustomer")
+  assignee      WorkspaceMember? @relation("CustomerAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy     UserProfile      @relation("CustomerCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([id, workspaceId])
+  @@index([workspaceId, archivedAt, displayName])
+  @@index([workspaceId, email])
+  @@index([workspaceId, phone])
+  @@index([workspaceId, assignedMemberId, archivedAt])
+  @@index([createdByUserId])
+}
+
+model Lead {
+  id          String @id @default(cuid())
+  workspaceId String
+
+  displayName String
+  companyName String?
+  email       String?
+  phone       String?
+
+  stage  LeadStage @default(NEW)
+  source String?
+
+  estimatedValueCents Int?
+  currency            String    @default("USD")
+  nextStep            String?
+  followUpAt          DateTime?
+
+  assignedMemberId    String?
+  notes               String?
+  convertedCustomerId String?
+  convertedAt         DateTime?
+  createdByUserId     String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  archivedAt          DateTime?
+
+  workspace         Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  assignee          WorkspaceMember? @relation("LeadAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  convertedCustomer Customer?        @relation("LeadConvertedCustomer", fields: [convertedCustomerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy         UserProfile      @relation("LeadCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([id, workspaceId])
+  @@unique([convertedCustomerId, workspaceId])
+  @@index([workspaceId, archivedAt, stage])
+  @@index([workspaceId, assignedMemberId, archivedAt])
+  @@index([workspaceId, followUpAt])
+  @@index([workspaceId, displayName])
+  @@index([workspaceId, email])
+  @@index([workspaceId, phone])
+  @@index([workspaceId, convertedAt])
+  @@index([createdByUserId])
 }
 
 model WorkspaceTeam {
@@ -1937,14 +2147,67 @@ model Automation {
   user      UserProfile @relation(fields: [userId], references: [id])
   workspace Workspace   @relation(fields: [workspaceId], references: [id])
 
-  runs                  AutomationRun[]
-  upsellRequests        UpsellRequest[]
-  collaborationSessions CollaborationSession[]
-  presenceStates        PresenceState[]
-  nodeLocks             NodeLock[]
-  automationVersions    AutomationVersion[]
-  lineage               AutomationLineage?
-  forks                 AutomationLineage[]    @relation("AutomationForks")
+  runs                         AutomationRun[]
+  upsellRequests               UpsellRequest[]
+  collaborationSessions        CollaborationSession[]
+  presenceStates               PresenceState[]
+  nodeLocks                    NodeLock[]
+  automationVersions           AutomationVersion[]
+  lineage                      AutomationLineage?
+  forks                        AutomationLineage[]           @relation("AutomationForks")
+  simpleAutomationInstallation SimpleAutomationInstallation?
+}
+
+/// Workspace-owned configuration for a code-defined Simple Automation recipe.
+/// The linked Automation is generated and lifecycle-managed by Simple Automations.
+model SimpleAutomationInstallation {
+  id                     String    @id @default(cuid())
+  workspaceId            String
+  definitionKey          String
+  definitionVersion      Int
+  automationId           String    @unique
+  config                 Json
+  metadata               Json?
+  createdByUserId        String
+  lastConfiguredByUserId String
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  removedAt              DateTime?
+
+  workspace        Workspace                  @relation(fields: [workspaceId], references: [id])
+  automation       Automation                 @relation(fields: [automationId], references: [id])
+  createdBy        UserProfile                @relation("SimpleAutomationInstallationCreatedBy", fields: [createdByUserId], references: [id])
+  lastConfiguredBy UserProfile                @relation("SimpleAutomationInstallationConfiguredBy", fields: [lastConfiguredByUserId], references: [id])
+  dispatches       SimpleAutomationDispatch[]
+
+  @@unique([workspaceId, definitionKey])
+  @@index([workspaceId])
+  @@index([definitionKey, definitionVersion])
+  @@index([createdByUserId])
+  @@index([lastConfiguredByUserId])
+  @@index([workspaceId, removedAt])
+}
+
+/// Idempotency ledger for durable events dispatched to managed Automations.
+model SimpleAutomationDispatch {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  installationId String
+  eventKey       String
+  status         String
+  runId          String?
+  attempts       Int       @default(1)
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  workspace    Workspace                    @relation(fields: [workspaceId], references: [id])
+  installation SimpleAutomationInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, eventKey])
+  @@index([workspaceId, createdAt])
+  @@index([status, updatedAt])
 }
 
 //
@@ -3209,24 +3472,28 @@ model SchedulingEventActivity {
 }
 
 model DomainOutboxEvent {
-  id               String             @id @default(cuid())
-  workspaceId      String
-  topic            String
-  aggregateType    String
-  aggregateId      String
-  payload          Json
-  status           DomainOutboxStatus @default(PENDING)
-  attempts         Int                @default(0)
-  availableAt      DateTime           @default(now())
-  nextAttemptAt    DateTime?
-  claimedAt        DateTime?
-  claimedBy        String?
-  leaseExpiresAt   DateTime?
-  processedAt      DateTime?
-  lastErrorCode    String?
-  lastErrorMessage String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id                String             @id @default(cuid())
+  workspaceId       String
+  topic             String
+  aggregateType     String
+  aggregateId       String
+  deduplicationKey  String?            @unique
+  payload           Json
+  status            DomainOutboxStatus @default(PENDING)
+  attempts          Int                @default(0)
+  availableAt       DateTime           @default(now())
+  nextAttemptAt     DateTime?
+  claimedAt         DateTime?
+  claimedBy         String?
+  leaseExpiresAt    DateTime?
+  processedAt       DateTime?
+  lastErrorCode     String?
+  lastErrorMessage  String?
+  processingOutcome String?
+  dispatchId        String?
+  automationRunId   String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
@@ -3234,6 +3501,7 @@ model DomainOutboxEvent {
   @@index([status, nextAttemptAt])
   @@index([status, leaseExpiresAt])
   @@index([workspaceId, createdAt])
+  @@index([workspaceId, topic, createdAt])
 }
 
 model BlogPost {
