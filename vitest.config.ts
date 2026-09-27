@@ -29,6 +29,8 @@ export default defineConfig({
       'lib/leads/**/__tests__/**/*.test.tsx',
       'lib/marketing/**/__tests__/**/*.test.tsx',
       'lib/operations/**/__tests__/**/*.test.ts',
+      'lib/recurring-services/**/__tests__/**/*.test.ts',
+      'lib/recurring-services/**/__tests__/**/*.test.tsx',
       'lib/scheduling/**/__tests__/**/*.test.ts',
       'lib/sales/**/__tests__/**/*.test.ts',
       'lib/workflows/**/__tests__/**/*.test.ts',

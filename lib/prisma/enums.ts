@@ -67,16 +67,53 @@ export const OperationsPriority = {
 export type OperationsPriority =
   (typeof OperationsPriority)[keyof typeof OperationsPriority]
 
+export const RecurringServiceStatus = {
+  ACTIVE: 'ACTIVE',
+  PAUSED: 'PAUSED',
+  ENDED: 'ENDED',
+} as const
+
+export type RecurringServiceStatus =
+  (typeof RecurringServiceStatus)[keyof typeof RecurringServiceStatus]
+
 export const JobStatus = {
   OPEN: 'OPEN',
   SCHEDULED: 'SCHEDULED',
   IN_PROGRESS: 'IN_PROGRESS',
   WAITING_ON_CLIENT: 'WAITING_ON_CLIENT',
+  UNABLE_TO_COMPLETE: 'UNABLE_TO_COMPLETE',
   COMPLETED: 'COMPLETED',
   CANCELED: 'CANCELED',
 } as const
 
 export type JobStatus = (typeof JobStatus)[keyof typeof JobStatus]
+
+export const JobCancellationReason = {
+  CUSTOMER_REQUEST: 'CUSTOMER_REQUEST',
+  WEATHER: 'WEATHER',
+  ACCESS_ISSUE: 'ACCESS_ISSUE',
+  STAFFING: 'STAFFING',
+  EQUIPMENT: 'EQUIPMENT',
+  HOLIDAY: 'HOLIDAY',
+  SERVICE_ENDED: 'SERVICE_ENDED',
+  SCHEDULE_CANCELED: 'SCHEDULE_CANCELED',
+  OTHER: 'OTHER',
+} as const
+
+export type JobCancellationReason =
+  (typeof JobCancellationReason)[keyof typeof JobCancellationReason]
+
+export const JobUnableToCompleteReason = {
+  WEATHER: 'WEATHER',
+  CUSTOMER_UNAVAILABLE: 'CUSTOMER_UNAVAILABLE',
+  ACCESS_ISSUE: 'ACCESS_ISSUE',
+  EQUIPMENT: 'EQUIPMENT',
+  RAN_OUT_OF_TIME: 'RAN_OUT_OF_TIME',
+  OTHER: 'OTHER',
+} as const
+
+export type JobUnableToCompleteReason =
+  (typeof JobUnableToCompleteReason)[keyof typeof JobUnableToCompleteReason]
 
 export const WorkItemKind = {
   JOB_STEP: 'JOB_STEP',

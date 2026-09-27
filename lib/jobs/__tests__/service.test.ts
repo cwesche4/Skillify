@@ -65,7 +65,40 @@ function createMemoryStore() {
     'ws-a:member-other',
     'ws-b:member-b',
   ])
+  const activeTeamMemberships = new Set<string>()
   const calls: string[] = []
+
+  const canExecuteJob = ({
+    workspaceId,
+    jobId,
+    workspaceMemberId,
+  }: {
+    workspaceId: string
+    jobId: string
+    workspaceMemberId: string
+  }) => {
+    const job = jobs.find(
+      (candidate) =>
+        candidate.id === jobId &&
+        candidate.workspaceId === workspaceId &&
+        candidate.archivedAt === null,
+    )
+    if (!job) return false
+    if (!job.schedulingEventId) {
+      return job.assigneeMemberId === workspaceMemberId
+    }
+    return (job.assignments ?? []).some(
+      (assignment) =>
+        assignment.workspaceId === workspaceId &&
+        ((assignment.assignmentType === 'MEMBER' &&
+          assignment.workspaceMemberId === workspaceMemberId) ||
+          (assignment.assignmentType === 'TEAM' &&
+            assignment.teamId !== null &&
+            activeTeamMemberships.has(
+              `${workspaceId}:${assignment.teamId}:${workspaceMemberId}`,
+            ))),
+    )
+  }
 
   const store: JobsStore = {
     async getWorkspaceBusinessModel(workspaceId) {
@@ -77,6 +110,10 @@ function createMemoryStore() {
     async isWorkspaceMember({ workspaceId, memberId }) {
       calls.push('isWorkspaceMember')
       return members.has(`${workspaceId}:${memberId}`)
+    },
+    async canExecuteJob(input) {
+      calls.push('canExecuteJob')
+      return canExecuteJob(input)
     },
     async findActiveCustomer({ workspaceId, customerId }) {
       calls.push('findActiveCustomer')
@@ -111,6 +148,13 @@ function createMemoryStore() {
       }
       const row: JobRecord = {
         ...data,
+        cancellationReason: null,
+        cancellationNote: null,
+        canceledAt: null,
+        unableToCompleteReason: null,
+        unableToCompleteNote: null,
+        unableToCompleteAt: null,
+        unableToCompleteReportedByMemberId: null,
         customerDisplayName: customer?.displayName ?? data.customerDisplayName,
         id: `job-${++jobSequence}`,
         createdAt: NOW,
@@ -140,13 +184,25 @@ function createMemoryStore() {
           (customerId === undefined || job.customerId === customerId),
       )
     },
-    async updateJob({ workspaceId, jobId, expectedStatus, data }) {
+    async updateJob({
+      workspaceId,
+      jobId,
+      executionMemberId,
+      expectedStatus,
+      data,
+    }) {
       calls.push('updateJob')
       const index = jobs.findIndex(
         (job) =>
           job.id === jobId &&
           job.workspaceId === workspaceId &&
           job.archivedAt === null &&
+          (!executionMemberId ||
+            canExecuteJob({
+              workspaceId,
+              jobId,
+              workspaceMemberId: executionMemberId,
+            })) &&
           (expectedStatus === undefined || job.status === expectedStatus),
       )
       if (index < 0) return null
@@ -292,7 +348,14 @@ function createMemoryStore() {
         (workItem) =>
           workItem.id === workItemId &&
           workItem.workspaceId === workspaceId &&
-          workItem.assigneeMemberId === assigneeMemberId &&
+          (workItem.assigneeMemberId === assigneeMemberId ||
+            (kind === WorkItemKind.JOB_STEP &&
+              jobId !== null &&
+              canExecuteJob({
+                workspaceId,
+                jobId,
+                workspaceMemberId: assigneeMemberId,
+              }))) &&
           workItem.status === expectedStatus &&
           workItem.archivedAt === null,
       )
@@ -302,7 +365,14 @@ function createMemoryStore() {
     },
   }
 
-  return { store, jobs, workItems, customers, calls }
+  return {
+    store,
+    jobs,
+    workItems,
+    customers,
+    calls,
+    activeTeamMemberships,
+  }
 }
 
 describe('durable Jobs and Work Items service', () => {
@@ -611,6 +681,202 @@ describe('durable Jobs and Work Items service', () => {
     ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
   })
 
+  it('keeps recurring occurrence time and exception transitions out of the generic Job API', async () => {
+    await expect(
+      service.createJob(actorA, {
+        title: 'Invalid exception',
+        status: JobStatus.UNABLE_TO_COMPLETE,
+      }),
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
+
+    const job = await service.createJob(actorA, {
+      title: 'Recurring visit',
+      status: JobStatus.SCHEDULED,
+    })
+    job.recurringServiceId = 'service-1'
+    job.schedulingEventId = 'occurrence-1'
+
+    await expect(
+      service.updateJob(actorA, job.id, {
+        scheduledStartAt: '2026-10-04T14:00:00.000Z',
+      }),
+    ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+    await expect(
+      service.updateJob(actorA, job.id, { status: JobStatus.CANCELED }),
+    ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+    await expect(
+      service.updateJob(actorA, job.id, {
+        status: JobStatus.UNABLE_TO_COMPLETE,
+      }),
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
+    await expect(
+      service.updateJob(actorA, job.id, { assigneeMemberId: 'member-other' }),
+    ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+    await expect(
+      service.updateJob(actorA, job.id, { customerId: 'customer-b' }),
+    ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+    await expect(service.archiveJob(actorA, job.id)).rejects.toMatchObject({
+      status: 409,
+      code: 'CONFLICT',
+    })
+    expect(job.archivedAt).toBeNull()
+  })
+
+  it('lets a directly assigned recurring worker start and complete a Job through the narrow execution contract', async () => {
+    const job = await service.createJob(actorA, {
+      title: 'Direct recurring work',
+      status: JobStatus.SCHEDULED,
+    })
+    job.schedulingEventId = 'occurrence-direct'
+    job.recurringServiceId = 'service-1'
+    job.assigneeMemberId = 'member-a'
+    job.assignments = [
+      {
+        id: 'assignment-direct',
+        workspaceId: 'ws-a',
+        jobId: job.id,
+        assignmentType: 'MEMBER',
+        workspaceMemberId: 'member-a',
+        teamId: null,
+        roleLabel: null,
+        displaySnapshot: 'Member A',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]
+
+    const started = await service.executeAssignedJob(memberActorA, job.id, {
+      status: JobStatus.IN_PROGRESS,
+      notes: 'Started on site.',
+    })
+    expect(started).toMatchObject({
+      status: JobStatus.IN_PROGRESS,
+      notes: 'Started on site.',
+    })
+
+    const completed = await service.executeAssignedJob(memberActorA, job.id, {
+      status: JobStatus.COMPLETED,
+    })
+    expect(completed).toMatchObject({
+      status: JobStatus.COMPLETED,
+      completedAt: NOW,
+    })
+  })
+
+  it('resolves Team execution from current membership and denies removed, unrelated, or cross-workspace members', async () => {
+    const job = await service.createJob(actorA, {
+      title: 'Crew work',
+      status: JobStatus.SCHEDULED,
+    })
+    job.schedulingEventId = 'occurrence-team'
+    job.recurringServiceId = 'service-1'
+    job.assignments = [
+      {
+        id: 'assignment-team',
+        workspaceId: 'ws-a',
+        jobId: job.id,
+        assignmentType: 'TEAM',
+        workspaceMemberId: null,
+        teamId: 'team-1',
+        roleLabel: null,
+        displaySnapshot: 'Crew One',
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]
+
+    await expect(
+      service.executeAssignedJob(memberActorA, job.id, {
+        status: JobStatus.IN_PROGRESS,
+      }),
+    ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' })
+
+    memory.activeTeamMemberships.add('ws-a:team-1:member-a')
+    await expect(
+      service.executeAssignedJob(memberActorA, job.id, {
+        status: JobStatus.IN_PROGRESS,
+      }),
+    ).resolves.toMatchObject({ status: JobStatus.IN_PROGRESS })
+
+    memory.activeTeamMemberships.delete('ws-a:team-1:member-a')
+    await expect(
+      service.executeAssignedJob(memberActorA, job.id, {
+        notes: 'Should not persist.',
+      }),
+    ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' })
+
+    await expect(
+      service.executeAssignedJob(
+        { ...actorB, workspaceMemberId: 'member-b' },
+        job.id,
+        { notes: 'Foreign workspace.' },
+      ),
+    ).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' })
+  })
+
+  it.each([
+    ['title', 'Renamed'],
+    ['assigneeMemberId', 'member-a'],
+    ['customerId', 'customer-a'],
+    ['scheduledStartAt', '2026-10-01T10:00:00.000Z'],
+    ['valueCents', 1],
+    ['workspaceMemberId', 'member-other'],
+  ])(
+    'rejects mixed Job execution and management field %s',
+    async (field, value) => {
+      const job = await service.createJob(actorA, {
+        title: 'Manual assigned work',
+        assigneeMemberId: 'member-a',
+      })
+
+      await expect(
+        service.executeAssignedJob(memberActorA, job.id, {
+          status: JobStatus.IN_PROGRESS,
+          [field]: value,
+        }),
+      ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
+      expect(job.status).toBe(JobStatus.OPEN)
+    },
+  )
+
+  it('preserves manual single-assignee execution compatibility', async () => {
+    const job = await service.createJob(actorA, {
+      title: 'Manual assigned work',
+      assigneeMemberId: 'member-a',
+    })
+
+    await expect(
+      service.executeAssignedJob(memberActorA, job.id, {
+        status: JobStatus.IN_PROGRESS,
+      }),
+    ).resolves.toMatchObject({ status: JobStatus.IN_PROGRESS })
+  })
+
+  it('conflicts deterministically when another crew action wins before the atomic Job update', async () => {
+    const job = await service.createJob(actorA, {
+      title: 'Crew race',
+      assigneeMemberId: 'member-a',
+    })
+    const updateJob = memory.store.updateJob
+    const racingService = createOperationsService(
+      {
+        ...memory.store,
+        async updateJob(input) {
+          job.status = JobStatus.CANCELED
+          return updateJob(input)
+        },
+      },
+      { now: () => NOW },
+    )
+
+    await expect(
+      racingService.executeAssignedJob(memberActorA, job.id, {
+        status: JobStatus.COMPLETED,
+      }),
+    ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+    expect(job.status).toBe(JobStatus.CANCELED)
+  })
+
   it('rejects stale management status transitions instead of applying an outdated decision', async () => {
     const job = await service.createJob(actorA, { title: 'Racing Job' })
     const todo = await service.createTodo(actorA, { title: 'Racing To-Do' })
@@ -815,6 +1081,81 @@ describe('durable Jobs and Work Items service', () => {
     expect((await service.getJob('ws-a', job.id))?.status).toBe(JobStatus.OPEN)
     expect(memory.calls).not.toContain('updateJob')
   })
+
+  it('lets an authorized parent-Job crew member execute a Job Step without changing To-Do rules', async () => {
+    const job = await service.createJob(actorA, {
+      title: 'Crew Job',
+      assigneeMemberId: 'member-a',
+    })
+    const step = await service.createJobStep(actorA, job.id, {
+      title: 'Shared crew step',
+      assigneeMemberId: 'member-other',
+    })
+    const todo = await service.createTodo(actorA, {
+      title: 'Private To-Do',
+      assigneeMemberId: 'member-other',
+    })
+
+    await expect(
+      service.executeAssignedWorkItem(memberActorA, step.id, {
+        status: WorkItemStatus.COMPLETED,
+      }),
+    ).resolves.toMatchObject({ status: WorkItemStatus.COMPLETED })
+    await expect(
+      service.executeAssignedWorkItem(memberActorA, todo.id, {
+        status: WorkItemStatus.COMPLETED,
+      }),
+    ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' })
+  })
+
+  it.each([
+    JobStatus.COMPLETED,
+    JobStatus.CANCELED,
+    JobStatus.UNABLE_TO_COMPLETE,
+  ])(
+    'blocks field execution of Job Steps while the recurring parent is %s',
+    async (status) => {
+      const job = await service.createJob(actorA, {
+        title: 'Final recurring Job',
+        status: JobStatus.SCHEDULED,
+      })
+      job.recurringServiceId = 'service-1'
+      job.schedulingEventId = 'occurrence-1'
+      job.assigneeMemberId = 'member-a'
+      job.assignments = [
+        {
+          id: 'assignment-1',
+          workspaceId: 'ws-a',
+          jobId: job.id,
+          assignmentType: 'MEMBER',
+          workspaceMemberId: 'member-a',
+          teamId: null,
+          roleLabel: null,
+          displaySnapshot: 'Member A',
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ]
+      const step = await service.createJobStep(actorA, job.id, {
+        title: 'Historical step',
+        assigneeMemberId: 'member-a',
+      })
+      job.status = status
+      await expect(
+        service.executeAssignedWorkItem(memberActorA, step.id, {
+          status: WorkItemStatus.COMPLETED,
+        }),
+      ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+      if (status !== JobStatus.UNABLE_TO_COMPLETE) {
+        await expect(
+          service.updateWorkItem(actorA, step.id, { notes: 'Rewrite history' }),
+        ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+        await expect(
+          service.archiveWorkItem(actorA, step.id),
+        ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+      }
+    },
+  )
 
   it('rejects member execution of another member, unassigned, or cross-workspace work', async () => {
     const assignedElsewhere = await service.createTodo(actorA, {

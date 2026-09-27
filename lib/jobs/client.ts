@@ -83,6 +83,25 @@ export async function archiveJob(workspaceId: string, jobId: string) {
   )
 }
 
+export async function runJobLifecycleAction(
+  workspaceId: string,
+  jobId: string,
+  action:
+    | 'start'
+    | 'complete'
+    | 'update'
+    | 'unable-to-complete'
+    | 'skip'
+    | 'reschedule',
+  input: Record<string, unknown> = {},
+) {
+  const body = await requestJson<{ job: JobClientRecord }>(
+    `${workspacePath(workspaceId)}/jobs/${encodeURIComponent(jobId)}/lifecycle/${action}`,
+    { method: 'POST', body: JSON.stringify(input) },
+  )
+  return body.job
+}
+
 export async function listJobSteps(workspaceId: string, jobId: string) {
   const body = await requestJson<{ workItems: WorkItemClientRecord[] }>(
     `${workspacePath(workspaceId)}/jobs/${encodeURIComponent(jobId)}/work-items`,

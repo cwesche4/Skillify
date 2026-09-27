@@ -52,6 +52,7 @@ import {
 import type {
   AvailabilityExceptionRecord,
   SchedulingEvent,
+  SchedulingAssignmentTarget,
   SchedulingEventStatus,
   SchedulingLocationType,
   SchedulingRecurrenceActionScope,
@@ -309,6 +310,7 @@ export type SchedulingEventWriteInput = Omit<
   id?: string
   linkedRecord?: SchedulingEvent['linkedRecord'] | null
   attendees?: SchedulingAttendeeInput[]
+  assignments?: SchedulingAssignmentTarget[]
 }
 
 export type SchedulingRangeQuery = {
@@ -342,6 +344,7 @@ function duplicateEventInput({
     meetingUrl: event.meetingUrl,
     phoneNumber: event.phoneNumber,
     assignedMemberIds: [...event.assignedMemberIds],
+    assignments: event.assignments?.map((assignment) => ({ ...assignment })),
     linkedRecord: event.linkedRecord ?? null,
     recurrenceRule: duplicateSeries ? event.recurrenceRule : undefined,
     reminderPolicy: event.reminderPolicy,
@@ -694,6 +697,13 @@ function eventToDomain(
     assignedMemberIds: event.assignments
       .filter((assignment) => assignment.workspaceMemberId)
       .map((assignment) => assignment.workspaceMemberId as string),
+    assignments: event.assignments.map((assignment) => ({
+      assignmentType: assignment.assignmentType,
+      workspaceMemberId: assignment.workspaceMemberId,
+      teamId: assignment.teamId,
+      roleLabel: assignment.roleLabel,
+      displaySnapshot: assignment.displaySnapshot,
+    })),
     linkedRecord,
     recurrenceSeriesId:
       event.recurrenceSeriesId ?? event.masterSeries?.id ?? undefined,
@@ -870,11 +880,12 @@ async function updateEventInTransaction({
       },
     })
   }
-  if (input.assignedMemberIds) {
+  if (input.assignedMemberIds || input.assignments) {
     await replaceEventAssignments(tx, {
       workspaceId,
       eventId,
       assignedMemberIds: input.assignedMemberIds,
+      assignments: input.assignments,
     })
   }
   if (input.attendees) {
@@ -1638,6 +1649,15 @@ function buildMasterInputFromOccurrence({
       occurrence.assignments
         .filter((assignment) => assignment.workspaceMemberId)
         .map((assignment) => assignment.workspaceMemberId as string),
+    assignments:
+      input.assignments ??
+      occurrence.assignments.map((assignment) => ({
+        assignmentType: assignment.assignmentType,
+        workspaceMemberId: assignment.workspaceMemberId,
+        teamId: assignment.teamId,
+        roleLabel: assignment.roleLabel,
+        displaySnapshot: assignment.displaySnapshot,
+      })),
     linkedRecord:
       input.linkedRecord !== undefined
         ? input.linkedRecord
@@ -1722,6 +1742,7 @@ async function splitRecurringSeries({
         workspaceId,
         recurrenceSeriesId: series.id,
         occurrenceOriginalAt: { gte: boundaryUtc },
+        NOT: { materializedJob: { is: { status: 'COMPLETED' } } },
         occurrenceState: {
           notIn: [
             PrismaSchedulingOccurrenceState.COMPLETED,
@@ -1863,6 +1884,7 @@ async function splitRecurringSeries({
     workspaceId,
     eventId: newMaster.id,
     assignedMemberIds: newMasterInput.assignedMemberIds,
+    assignments: newMasterInput.assignments,
   })
   await replaceEventAttendees(tx, {
     workspaceId,
@@ -1895,6 +1917,21 @@ async function splitRecurringSeries({
     },
     include: { masterEvent: { include: eventInclude } },
   })
+  // A Recurring Service represents the current business template for future
+  // visits. When Scheduling splits "this and following" into a new series,
+  // move the 1:1 link inside the same transaction instead of duplicating any
+  // recurrence data or leaving the service attached to the historical segment.
+  await tx.recurringService.updateMany({
+    where: {
+      workspaceId,
+      recurrenceSeriesId: series.id,
+      status: { in: ['ACTIVE', 'PAUSED'] },
+    },
+    data: {
+      recurrenceSeriesId: newSeries.id,
+      status: 'ACTIVE',
+    },
+  })
 
   const futureRows = await tx.schedulingEvent.findMany({
     where: {
@@ -1903,6 +1940,7 @@ async function splitRecurringSeries({
       occurrenceOriginalAt: { gte: boundaryUtc },
       deletedAt: null,
     },
+    orderBy: [{ occurrenceOriginalAt: 'asc' }, { id: 'asc' }],
     include: eventInclude,
   })
   const generatedIds = futureRows
@@ -2090,6 +2128,64 @@ async function splitRecurringSeries({
     })
     detachedOverrideIds.push(row.id)
   }
+
+  // Preserve an already-materialized Job when Scheduling replaces occurrence
+  // rows during a split. The recurrence engine supplies the deterministic
+  // ordinal/remap decision; Jobs never calculate recurrence themselves.
+  const overrideOccurrenceRemaps = remapDecisions.flatMap((decision) =>
+    decision.action === 'remap'
+      ? [
+          {
+            sourceOccurrenceId: decision.candidateOccurrenceId,
+            targetOccurrenceId: decision.targetOccurrenceId,
+          },
+        ]
+      : [],
+  )
+  const claimedTargetIds = new Set(
+    overrideOccurrenceRemaps.map((remap) => remap.targetOccurrenceId),
+  )
+  const generatedOccurrenceRemaps = futureRows.flatMap((row, ordinal) => {
+    if (!generatedIds.includes(row.id)) return []
+    const originalAt = row.occurrenceOriginalAt ?? row.startsAtUtc
+    const exactTarget = targets.find(
+      (target) =>
+        !claimedTargetIds.has(target.id) &&
+        (target.occurrenceOriginalAt ?? target.startsAtUtc).getTime() ===
+          originalAt.getTime(),
+    )
+    const ordinalTarget = targets[ordinal]
+    const target =
+      exactTarget ??
+      (ordinalTarget && !claimedTargetIds.has(ordinalTarget.id)
+        ? ordinalTarget
+        : null)
+    if (!target) return []
+    claimedTargetIds.add(target.id)
+    return [{ sourceOccurrenceId: row.id, targetOccurrenceId: target.id }]
+  })
+  const occurrenceRemaps = [
+    ...overrideOccurrenceRemaps,
+    ...generatedOccurrenceRemaps,
+  ]
+  for (const remap of occurrenceRemaps) {
+    await tx.job.updateMany({
+      where: {
+        workspaceId,
+        schedulingEventId: remap.sourceOccurrenceId,
+        status: {
+          in: [
+            'OPEN',
+            'SCHEDULED',
+            'IN_PROGRESS',
+            'WAITING_ON_CLIENT',
+            'UNABLE_TO_COMPLETE',
+          ],
+        },
+      },
+      data: { schedulingEventId: remap.targetOccurrenceId },
+    })
+  }
   await appendActivity(tx, {
     workspaceId,
     eventId: newMaster.id,
@@ -2164,26 +2260,95 @@ async function replaceEventAssignments(
     workspaceId,
     eventId,
     assignedMemberIds,
+    assignments,
   }: {
     workspaceId: string
     eventId: string
-    assignedMemberIds: string[]
+    assignedMemberIds?: string[]
+    assignments?: SchedulingAssignmentTarget[]
   },
 ) {
   const validMemberIds = await validateAssignments({
     db,
     workspaceId,
-    assignedMemberIds,
+    assignedMemberIds: [
+      ...(assignedMemberIds ?? []),
+      ...(assignments ?? []).flatMap((assignment) =>
+        assignment.assignmentType === 'MEMBER' && assignment.workspaceMemberId
+          ? [assignment.workspaceMemberId]
+          : [],
+      ),
+    ],
   })
+  const requestedTeamIds = [
+    ...new Set(
+      (assignments ?? []).flatMap((assignment) =>
+        assignment.assignmentType === 'TEAM' && assignment.teamId
+          ? [assignment.teamId]
+          : [],
+      ),
+    ),
+  ]
+  const teams = requestedTeamIds.length
+    ? await db.workspaceTeam.findMany({
+        where: {
+          workspaceId,
+          id: { in: requestedTeamIds },
+          isActive: true,
+          archivedAt: null,
+        },
+        select: { id: true, name: true },
+      })
+    : []
+  if (teams.length !== requestedTeamIds.length) {
+    throw new SchedulingRepositoryError(
+      'The selected team is no longer active in this workspace.',
+      'forbidden',
+    )
+  }
+  const teamNameById = new Map(teams.map((team) => [team.id, team.name]))
+  const requestedByMemberId = new Map(
+    (assignments ?? []).flatMap((assignment) =>
+      assignment.assignmentType === 'MEMBER' && assignment.workspaceMemberId
+        ? [[assignment.workspaceMemberId, assignment] as const]
+        : [],
+    ),
+  )
+  const requestedByTeamId = new Map(
+    (assignments ?? []).flatMap((assignment) =>
+      assignment.assignmentType === 'TEAM' && assignment.teamId
+        ? [[assignment.teamId, assignment] as const]
+        : [],
+    ),
+  )
   await db.schedulingAssignment.deleteMany({ where: { workspaceId, eventId } })
-  if (validMemberIds.length === 0) return
+  if (validMemberIds.length === 0 && requestedTeamIds.length === 0) return
   await db.schedulingAssignment.createMany({
-    data: validMemberIds.map((workspaceMemberId) => ({
-      workspaceId,
-      eventId,
-      assignmentType: SchedulingAssignmentType.MEMBER,
-      workspaceMemberId,
-    })),
+    data: [
+      ...validMemberIds.map((workspaceMemberId) => {
+        const requested = requestedByMemberId.get(workspaceMemberId)
+        return {
+          workspaceId,
+          eventId,
+          assignmentType: SchedulingAssignmentType.MEMBER,
+          workspaceMemberId,
+          roleLabel: requested?.roleLabel ?? null,
+          displaySnapshot: requested?.displaySnapshot ?? null,
+        }
+      }),
+      ...requestedTeamIds.map((teamId) => {
+        const requested = requestedByTeamId.get(teamId)
+        return {
+          workspaceId,
+          eventId,
+          assignmentType: SchedulingAssignmentType.TEAM,
+          teamId,
+          roleLabel: requested?.roleLabel ?? null,
+          displaySnapshot:
+            requested?.displaySnapshot ?? teamNameById.get(teamId) ?? null,
+        }
+      }),
+    ],
     skipDuplicates: true,
   })
 }
@@ -2551,6 +2716,7 @@ export const schedulingRepository = {
         workspaceId,
         eventId: created.id,
         assignedMemberIds: input.assignedMemberIds,
+        assignments: input.assignments,
       })
       await replaceEventAttendees(tx, {
         workspaceId,
@@ -2749,11 +2915,12 @@ export const schedulingRepository = {
             isCreate: false,
           }) as Prisma.SchedulingEventUncheckedUpdateInput,
         })
-        if (input.assignedMemberIds) {
+        if (input.assignedMemberIds || input.assignments) {
           await replaceEventAssignments(tx, {
             workspaceId,
             eventId: master.id,
             assignedMemberIds: input.assignedMemberIds,
+            assignments: input.assignments,
           })
         }
         const updatedMaster = await getScopedEvent(tx, workspaceId, master.id)
@@ -2800,6 +2967,7 @@ export const schedulingRepository = {
             workspaceId,
             recurrenceSeriesId: series.id,
             occurrenceOriginalAt: { gte: boundary },
+            NOT: { materializedJob: { is: { status: 'COMPLETED' } } },
             occurrenceState: PrismaSchedulingOccurrenceState.GENERATED,
             deletedAt: null,
           },
@@ -2905,11 +3073,25 @@ export const schedulingRepository = {
     scope,
     expectedVersion,
     idempotencyKey,
+    jobCancellation,
   }: {
     workspaceId: string
     occurrenceId: string
     actorUserId: string
     scope: SchedulingRecurrenceActionScope
+    jobCancellation?: {
+      reason:
+        | 'CUSTOMER_REQUEST'
+        | 'WEATHER'
+        | 'ACCESS_ISSUE'
+        | 'STAFFING'
+        | 'EQUIPMENT'
+        | 'HOLIDAY'
+        | 'SERVICE_ENDED'
+        | 'SCHEDULE_CANCELED'
+        | 'OTHER'
+      note: string | null
+    }
   } & RecurrenceMutationOptions): Promise<void> {
     const seriesId = await getRecurringSeriesIdForOccurrence({
       workspaceId,
@@ -2925,9 +3107,24 @@ export const schedulingRepository = {
         scope,
         expectedVersion,
         idempotencyKey,
+        request: { jobCancellation },
         callback: async (tx) => {
           const existing = await getScopedEvent(tx, workspaceId, occurrenceId)
           const from = statusFromPrisma(existing.status)
+          const completedJob = await tx.job.findFirst({
+            where: {
+              workspaceId,
+              schedulingEventId: occurrenceId,
+              status: 'COMPLETED',
+            },
+            select: { id: true },
+          })
+          if (completedJob) {
+            throw new SchedulingRepositoryError(
+              'A completed recurring Job protects this occurrence from cancellation.',
+              'conflict',
+            )
+          }
           assertSchedulingEventStatusTransition({ from, to: 'canceled' })
           await tx.schedulingEvent.update({
             where: { id: occurrenceId },
@@ -2981,6 +3178,7 @@ export const schedulingRepository = {
               actorUserId,
               seriesId,
               ...(scheduleChange ? { scheduleChange } : {}),
+              ...(jobCancellation ? { jobCancellation } : {}),
             },
           })
         },
@@ -3046,6 +3244,20 @@ export const schedulingRepository = {
         expectedVersion,
         idempotencyKey,
         callback: async (tx) => {
+          const completedJob = await tx.job.findFirst({
+            where: {
+              workspaceId,
+              schedulingEventId: occurrenceId,
+              status: 'COMPLETED',
+            },
+            select: { id: true },
+          })
+          if (completedJob) {
+            throw new SchedulingRepositoryError(
+              'A completed recurring Job protects this occurrence from deletion.',
+              'conflict',
+            )
+          }
           await tx.schedulingEvent.update({
             where: { id: occurrenceId },
             data: {
@@ -3087,17 +3299,27 @@ export const schedulingRepository = {
             workspaceId,
             occurrenceId,
           })
+          const endedAt = new Date()
           await tx.schedulingRecurrenceSeries.update({
             where: { id: series.id },
             data: {
               status: PrismaSchedulingRecurrenceSeriesStatus.CANCELED,
-              canceledAt: new Date(),
+              canceledAt: endedAt,
               version: { increment: 1 },
             },
+          })
+          await tx.recurringService.updateMany({
+            where: {
+              workspaceId,
+              recurrenceSeriesId: series.id,
+              status: { in: ['ACTIVE', 'PAUSED'] },
+            },
+            data: { status: 'ENDED', endedAt },
           })
           await tx.schedulingEvent.updateMany({
             where: {
               workspaceId,
+              NOT: { materializedJob: { is: { status: 'COMPLETED' } } },
               OR: [
                 { id: series.masterEventId },
                 {
@@ -3263,6 +3485,18 @@ export const schedulingRepository = {
       callback: async (tx) => {
         const existing = await getScopedEvent(tx, workspaceId, occurrenceId)
         const from = statusFromPrisma(existing.status)
+        if (status === 'completed') {
+          const linkedJob = await tx.job.findFirst({
+            where: { workspaceId, schedulingEventId: occurrenceId },
+            select: { status: true },
+          })
+          if (linkedJob && linkedJob.status !== 'COMPLETED') {
+            throw new SchedulingRepositoryError(
+              'Complete the linked recurring Job to complete this occurrence.',
+              'conflict',
+            )
+          }
+        }
         const effect = getSchedulingStatusTransitionEffect({ from, to: status })
         assertSchedulingEventStatusTransition({ from, to: status })
         await tx.schedulingEvent.update({
@@ -3742,6 +3976,16 @@ export const schedulingRepository = {
             'not_found',
           )
         }
+        const linkedService = await tx.recurringService.findFirst({
+          where: { workspaceId, recurrenceSeriesId: seriesId },
+          select: { status: true },
+        })
+        if (linkedService?.status === 'ENDED') {
+          throw new SchedulingRepositoryError(
+            'An ended Recurring Service schedule cannot be paused.',
+            'invalid_input',
+          )
+        }
         await tx.schedulingRecurrenceSeries.update({
           where: { id: seriesId },
           data: {
@@ -3749,6 +3993,14 @@ export const schedulingRepository = {
             pausedAt: new Date(),
             version: { increment: 1 },
           },
+        })
+        await tx.recurringService.updateMany({
+          where: {
+            workspaceId,
+            recurrenceSeriesId: seriesId,
+            status: 'ACTIVE',
+          },
+          data: { status: 'PAUSED' },
         })
         await appendOutbox(tx, {
           workspaceId,
@@ -3794,6 +4046,16 @@ export const schedulingRepository = {
             'not_found',
           )
         }
+        const linkedService = await tx.recurringService.findFirst({
+          where: { workspaceId, recurrenceSeriesId: seriesId },
+          select: { status: true },
+        })
+        if (linkedService?.status === 'ENDED') {
+          throw new SchedulingRepositoryError(
+            'An ended Recurring Service schedule cannot be resumed.',
+            'invalid_input',
+          )
+        }
         await tx.schedulingRecurrenceSeries.update({
           where: { id: seriesId },
           data: {
@@ -3801,6 +4063,14 @@ export const schedulingRepository = {
             pausedAt: null,
             version: { increment: 1 },
           },
+        })
+        await tx.recurringService.updateMany({
+          where: {
+            workspaceId,
+            recurrenceSeriesId: seriesId,
+            status: 'PAUSED',
+          },
+          data: { status: 'ACTIVE' },
         })
         await appendOutbox(tx, {
           workspaceId,
@@ -3850,6 +4120,7 @@ export const schedulingRepository = {
           where: {
             workspaceId,
             recurrenceSeriesId: seriesId,
+            NOT: { materializedJob: { is: { status: 'COMPLETED' } } },
             occurrenceState: PrismaSchedulingOccurrenceState.GENERATED,
             startsAtUtc: { gte: new Date() },
             deletedAt: null,
@@ -3857,18 +4128,28 @@ export const schedulingRepository = {
           orderBy: { startsAtUtc: 'asc' },
           include: eventInclude,
         })
+        const endedAt = new Date()
         await tx.schedulingRecurrenceSeries.update({
           where: { id: seriesId },
           data: {
             status: PrismaSchedulingRecurrenceSeriesStatus.CANCELED,
-            canceledAt: new Date(),
+            canceledAt: endedAt,
             version: { increment: 1 },
           },
+        })
+        await tx.recurringService.updateMany({
+          where: {
+            workspaceId,
+            recurrenceSeriesId: seriesId,
+            status: { in: ['ACTIVE', 'PAUSED'] },
+          },
+          data: { status: 'ENDED', endedAt },
         })
         await tx.schedulingEvent.updateMany({
           where: {
             workspaceId,
             recurrenceSeriesId: seriesId,
+            NOT: { materializedJob: { is: { status: 'COMPLETED' } } },
             occurrenceState: PrismaSchedulingOccurrenceState.GENERATED,
             startsAtUtc: { gte: new Date() },
           },

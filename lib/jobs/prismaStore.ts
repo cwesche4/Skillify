@@ -10,6 +10,11 @@ import {
 } from '@/lib/domain-events/nativeJobEvents'
 import { OperationsServiceError, type JobsStore } from '@/lib/jobs/service'
 import { JobStatus, WorkspaceBusinessModel } from '@/lib/prisma/enums'
+import {
+  canWorkspaceMemberExecuteJob,
+  jobExecutionEligibilityWhere,
+  lockAndValidateRecurringJobExecution,
+} from '@/lib/jobs/jobExecutionAuthorization'
 
 export const prismaJobsStore: JobsStore = {
   async getWorkspaceBusinessModel(workspaceId) {
@@ -26,6 +31,14 @@ export const prismaJobsStore: JobsStore = {
       select: { id: true },
     })
     return Boolean(member)
+  },
+
+  canExecuteJob({ workspaceId, jobId, workspaceMemberId }) {
+    return canWorkspaceMemberExecuteJob({
+      workspaceId,
+      jobId,
+      workspaceMemberId,
+    })
   },
 
   findActiveCustomer({ workspaceId, customerId }) {
@@ -76,18 +89,62 @@ export const prismaJobsStore: JobsStore = {
   findJob({ workspaceId, jobId }) {
     return prisma.job.findFirst({
       where: { id: jobId, workspaceId, archivedAt: null },
+      include: { assignments: { orderBy: { createdAt: 'asc' } } },
     })
   },
 
   listJobs({ workspaceId, customerId }) {
     return prisma.job.findMany({
       where: { workspaceId, customerId, archivedAt: null },
+      include: { assignments: { orderBy: { createdAt: 'asc' } } },
       orderBy: [{ scheduledStartAt: 'asc' }, { createdAt: 'desc' }],
     })
   },
 
-  updateJob({ workspaceId, jobId, expectedStatus, data }) {
+  updateJob({
+    workspaceId,
+    jobId,
+    actorUserId,
+    executionMemberId,
+    expectedStatus,
+    data,
+  }) {
     return prisma.$transaction(async (tx) => {
+      if (
+        executionMemberId &&
+        !(await lockAndValidateRecurringJobExecution({
+          tx,
+          workspaceId,
+          jobId,
+          workspaceMemberId: executionMemberId,
+        }))
+      ) {
+        return null
+      }
+      const recurringReference = await tx.job.findFirst({
+        where: { id: jobId, workspaceId, archivedAt: null },
+        select: { schedulingEventId: true },
+      })
+      if (recurringReference?.schedulingEventId) {
+        // Recurrence mutations update the occurrence before their linked Job.
+        // Use the same event-before-Job lock order so field/management writes
+        // and cancel/skip serialize to one winner instead of both succeeding.
+        const lockedEvents = await tx.$queryRaw<Array<{ id: string }>>(
+          Prisma.sql`SELECT "id" FROM "SchedulingEvent" WHERE "id" = ${recurringReference.schedulingEventId} AND "workspaceId" = ${workspaceId} FOR UPDATE`,
+        )
+        if (lockedEvents.length !== 1) return null
+        const event = await tx.schedulingEvent.findFirst({
+          where: {
+            id: recurringReference.schedulingEventId,
+            workspaceId,
+            deletedAt: null,
+            status: { in: ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS'] },
+            occurrenceState: { in: ['GENERATED', 'OVERRIDDEN'] },
+          },
+          select: { id: true },
+        })
+        if (!event) return null
+      }
       const lockedJobs = await tx.$queryRaw<Array<{ id: string }>>(
         Prisma.sql`SELECT "id" FROM "Job" WHERE "id" = ${jobId} AND "workspaceId" = ${workspaceId} AND "archivedAt" IS NULL FOR UPDATE`,
       )
@@ -121,9 +178,13 @@ export const prismaJobsStore: JobsStore = {
       }
       const result = await tx.job.updateMany({
         where: {
-          id: jobId,
-          workspaceId,
-          archivedAt: null,
+          ...(executionMemberId
+            ? jobExecutionEligibilityWhere({
+                workspaceId,
+                jobId,
+                workspaceMemberId: executionMemberId,
+              })
+            : { id: jobId, workspaceId, archivedAt: null }),
           status: expectedStatus,
         },
         data: safeData,
@@ -131,6 +192,7 @@ export const prismaJobsStore: JobsStore = {
       if (result.count !== 1) return null
       const job = await tx.job.findFirst({
         where: { id: jobId, workspaceId },
+        include: { assignments: { orderBy: { createdAt: 'asc' } } },
       })
       if (!job) return null
 
@@ -143,6 +205,26 @@ export const prismaJobsStore: JobsStore = {
       const completedAt = job.completedAt
       if (!completedAt) return { job, completionEventId: null }
 
+      const completionRevision = randomUUID()
+      if (job.schedulingEventId) {
+        await tx.domainOutboxEvent.create({
+          data: {
+            workspaceId,
+            topic: 'scheduling.recurring_job.completed',
+            aggregateType: 'Job',
+            aggregateId: job.id,
+            deduplicationKey: `scheduling:recurring-job-completed:${workspaceId}:${job.id}:${completionRevision}`,
+            payload: {
+              workspaceId,
+              jobId: job.id,
+              schedulingEventId: job.schedulingEventId,
+              completedAt: completedAt.toISOString(),
+              completionRevision,
+              actorUserId: actorUserId ?? job.createdByUserId,
+            },
+          },
+        })
+      }
       const installation = await tx.simpleAutomationInstallation.findFirst({
         where: {
           workspaceId,
@@ -155,7 +237,6 @@ export const prismaJobsStore: JobsStore = {
       })
       if (!installation) return { job, completionEventId: null }
 
-      const completionRevision = randomUUID()
       await tx.domainOutboxEvent.updateMany({
         where: {
           workspaceId,
@@ -269,6 +350,7 @@ export const prismaJobsStore: JobsStore = {
         WHERE "id" = ${data.jobId}
           AND "workspaceId" = ${data.workspaceId}
           AND "archivedAt" IS NULL
+          AND ("schedulingEventId" IS NULL OR "status" NOT IN ('COMPLETED', 'CANCELED'))
         FOR UPDATE
       `
       if (lockedJobs.length !== 1) {
@@ -304,7 +386,7 @@ export const prismaJobsStore: JobsStore = {
           { kind: 'JOB_STEP', job: { is: { archivedAt: null } } },
         ],
       },
-      orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ sortOrder: 'asc' }, { dueAt: 'asc' }, { createdAt: 'desc' }],
     })
   },
 
@@ -325,6 +407,7 @@ export const prismaJobsStore: JobsStore = {
           WHERE "id" = ${jobId}
             AND "workspaceId" = ${workspaceId}
             AND "archivedAt" IS NULL
+            AND ("schedulingEventId" IS NULL OR "status" NOT IN ('COMPLETED', 'CANCELED'))
           FOR UPDATE
         `
         if (lockedJobs.length !== 1) return null
@@ -355,6 +438,45 @@ export const prismaJobsStore: JobsStore = {
     data,
   }) {
     return prisma.$transaction(async (tx) => {
+      if (
+        kind === 'JOB_STEP' &&
+        jobId &&
+        !(await lockAndValidateRecurringJobExecution({
+          tx,
+          workspaceId,
+          jobId,
+          workspaceMemberId: assigneeMemberId,
+        }))
+      ) {
+        return null
+      }
+      const executionWhere: Prisma.WorkItemWhereInput =
+        kind === 'JOB_STEP' && jobId
+          ? {
+              OR: [
+                {
+                  assigneeMemberId,
+                  job: {
+                    is: {
+                      id: jobId,
+                      workspaceId,
+                      schedulingEventId: null,
+                      archivedAt: null,
+                    },
+                  },
+                },
+                {
+                  job: {
+                    is: jobExecutionEligibilityWhere({
+                      workspaceId,
+                      jobId,
+                      workspaceMemberId: assigneeMemberId,
+                    }),
+                  },
+                },
+              ],
+            }
+          : { assigneeMemberId }
       if (kind === 'JOB_STEP') {
         if (!jobId) return null
         const lockedJobs = await tx.$queryRaw<Array<{ id: string }>>`
@@ -363,6 +485,7 @@ export const prismaJobsStore: JobsStore = {
           WHERE "id" = ${jobId}
             AND "workspaceId" = ${workspaceId}
             AND "archivedAt" IS NULL
+            AND "status" NOT IN ('COMPLETED', 'CANCELED', 'UNABLE_TO_COMPLETE')
           FOR UPDATE
         `
         if (lockedJobs.length !== 1) return null
@@ -371,7 +494,7 @@ export const prismaJobsStore: JobsStore = {
         where: {
           id: workItemId,
           workspaceId,
-          assigneeMemberId,
+          ...executionWhere,
           status: expectedStatus,
           archivedAt: null,
         },
@@ -382,7 +505,7 @@ export const prismaJobsStore: JobsStore = {
         where: {
           id: workItemId,
           workspaceId,
-          assigneeMemberId,
+          ...executionWhere,
           archivedAt: null,
         },
       })

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { TeamAvailabilityRecord } from '@/lib/scheduling/types'
+import type {
+  SchedulingEvent,
+  TeamAvailabilityRecord,
+} from '@/lib/scheduling/types'
 
 const mocks = vi.hoisted(() => ({
   prisma: {
@@ -31,6 +34,10 @@ const mocks = vi.hoisted(() => ({
     createAvailabilityRecord: vi.fn(),
     updateAvailabilityRecord: vi.fn(),
     duplicateEvent: vi.fn(),
+    cancelRecurringEvent: vi.fn(),
+    transitionEventStatus: vi.fn(),
+    deleteRecurringEvent: vi.fn(),
+    softDeleteEvent: vi.fn(),
   },
 }))
 
@@ -43,8 +50,10 @@ vi.mock('@/lib/scheduling/repository', () => ({
 }))
 
 import {
+  changeSchedulingEventStatus,
   createSchedulingAvailabilityRecord,
   createSchedulingEvent,
+  deleteSchedulingEvent,
   duplicateSchedulingEvent,
 } from '@/lib/scheduling/services/schedulingService'
 
@@ -68,6 +77,24 @@ const baseWorkingHours = {
   'id' | 'workspaceId'
 >
 
+const recurringOccurrence = {
+  id: 'occurrence-1',
+  workspaceId: actor.workspaceId,
+  title: 'Recurring service visit',
+  type: 'recurringServiceVisit',
+  status: 'scheduled',
+  startsAt: '2026-07-31T14:00:00.000Z',
+  endsAt: '2026-07-31T15:00:00.000Z',
+  allDay: false,
+  timezone: 'America/New_York',
+  assignedMemberIds: ['workspace-member-owner'],
+  recurrenceSeriesId: 'series-1',
+  occurrenceOriginalAt: '2026-07-31T14:00:00.000Z',
+  occurrenceState: 'generated',
+  createdAt: '2026-07-01T12:00:00.000Z',
+  updatedAt: '2026-07-01T12:00:00.000Z',
+} satisfies SchedulingEvent
+
 describe('scheduling availability service', () => {
   beforeEach(() => {
     mocks.prisma.workspace.findUnique.mockReset()
@@ -80,6 +107,10 @@ describe('scheduling availability service', () => {
     mocks.schedulingRepository.createAvailabilityRecord.mockReset()
     mocks.schedulingRepository.updateAvailabilityRecord.mockReset()
     mocks.schedulingRepository.duplicateEvent.mockReset()
+    mocks.schedulingRepository.cancelRecurringEvent.mockReset()
+    mocks.schedulingRepository.transitionEventStatus.mockReset()
+    mocks.schedulingRepository.deleteRecurringEvent.mockReset()
+    mocks.schedulingRepository.softDeleteEvent.mockReset()
     mocks.schedulingRepository.createEvent.mockReset()
     mocks.schedulingRepository.getEventById.mockReset()
     mocks.schedulingRepository.markSchedulingEventForExternalSync.mockReset()
@@ -98,6 +129,53 @@ describe('scheduling availability service', () => {
     mocks.prisma.workspaceSettings.findUnique.mockResolvedValue(null)
     mocks.prisma.workspaceMember.findMany.mockResolvedValue([])
     mocks.prisma.calendarEventMapping.updateMany.mockResolvedValue({ count: 0 })
+  })
+
+  it('defaults recurring cancellation to this occurrence so lifecycle protections cannot be bypassed', async () => {
+    mocks.schedulingRepository.getEventById
+      .mockResolvedValueOnce(recurringOccurrence)
+      .mockResolvedValueOnce({ ...recurringOccurrence, status: 'canceled' })
+
+    await changeSchedulingEventStatus({
+      actor,
+      eventId: recurringOccurrence.id,
+      status: 'canceled',
+    })
+
+    expect(
+      mocks.schedulingRepository.cancelRecurringEvent,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: actor.workspaceId,
+        occurrenceId: recurringOccurrence.id,
+        scope: 'thisOccurrence',
+      }),
+    )
+    expect(
+      mocks.schedulingRepository.transitionEventStatus,
+    ).not.toHaveBeenCalled()
+  })
+
+  it('defaults recurring deletion to this occurrence so completed history stays protected', async () => {
+    mocks.schedulingRepository.getEventById.mockResolvedValue(
+      recurringOccurrence,
+    )
+
+    await deleteSchedulingEvent({
+      actor,
+      eventId: recurringOccurrence.id,
+    })
+
+    expect(
+      mocks.schedulingRepository.deleteRecurringEvent,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: actor.workspaceId,
+        occurrenceId: recurringOccurrence.id,
+        scope: 'thisOccurrence',
+      }),
+    )
+    expect(mocks.schedulingRepository.softDeleteEvent).not.toHaveBeenCalled()
   })
 
   it('re-reads created events before reporting scheduling success', async () => {
@@ -140,6 +218,87 @@ describe('scheduling availability service', () => {
       eventId: 'event-created',
     })
     expect(result.title).toBe('Emergency Service persisted')
+  })
+
+  it('preserves normalized MEMBER and TEAM assignment targets in the Scheduling write contract', async () => {
+    mocks.prisma.workspace.findUnique.mockResolvedValue({
+      id: actor.workspaceId,
+      businessModel: 'SIMPLE_SERVICE_BUSINESS',
+      timezone: 'America/New_York',
+    })
+    const createdEvent = {
+      id: 'event-created',
+      workspaceId: actor.workspaceId,
+      title: 'Recurring lawn service',
+      type: 'recurringServiceVisit',
+      status: 'scheduled',
+      startsAt: '2026-07-31T13:00:00.000Z',
+      endsAt: '2026-07-31T14:00:00.000Z',
+      allDay: false,
+      timezone: 'America/New_York',
+      assignedMemberIds: ['workspace-member-owner'],
+      createdAt: '2026-07-30T14:00:00.000Z',
+      updatedAt: '2026-07-30T14:00:00.000Z',
+    }
+    mocks.schedulingRepository.createEvent.mockResolvedValue(createdEvent)
+    mocks.schedulingRepository.getEventById.mockResolvedValue(createdEvent)
+
+    await createSchedulingEvent({
+      actor,
+      input: {
+        title: 'Recurring lawn service',
+        type: 'recurringServiceVisit',
+        startsAt: '2026-07-31T13:00:00.000Z',
+        endsAt: '2026-07-31T14:00:00.000Z',
+        timezone: 'America/New_York',
+        locationType: 'toBeDetermined',
+        assignedMemberIds: ['workspace-member-owner'],
+        assignments: [
+          {
+            assignmentType: 'MEMBER',
+            workspaceMemberId: 'workspace-member-owner',
+            displaySnapshot: 'Owner',
+          },
+          {
+            assignmentType: 'TEAM',
+            teamId: 'team-1',
+            displaySnapshot: 'Crew One',
+          },
+        ],
+        linkedRecord: {
+          recordType: 'customer',
+          recordId: 'customer-1',
+          label: 'Morgan Home',
+        },
+        recurrenceRule: {
+          frequency: 'weekly',
+          interval: 1,
+          daysOfWeek: [1, 3, 5],
+          endType: 'never',
+        },
+      },
+    })
+
+    expect(mocks.schedulingRepository.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          assignedMemberIds: ['workspace-member-owner'],
+          assignments: [
+            expect.objectContaining({
+              assignmentType: 'MEMBER',
+              workspaceMemberId: 'workspace-member-owner',
+            }),
+            expect.objectContaining({
+              assignmentType: 'TEAM',
+              teamId: 'team-1',
+            }),
+          ],
+          recurrenceRule: expect.objectContaining({
+            daysOfWeek: [1, 3, 5],
+          }),
+        }),
+      }),
+    )
   })
 
   it('does not report scheduling success when read-after-write fails', async () => {

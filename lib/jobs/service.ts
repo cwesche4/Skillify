@@ -23,6 +23,7 @@ import {
   createJobStepSchema,
   createTodoSchema,
   createWorkItemSchema,
+  executeAssignedJobSchema,
   executeAssignedWorkItemSchema,
   jobListQuerySchema,
   updateJobSchema,
@@ -47,6 +48,11 @@ export type JobsStore = {
     workspaceId: string
     memberId: string
   }): Promise<boolean>
+  canExecuteJob(input: {
+    workspaceId: string
+    jobId: string
+    workspaceMemberId: string
+  }): Promise<boolean>
   findActiveCustomer(input: {
     workspaceId: string
     customerId: string
@@ -63,6 +69,8 @@ export type JobsStore = {
   updateJob(input: {
     workspaceId: string
     jobId: string
+    actorUserId?: string
+    executionMemberId?: string
     expectedStatus?: JobStatusValue
     data: UpdateJobData
   }): Promise<UpdateJobResult | null>
@@ -107,6 +115,7 @@ export type OperationsActor = {
 
 export type MemberExecutionActor = OperationsActor & {
   workspaceMemberId: string
+  canManage?: boolean
 }
 
 const JOB_TRANSITIONS: Record<JobStatusValue, readonly JobStatusValue[]> = {
@@ -121,6 +130,7 @@ const JOB_TRANSITIONS: Record<JobStatusValue, readonly JobStatusValue[]> = {
     'OPEN',
     'IN_PROGRESS',
     'WAITING_ON_CLIENT',
+    'UNABLE_TO_COMPLETE',
     'COMPLETED',
     'CANCELED',
   ],
@@ -128,6 +138,7 @@ const JOB_TRANSITIONS: Record<JobStatusValue, readonly JobStatusValue[]> = {
     'OPEN',
     'SCHEDULED',
     'WAITING_ON_CLIENT',
+    'UNABLE_TO_COMPLETE',
     'COMPLETED',
     'CANCELED',
   ],
@@ -138,6 +149,7 @@ const JOB_TRANSITIONS: Record<JobStatusValue, readonly JobStatusValue[]> = {
     'COMPLETED',
     'CANCELED',
   ],
+  UNABLE_TO_COMPLETE: ['SCHEDULED', 'CANCELED'],
   COMPLETED: ['IN_PROGRESS'],
   CANCELED: ['OPEN'],
 }
@@ -198,6 +210,14 @@ function invalidCustomer() {
 function staleStatusConflict(recordType: 'Job' | 'Work Item') {
   return new OperationsServiceError(
     `${recordType} changed before this update was saved. Refresh and try again.`,
+    409,
+    'CONFLICT',
+  )
+}
+
+function recurringJobHistoryConflict() {
+  return new OperationsServiceError(
+    'Finalized recurring Job history cannot be changed through generic Job actions.',
     409,
     'CONFLICT',
   )
@@ -278,6 +298,14 @@ export function createOperationsService(
   } = {},
 ) {
   const now = options.now ?? (() => new Date())
+  const processCommittedCompletion = (completionEventId: string | null) => {
+    if (!completionEventId || !options.processCommittedEvent) return
+    // Execution is deliberately detached from the committed Job mutation.
+    // The durable recovery drain owns eventual delivery if this attempt fails.
+    void Promise.resolve()
+      .then(() => options.processCommittedEvent!(completionEventId))
+      .catch((error) => options.onEventProcessingError?.(error))
+  }
 
   return {
     async createJob(actor: OperationsActor, rawInput: unknown) {
@@ -298,6 +326,13 @@ export function createOperationsService(
         input.scheduledEndAt ?? null,
       )
       const status = input.status ?? JobStatus.OPEN
+      if (status === JobStatus.UNABLE_TO_COMPLETE) {
+        throw new OperationsServiceError(
+          'Unable to Complete can only be reported for an existing assigned recurring Job.',
+          400,
+          'VALIDATION_ERROR',
+        )
+      }
       return store.createJob({
         workspaceId: actor.workspaceId,
         title: input.title,
@@ -309,11 +344,16 @@ export function createOperationsService(
         customerId: customer?.id ?? null,
         customerDisplayName:
           customer?.displayName ??
-          (durableCustomersEnabled ? null : input.customerDisplayName ?? null),
+          (durableCustomersEnabled
+            ? null
+            : (input.customerDisplayName ?? null)),
         valueCents: input.valueCents ?? null,
         currency: input.currency ?? 'USD',
         scheduledStartAt: input.scheduledStartAt ?? null,
         scheduledEndAt: input.scheduledEndAt ?? null,
+        recurringServiceId: null,
+        schedulingEventId: null,
+        serviceInstructionsSnapshot: null,
         completedAt: status === JobStatus.COMPLETED ? now() : null,
         assigneeMemberId: input.assigneeMemberId ?? null,
         createdByUserId: actor.userProfileId,
@@ -339,6 +379,68 @@ export function createOperationsService(
       })
       if (!existing) throw notFound('Job')
       const input = parse(updateJobSchema, rawInput)
+
+      if (input.status === JobStatus.UNABLE_TO_COMPLETE) {
+        throw new OperationsServiceError(
+          'Use the Unable to Complete action so its reason and reporter are recorded.',
+          400,
+          'VALIDATION_ERROR',
+        )
+      }
+      if (existing.schedulingEventId) {
+        if (
+          Object.prototype.hasOwnProperty.call(input, 'scheduledStartAt') ||
+          Object.prototype.hasOwnProperty.call(input, 'scheduledEndAt')
+        ) {
+          throw new OperationsServiceError(
+            'Reschedule this recurring Job through its Scheduling occurrence.',
+            409,
+            'CONFLICT',
+          )
+        }
+        if (Object.prototype.hasOwnProperty.call(input, 'assigneeMemberId')) {
+          throw new OperationsServiceError(
+            'Change recurring Job assignments through the linked Scheduling occurrence.',
+            409,
+            'CONFLICT',
+          )
+        }
+        if (Object.prototype.hasOwnProperty.call(input, 'customerId')) {
+          throw new OperationsServiceError(
+            'A recurring Job keeps the Customer from its Recurring Service snapshot.',
+            409,
+            'CONFLICT',
+          )
+        }
+        if (input.status === JobStatus.CANCELED) {
+          throw new OperationsServiceError(
+            'Cancel or skip this recurring Job through its Scheduling occurrence.',
+            409,
+            'CONFLICT',
+          )
+        }
+        if (
+          (existing.status === JobStatus.COMPLETED ||
+            existing.status === JobStatus.CANCELED) &&
+          input.status !== existing.status
+        ) {
+          throw new OperationsServiceError(
+            'Finalized recurring Job history cannot be reopened through the generic Job API.',
+            409,
+            'CONFLICT',
+          )
+        }
+        if (
+          existing.status === JobStatus.UNABLE_TO_COMPLETE &&
+          input.status !== undefined
+        ) {
+          throw new OperationsServiceError(
+            'Resolve an unable recurring Job with Reschedule or Skip Visit.',
+            409,
+            'CONFLICT',
+          )
+        }
+      }
       const durableCustomersEnabled =
         (await store.getWorkspaceBusinessModel(actor.workspaceId)) ===
         WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS
@@ -350,13 +452,14 @@ export function createOperationsService(
       )
       const customerChanged =
         customerChangeRequested && input.customerId !== existing.customerId
-      const customer = customerChanged && input.customerId
-        ? await resolveActiveCustomer(
-            store,
-            actor.workspaceId,
-            input.customerId,
-          )
-        : null
+      const customer =
+        customerChanged && input.customerId
+          ? await resolveActiveCustomer(
+              store,
+              actor.workspaceId,
+              input.customerId,
+            )
+          : null
 
       if (input.status) {
         assertTransition('Job', existing.status, input.status, JOB_TRANSITIONS)
@@ -395,6 +498,7 @@ export function createOperationsService(
       const updated = await store.updateJob({
         workspaceId: actor.workspaceId,
         jobId,
+        actorUserId: actor.userProfileId,
         expectedStatus: input.status ? existing.status : undefined,
         data: {
           ...data,
@@ -405,15 +509,79 @@ export function createOperationsService(
         if (input.status) throw staleStatusConflict('Job')
         throw notFound('Job')
       }
-      if (updated.completionEventId && options.processCommittedEvent) {
-        // Execution is deliberately detached from the committed Job mutation.
-        // The durable recovery drain owns eventual delivery if this attempt fails.
-        void Promise.resolve()
-          .then(() =>
-            options.processCommittedEvent!(updated.completionEventId!),
-          )
-          .catch((error) => options.onEventProcessingError?.(error))
+      processCommittedCompletion(updated.completionEventId)
+      return updated.job
+    },
+
+    async executeAssignedJob(
+      actor: MemberExecutionActor,
+      jobId: string,
+      rawInput: unknown,
+    ) {
+      const existing = await store.findJob({
+        workspaceId: actor.workspaceId,
+        jobId,
+      })
+      if (!existing) throw notFound('Job')
+      if (
+        existing.status === JobStatus.COMPLETED ||
+        existing.status === JobStatus.CANCELED ||
+        existing.status === JobStatus.UNABLE_TO_COMPLETE
+      ) {
+        throw new OperationsServiceError(
+          'This Job cannot be changed through field execution.',
+          409,
+          'CONFLICT',
+        )
       }
+      const input = parse(executeAssignedJobSchema, rawInput)
+      const executionMemberId = actor.canManage
+        ? undefined
+        : actor.workspaceMemberId
+      if (
+        executionMemberId &&
+        !(await store.canExecuteJob({
+          workspaceId: actor.workspaceId,
+          jobId,
+          workspaceMemberId: executionMemberId,
+        }))
+      ) {
+        throw memberExecutionForbidden()
+      }
+      if (input.status) {
+        assertTransition('Job', existing.status, input.status, JOB_TRANSITIONS)
+      }
+      const completedAt = completionTimestamp(
+        existing.status,
+        input.status,
+        JobStatus.COMPLETED,
+        now,
+      )
+      const updated = await store.updateJob({
+        workspaceId: actor.workspaceId,
+        jobId,
+        actorUserId: actor.userProfileId,
+        executionMemberId,
+        expectedStatus: existing.status,
+        data: {
+          ...input,
+          ...(completedAt === undefined ? {} : { completedAt }),
+        },
+      })
+      if (!updated) {
+        if (
+          executionMemberId &&
+          !(await store.canExecuteJob({
+            workspaceId: actor.workspaceId,
+            jobId,
+            workspaceMemberId: executionMemberId,
+          }))
+        ) {
+          throw memberExecutionForbidden()
+        }
+        throw staleStatusConflict('Job')
+      }
+      processCommittedCompletion(updated.completionEventId)
       return updated.job
     },
 
@@ -423,6 +591,13 @@ export function createOperationsService(
         jobId,
       })
       if (!existing) throw notFound('Job')
+      if (existing.schedulingEventId) {
+        throw new OperationsServiceError(
+          'Recurring Job history cannot be archived independently. Skip the visit or end the Recurring Service instead.',
+          409,
+          'CONFLICT',
+        )
+      }
       return store.archiveJobWithWorkItems({
         workspaceId: actor.workspaceId,
         jobId,
@@ -440,6 +615,13 @@ export function createOperationsService(
           jobId: input.jobId as string,
         })
         if (!job) throw notFound('Job')
+        if (
+          job.schedulingEventId &&
+          (job.status === JobStatus.COMPLETED ||
+            job.status === JobStatus.CANCELED)
+        ) {
+          throw recurringJobHistoryConflict()
+        }
       }
 
       const status = input.status ?? WorkItemStatus.OPEN
@@ -454,6 +636,7 @@ export function createOperationsService(
         priority: input.priority ?? OperationsPriority.NORMAL,
         dueAt: input.dueAt ?? null,
         completedAt: status === WorkItemStatus.COMPLETED ? now() : null,
+        sortOrder: null,
         assigneeMemberId: input.assigneeMemberId ?? null,
         createdByUserId: actor.userProfileId,
       })
@@ -503,6 +686,20 @@ export function createOperationsService(
         workItemId,
       })
       if (!existing) throw notFound('Work Item')
+      if (existing.kind === WorkItemKind.JOB_STEP && existing.jobId) {
+        const parent = await store.findJob({
+          workspaceId: actor.workspaceId,
+          jobId: existing.jobId,
+        })
+        if (!parent) throw notFound('Job')
+        if (
+          parent.schedulingEventId &&
+          (parent.status === JobStatus.COMPLETED ||
+            parent.status === JobStatus.CANCELED)
+        ) {
+          throw recurringJobHistoryConflict()
+        }
+      }
       const input = parse(updateWorkItemSchema, rawInput)
       await assertAssignee(store, actor.workspaceId, input.assigneeMemberId)
       if (input.status) {
@@ -547,7 +744,36 @@ export function createOperationsService(
         workItemId,
       })
       if (!existing) throw notFound('Work Item')
-      if (existing.assigneeMemberId !== actor.workspaceMemberId) {
+      if (existing.kind === WorkItemKind.JOB_STEP && existing.jobId) {
+        const parent = await store.findJob({
+          workspaceId: actor.workspaceId,
+          jobId: existing.jobId,
+        })
+        if (!parent) throw notFound('Job')
+        if (
+          parent.status === JobStatus.COMPLETED ||
+          parent.status === JobStatus.CANCELED ||
+          parent.status === JobStatus.UNABLE_TO_COMPLETE
+        ) {
+          throw new OperationsServiceError(
+            'Job Steps cannot be executed while their parent Job is finalized or awaiting management resolution.',
+            409,
+            'CONFLICT',
+          )
+        }
+      }
+      const canExecuteParentJob =
+        existing.kind === WorkItemKind.JOB_STEP && existing.jobId
+          ? await store.canExecuteJob({
+              workspaceId: actor.workspaceId,
+              jobId: existing.jobId,
+              workspaceMemberId: actor.workspaceMemberId,
+            })
+          : false
+      if (
+        existing.assigneeMemberId !== actor.workspaceMemberId &&
+        !canExecuteParentJob
+      ) {
         throw memberExecutionForbidden()
       }
 
@@ -588,6 +814,20 @@ export function createOperationsService(
         workItemId,
       })
       if (!existing) throw notFound('Work Item')
+      if (existing.kind === WorkItemKind.JOB_STEP && existing.jobId) {
+        const parent = await store.findJob({
+          workspaceId: actor.workspaceId,
+          jobId: existing.jobId,
+        })
+        if (!parent) throw notFound('Job')
+        if (
+          parent.schedulingEventId &&
+          (parent.status === JobStatus.COMPLETED ||
+            parent.status === JobStatus.CANCELED)
+        ) {
+          throw recurringJobHistoryConflict()
+        }
+      }
       const archived = await store.updateWorkItem({
         workspaceId: actor.workspaceId,
         workItemId,

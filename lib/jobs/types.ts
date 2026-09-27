@@ -1,5 +1,7 @@
 import type {
+  JobCancellationReason,
   JobStatus,
+  JobUnableToCompleteReason,
   OperationsPriority,
   WorkItemKind,
   WorkItemStatus,
@@ -20,12 +22,36 @@ export type JobRecord = {
   currency: string
   scheduledStartAt: Date | null
   scheduledEndAt: Date | null
+  recurringServiceId: string | null
+  schedulingEventId: string | null
+  serviceInstructionsSnapshot: string | null
   completedAt: Date | null
+  cancellationReason: JobCancellationReason | null
+  cancellationNote: string | null
+  canceledAt: Date | null
+  unableToCompleteReason: JobUnableToCompleteReason | null
+  unableToCompleteNote: string | null
+  unableToCompleteAt: Date | null
+  unableToCompleteReportedByMemberId: string | null
   assigneeMemberId: string | null
   createdByUserId: string
   createdAt: Date
   updatedAt: Date
   archivedAt: Date | null
+  assignments?: JobAssignmentRecord[]
+}
+
+export type JobAssignmentRecord = {
+  id: string
+  workspaceId: string
+  jobId: string
+  assignmentType: 'MEMBER' | 'TEAM'
+  workspaceMemberId: string | null
+  teamId: string | null
+  roleLabel: string | null
+  displaySnapshot: string | null
+  createdAt: Date
+  updatedAt: Date
 }
 
 export type WorkItemRecord = {
@@ -40,6 +66,7 @@ export type WorkItemRecord = {
   priority: OperationsPriority
   dueAt: Date | null
   completedAt: Date | null
+  sortOrder: number | null
   assigneeMemberId: string | null
   createdByUserId: string
   createdAt: Date
@@ -49,7 +76,18 @@ export type WorkItemRecord = {
 
 export type CreateJobData = Omit<
   JobRecord,
-  'id' | 'createdAt' | 'updatedAt' | 'archivedAt'
+  | 'id'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'archivedAt'
+  | 'cancellationReason'
+  | 'cancellationNote'
+  | 'canceledAt'
+  | 'unableToCompleteReason'
+  | 'unableToCompleteNote'
+  | 'unableToCompleteAt'
+  | 'unableToCompleteReportedByMemberId'
+  | 'assignments'
 >
 
 export type UpdateJobData = Partial<

@@ -34,9 +34,7 @@ function makeCustomer(
   }
 }
 
-function makeJob(
-  overrides: Partial<JobClientRecord> = {},
-): JobClientRecord {
+function makeJob(overrides: Partial<JobClientRecord> = {}): JobClientRecord {
   return {
     id: 'job-1',
     workspaceId: 'ws-a',
@@ -458,8 +456,9 @@ describe('durable Simple Service Customers UI', () => {
         .getAttribute('href'),
     ).toBe('/dashboard/acme/service-requests?jobId=job-1')
     expect(
-      within(dialog).queryByText(/CLV|recurring service|invoice/i),
-    ).toBeNull()
+      within(dialog).getByRole('heading', { name: 'Recurring Services' }),
+    ).toBeTruthy()
+    expect(within(dialog).queryByText(/CLV|invoice/i)).toBeNull()
   })
 
   it('does not show stale Jobs when an earlier Customer request resolves late', async () => {
@@ -504,9 +503,11 @@ describe('durable Simple Service Customers UI', () => {
     const user = userEvent.setup()
     renderCustomers()
     await user.click(
-      (await screen.findAllByRole('button', {
-        name: 'Open Customer Rivera Family',
-      }))[0],
+      (
+        await screen.findAllByRole('button', {
+          name: 'Open Customer Rivera Family',
+        })
+      )[0],
     )
     expect(screen.getByLabelText('Loading Customer Jobs')).toBeTruthy()
     await user.click(

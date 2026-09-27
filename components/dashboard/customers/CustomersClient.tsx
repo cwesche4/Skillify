@@ -53,6 +53,14 @@ import { listJobs } from '@/lib/jobs/client'
 import type { JobClientRecord } from '@/lib/jobs/clientTypes'
 import { jobStatusLabels, priorityLabels } from '@/lib/jobs/presentation'
 import { formatRevenueCurrency } from '@/lib/revenue/money'
+import { listRecurringServices } from '@/lib/recurring-services/client'
+import type { RecurringServiceClientRecord } from '@/lib/recurring-services/clientTypes'
+import {
+  boundedUpcomingJobs,
+  formatRecurringServiceCadence,
+  recurringServiceAssignmentLabel,
+  recurringServiceStatusLabels,
+} from '@/lib/recurring-services/presentation'
 import { cn } from '@/lib/utils'
 
 type CustomerFormState = {
@@ -556,8 +564,16 @@ export function CustomersClient({
   const [customerJobsError, setCustomerJobsError] = useState<string | null>(
     null,
   )
+  const [customerServices, setCustomerServices] = useState<
+    RecurringServiceClientRecord[]
+  >([])
+  const [customerServicesLoading, setCustomerServicesLoading] = useState(false)
+  const [customerServicesError, setCustomerServicesError] = useState<
+    string | null
+  >(null)
   const requestSequence = useRef(0)
   const customerJobsRequestSequence = useRef(0)
+  const customerServicesRequestSequence = useRef(0)
   const initialSelectionApplied = useRef(false)
 
   const load = useCallback(
@@ -613,16 +629,46 @@ export function CustomersClient({
     [workspaceId],
   )
 
+  const loadCustomerServices = useCallback(
+    async (customerId: string) => {
+      const sequence = ++customerServicesRequestSequence.current
+      setCustomerServicesLoading(true)
+      setCustomerServicesError(null)
+      try {
+        const services = await listRecurringServices(workspaceId)
+        if (sequence === customerServicesRequestSequence.current) {
+          setCustomerServices(
+            services.filter((service) => service.customerId === customerId),
+          )
+        }
+      } catch (loadError) {
+        if (sequence === customerServicesRequestSequence.current) {
+          setCustomerServicesError(apiErrorMessage(loadError))
+        }
+      } finally {
+        if (sequence === customerServicesRequestSequence.current) {
+          setCustomerServicesLoading(false)
+        }
+      }
+    },
+    [workspaceId],
+  )
+
   useEffect(() => {
     if (!selected) {
       customerJobsRequestSequence.current += 1
       setCustomerJobs([])
       setCustomerJobsError(null)
       setCustomerJobsLoading(false)
+      customerServicesRequestSequence.current += 1
+      setCustomerServices([])
+      setCustomerServicesError(null)
+      setCustomerServicesLoading(false)
       return
     }
     void loadCustomerJobs(selected.id)
-  }, [loadCustomerJobs, selected])
+    void loadCustomerServices(selected.id)
+  }, [loadCustomerJobs, loadCustomerServices, selected])
 
   const memberById = useMemo(
     () => new Map(members.map((member) => [member.id, member.name])),
@@ -963,6 +1009,99 @@ export function CustomersClient({
               <p className="text-neutral-text-secondary mt-2 whitespace-pre-wrap text-sm leading-6">
                 {selected.notes || 'No notes added.'}
               </p>
+            </section>
+
+            <section
+              className="border-app border-t pt-5"
+              aria-labelledby="customer-services-heading"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3
+                    id="customer-services-heading"
+                    className="text-app-primary text-sm font-medium"
+                  >
+                    Recurring Services
+                  </h3>
+                  <p className="text-app-muted mt-1 text-xs">
+                    Repeat service agreements are separate from their individual
+                    Jobs.
+                  </p>
+                </div>
+                {customerServicesError ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void loadCustomerServices(selected.id)}
+                  >
+                    Retry
+                  </Button>
+                ) : null}
+              </div>
+              {customerServicesLoading ? (
+                <div
+                  className="mt-4 space-y-2"
+                  aria-label="Loading Recurring Services"
+                >
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : customerServicesError ? (
+                <Alert variant="error" className="mt-4">
+                  {customerServicesError}
+                </Alert>
+              ) : customerServices.length === 0 ? (
+                <div className="border-app bg-app-surface-muted text-neutral-text-secondary mt-4 rounded-xl border border-dashed px-4 py-6 text-center text-sm">
+                  No Recurring Services are linked to this Customer.
+                </div>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {customerServices.map((service) => (
+                    <Link
+                      key={service.id}
+                      href={`/dashboard/${workspaceSlug}/scheduling/recurring-services`}
+                      className="border-app bg-app-surface-muted hover:bg-app-surface-hover focus-visible:ring-brand-primary/70 block rounded-xl border p-3 transition focus:outline-none focus-visible:ring-2"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-app-primary text-sm font-medium">
+                            {service.name}
+                          </p>
+                          <p className="text-app-muted mt-1 text-xs">
+                            {recurringServiceStatusLabels[service.status]} ·{' '}
+                            {formatRecurringServiceCadence(
+                              service.recurrenceSeries?.normalizedRule,
+                            )}
+                          </p>
+                          <p className="text-app-muted mt-1 text-xs">
+                            {recurringServiceAssignmentLabel(
+                              service,
+                              memberById,
+                              new Map(),
+                            )}
+                            {' · Next visit: '}
+                            {boundedUpcomingJobs(service.jobs ?? [], 1)[0]
+                              ?.scheduledStartAt
+                              ? formatDate(
+                                  boundedUpcomingJobs(service.jobs ?? [], 1)[0]
+                                    .scheduledStartAt as string,
+                                )
+                              : 'Not scheduled'}
+                          </p>
+                        </div>
+                        <span className="text-neutral-text-secondary text-xs">
+                          {formatRevenueCurrency(
+                            service.pricePerVisitCents,
+                            service.currency,
+                          )}{' '}
+                          per visit
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section

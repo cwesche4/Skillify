@@ -26,6 +26,30 @@ export type JobClientRecord = {
   createdAt: string
   updatedAt: string
   archivedAt: string | null
+  assignments?: JobAssignmentClientRecord[]
+  recurringServiceId?: string | null
+  schedulingEventId?: string | null
+  serviceInstructionsSnapshot?: string | null
+  cancellationReason?: string | null
+  cancellationNote?: string | null
+  canceledAt?: string | null
+  unableToCompleteReason?: string | null
+  unableToCompleteNote?: string | null
+  unableToCompleteAt?: string | null
+  canCurrentMemberExecute?: boolean
+}
+
+export type JobAssignmentClientRecord = {
+  id: string
+  workspaceId: string
+  jobId: string
+  assignmentType: 'MEMBER' | 'TEAM'
+  workspaceMemberId: string | null
+  teamId: string | null
+  roleLabel: string | null
+  displaySnapshot: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export type WorkItemClientRecord = {
@@ -45,6 +69,7 @@ export type WorkItemClientRecord = {
   createdAt: string
   updatedAt: string
   archivedAt: string | null
+  sortOrder?: number | null
 }
 
 export type WorkspaceMemberOption = {

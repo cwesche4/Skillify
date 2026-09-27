@@ -15,12 +15,13 @@ import {
 export class CustomerServiceError extends Error {
   constructor(
     message: string,
-    readonly status: 400 | 403 | 404,
+    readonly status: 400 | 403 | 404 | 409,
     readonly code:
       | 'VALIDATION_ERROR'
       | 'FORBIDDEN'
       | 'NOT_FOUND'
-      | 'UNAVAILABLE',
+      | 'UNAVAILABLE'
+      | 'CONFLICT',
     readonly fieldErrors?: Record<string, string[] | undefined>,
   ) {
     super(message)
@@ -52,7 +53,7 @@ export type CustomerStore = {
     workspaceId: string
     customerId: string
     archivedAt: Date
-  }): Promise<CustomerRecord | null>
+  }): Promise<CustomerRecord | null | { blockedByActiveRecurringService: true }>
 }
 
 export type CustomerActor = {
@@ -185,6 +186,13 @@ export function createCustomerService(
         archivedAt: now(),
       })
       if (!archived) throw customerNotFound()
+      if ('blockedByActiveRecurringService' in archived) {
+        throw new CustomerServiceError(
+          'End this Customer’s active Recurring Services before archiving the Customer.',
+          409,
+          'CONFLICT',
+        )
+      }
       return archived
     },
   }

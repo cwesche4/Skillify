@@ -295,6 +295,20 @@ describe('durable Customer service', () => {
     ).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' })
   })
 
+  it('requires active Recurring Services to end before the Customer is archived', async () => {
+    const customer = await service.createCustomer(actor, {
+      displayName: 'Recurring Customer',
+    })
+    memory.store.archiveCustomer = async () => ({
+      blockedByActiveRecurringService: true,
+    })
+
+    await expect(
+      service.archiveCustomer(actor, customer.id),
+    ).rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+    expect(customer.archivedAt).toBeNull()
+  })
+
   it('does not call Jobs, Revenue, Scheduling, or Automation boundaries', async () => {
     await service.createCustomer(actor, { displayName: 'Isolated Customer' })
     await service.archiveCustomer(actor, 'customer-1')

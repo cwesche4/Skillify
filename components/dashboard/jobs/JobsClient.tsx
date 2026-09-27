@@ -22,6 +22,8 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Play,
+  AlertTriangle,
   Trash2,
   UserRound,
   X,
@@ -49,6 +51,7 @@ import {
   JobsApiError,
   listJobs,
   listJobSteps,
+  runJobLifecycleAction,
   updateJob,
   updateJobStep,
 } from '@/lib/jobs/client'
@@ -88,6 +91,7 @@ const jobStatusVariant: Record<JobStatusValue, BadgeVariant> = {
   SCHEDULED: 'purple',
   IN_PROGRESS: 'brand',
   WAITING_ON_CLIENT: 'yellow',
+  UNABLE_TO_COMPLETE: 'orange',
   COMPLETED: 'green',
   CANCELED: 'gray',
 }
@@ -174,6 +178,35 @@ function toIsoDate(value: string) {
 function memberName(members: WorkspaceMemberOption[], memberId: string | null) {
   if (!memberId) return 'Unassigned'
   return members.find((member) => member.id === memberId)?.name ?? 'Team member'
+}
+
+function jobAssignmentName(
+  members: WorkspaceMemberOption[],
+  job: JobClientRecord,
+) {
+  if (!job.assignments?.length) {
+    return memberName(members, job.assigneeMemberId)
+  }
+  return job.assignments
+    .map((assignment) =>
+      assignment.assignmentType === 'MEMBER'
+        ? memberName(members, assignment.workspaceMemberId)
+        : assignment.displaySnapshot || 'Assigned team',
+    )
+    .join(', ')
+}
+
+const unableReasonLabels: Record<string, string> = {
+  WEATHER: 'Weather',
+  CUSTOMER_UNAVAILABLE: 'Customer unavailable',
+  ACCESS_ISSUE: 'Access issue',
+  EQUIPMENT: 'Equipment issue',
+  RAN_OUT_OF_TIME: 'Ran out of time',
+  OTHER: 'Other',
+}
+
+function unableReasonLabel(reason: string | null | undefined) {
+  return reason ? (unableReasonLabels[reason] ?? reason) : 'Reason unavailable'
 }
 
 export function JobsClient({
@@ -328,8 +361,8 @@ export function JobsClient({
 
       {!canManage ? (
         <Alert variant="info">
-          Job details are read-only. You can update status and notes on Job
-          Steps assigned to you.
+          Open an assigned Job to start work, update Job Steps, add notes, or
+          report an issue. Management controls stay hidden.
         </Alert>
       ) : null}
       {notice ? (
@@ -473,6 +506,7 @@ export function JobsClient({
           canManage={canManage}
           onClose={closeJob}
           onUpdated={replaceJob}
+          onRefresh={load}
           onArchived={(jobId) => {
             setJobs((current) => current.filter((job) => job.id !== jobId))
             closeJob()
@@ -535,7 +569,7 @@ function JobCard({
             </span>
             <span className="inline-flex items-center gap-1.5">
               <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
-              {memberName(members, job.assigneeMemberId)}
+              {jobAssignmentName(members, job)}
             </span>
             {job.valueCents !== null ? (
               <span>{formatRevenueCurrency(job.valueCents, job.currency)}</span>
@@ -564,6 +598,7 @@ function JobDetailDrawer({
   canManage,
   onClose,
   onUpdated,
+  onRefresh,
   onArchived,
 }: {
   job: JobClientRecord
@@ -578,6 +613,7 @@ function JobDetailDrawer({
   canManage: boolean
   onClose: () => void
   onUpdated: (job: JobClientRecord) => void
+  onRefresh: () => Promise<void>
   onArchived: (jobId: string) => void
 }) {
   const panelRef = useRef<HTMLElement | null>(null)
@@ -596,12 +632,24 @@ function JobDetailDrawer({
     useState<WorkItemClientRecord | null>(null)
   const [stepToExecute, setStepToExecute] =
     useState<WorkItemClientRecord | null>(null)
+  const [unableOpen, setUnableOpen] = useState(false)
+  const [skipOpen, setSkipOpen] = useState(false)
+  const [rescheduleOpen, setRescheduleOpen] = useState(false)
+  const [fieldNotes, setFieldNotes] = useState(job.notes ?? '')
 
   const loadSteps = useCallback(async () => {
     setStepsLoading(true)
     setStepsError(null)
     try {
-      setSteps(await listJobSteps(workspaceId, job.id))
+      const loaded = await listJobSteps(workspaceId, job.id)
+      setSteps(
+        [...loaded].sort(
+          (left, right) =>
+            (left.sortOrder ?? Number.MAX_SAFE_INTEGER) -
+              (right.sortOrder ?? Number.MAX_SAFE_INTEGER) ||
+            left.id.localeCompare(right.id),
+        ),
+      )
     } catch (loadError) {
       setStepsError(apiErrorMessage(loadError))
     } finally {
@@ -677,6 +725,49 @@ function JobDetailDrawer({
     }
   }
 
+  const runLifecycle = async (
+    action:
+      | 'start'
+      | 'complete'
+      | 'update'
+      | 'unable-to-complete'
+      | 'skip'
+      | 'reschedule',
+    input: Record<string, unknown> = {},
+  ) => {
+    setBusy(true)
+    setMutationError(null)
+    try {
+      const updated = await runJobLifecycleAction(
+        workspaceId,
+        job.id,
+        action,
+        input,
+      )
+      onUpdated({
+        ...updated,
+        canCurrentMemberExecute: job.canCurrentMemberExecute,
+      })
+      setFieldNotes(updated.notes ?? '')
+      return updated
+    } catch (lifecycleError) {
+      setMutationError(apiErrorMessage(lifecycleError))
+      if (
+        lifecycleError instanceof JobsApiError &&
+        lifecycleError.status === 409
+      ) {
+        await onRefresh()
+      }
+      throw lifecycleError
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const canExecuteJob = canManage || Boolean(job.canCurrentMemberExecute)
+  const isFinal =
+    job.status === JobStatus.COMPLETED || job.status === JobStatus.CANCELED
+
   return (
     <div className="fixed inset-0 z-[80] flex justify-end bg-slate-950/65 backdrop-blur-sm">
       <button
@@ -715,7 +806,7 @@ function JobDetailDrawer({
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
-              {canManage ? (
+              {canManage && !job.recurringServiceId ? (
                 <Button
                   type="button"
                   size="sm"
@@ -766,7 +857,7 @@ function JobDetailDrawer({
               />
               <DetailItem
                 label="Assigned to"
-                value={memberName(members, job.assigneeMemberId)}
+                value={jobAssignmentName(members, job)}
               />
               <DetailItem
                 label="Value"
@@ -783,6 +874,30 @@ function JobDetailDrawer({
               <DetailItem label="Status" value={jobStatusLabels[job.status]} />
             </div>
           </section>
+
+          {job.recurringServiceId ? (
+            <Alert variant="info">
+              Recurring Service visit. Schedule changes and skips are managed
+              through the linked Scheduling occurrence.
+            </Alert>
+          ) : null}
+
+          {job.serviceInstructionsSnapshot ? (
+            <section
+              className="border-brand-primary/25 bg-brand-primary/[0.06] rounded-2xl border p-4"
+              aria-labelledby="service-instructions-heading"
+            >
+              <h3
+                id="service-instructions-heading"
+                className="text-app-primary text-sm font-semibold"
+              >
+                Service Instructions
+              </h3>
+              <p className="text-app-secondary mt-2 whitespace-pre-wrap text-sm leading-6">
+                {job.serviceInstructionsSnapshot}
+              </p>
+            </section>
+          ) : null}
 
           {(job.description || job.notes) && (
             <section
@@ -803,7 +918,7 @@ function JobDetailDrawer({
               {job.notes ? (
                 <div className="border-app mt-3 border-t pt-3">
                   <p className="text-app-muted text-[11px] font-semibold uppercase tracking-wide">
-                    Internal notes
+                    Job Notes
                   </p>
                   <p className="text-app-secondary mt-1 whitespace-pre-wrap text-sm leading-6">
                     {job.notes}
@@ -813,31 +928,143 @@ function JobDetailDrawer({
             </section>
           )}
 
+          {job.status === JobStatus.UNABLE_TO_COMPLETE ? (
+            <Alert variant="warning">
+              <div className="space-y-1">
+                <p className="font-medium">Unable to Complete</p>
+                <p>{unableReasonLabel(job.unableToCompleteReason)}</p>
+                {job.unableToCompleteNote ? (
+                  <p>{job.unableToCompleteNote}</p>
+                ) : null}
+                {!canManage ? (
+                  <p>
+                    Management action is required to reschedule or skip this
+                    visit.
+                  </p>
+                ) : null}
+              </div>
+            </Alert>
+          ) : null}
+
+          {canExecuteJob &&
+          !isFinal &&
+          job.status !== JobStatus.UNABLE_TO_COMPLETE ? (
+            <section
+              className="border-app bg-app-surface-raised space-y-3 rounded-2xl border p-4"
+              aria-label="Field execution controls"
+            >
+              <div className="flex flex-wrap gap-2">
+                {job.status === JobStatus.SCHEDULED ||
+                job.status === JobStatus.OPEN ? (
+                  <Button
+                    type="button"
+                    loading={busy}
+                    leftIcon={<Play className="h-4 w-4" />}
+                    onClick={() => void runLifecycle('start')}
+                  >
+                    Start Job
+                  </Button>
+                ) : null}
+                {job.status === JobStatus.IN_PROGRESS ? (
+                  <>
+                    <Button
+                      type="button"
+                      loading={busy}
+                      onClick={() => void runLifecycle('complete')}
+                    >
+                      Complete Job
+                    </Button>
+                    {job.recurringServiceId ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        leftIcon={<AlertTriangle className="h-4 w-4" />}
+                        onClick={() => setUnableOpen(true)}
+                      >
+                        Unable to Complete
+                      </Button>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+              {job.status === JobStatus.IN_PROGRESS ? (
+                <div>
+                  <Label htmlFor={`job-notes-${job.id}`}>Job Notes</Label>
+                  <Textarea
+                    id={`job-notes-${job.id}`}
+                    className="mt-1"
+                    value={fieldNotes}
+                    onChange={(event) => setFieldNotes(event.target.value)}
+                    placeholder="Add an operational note from the field"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-2"
+                    loading={busy}
+                    onClick={() =>
+                      void runLifecycle('update', {
+                        notes: fieldNotes.trim() || null,
+                      })
+                    }
+                  >
+                    Save Notes
+                  </Button>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
           {canManage ? (
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                loading={busy}
-                onClick={() => void toggleJobCompletion()}
-              >
-                {job.status === JobStatus.COMPLETED
-                  ? 'Reopen Job'
-                  : job.status === JobStatus.CANCELED
+              {job.recurringServiceId && !isFinal ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSkipOpen(true)}
+                >
+                  Skip Visit
+                </Button>
+              ) : null}
+              {job.recurringServiceId &&
+              job.status === JobStatus.UNABLE_TO_COMPLETE ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRescheduleOpen(true)}
+                >
+                  Reschedule
+                </Button>
+              ) : null}
+              {!job.recurringServiceId ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  loading={busy}
+                  onClick={() => void toggleJobCompletion()}
+                >
+                  {job.status === JobStatus.COMPLETED ||
+                  job.status === JobStatus.CANCELED
                     ? 'Reopen Job'
                     : 'Mark Job Complete'}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                leftIcon={
-                  <Archive className="h-3.5 w-3.5" aria-hidden="true" />
-                }
-                onClick={() => setArchiveOpen(true)}
-              >
-                Archive Job
-              </Button>
+                </Button>
+              ) : null}
+              {!job.recurringServiceId ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  leftIcon={
+                    <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+                  }
+                  onClick={() => setArchiveOpen(true)}
+                >
+                  Archive Job
+                </Button>
+              ) : null}
             </div>
           ) : null}
 
@@ -854,7 +1081,7 @@ function JobDetailDrawer({
                   The work required to finish this Job.
                 </p>
               </div>
-              {canManage ? (
+              {canManage && !(job.recurringServiceId && isFinal) ? (
                 <Button
                   type="button"
                   size="sm"
@@ -908,9 +1135,15 @@ function JobDetailDrawer({
                       key={step.id}
                       step={step}
                       members={members}
-                      canManage={canManage}
+                      canManage={
+                        canManage && !(job.recurringServiceId && isFinal)
+                      }
                       canExecute={
-                        canManage || step.assigneeMemberId === currentMemberId
+                        !isFinal &&
+                        job.status !== JobStatus.UNABLE_TO_COMPLETE &&
+                        (canManage ||
+                          Boolean(job.canCurrentMemberExecute) ||
+                          step.assigneeMemberId === currentMemberId)
                       }
                       onToggle={() => void toggleStepCompletion(step)}
                       onExecute={() => setStepToExecute(step)}
@@ -995,6 +1228,53 @@ function JobDetailDrawer({
         />
       ) : null}
 
+      {unableOpen ? (
+        <JobLifecycleDialog
+          title="Report Unable to Complete"
+          submitLabel="Report Unable to Complete"
+          onClose={() => setUnableOpen(false)}
+          onSubmit={async ({ reason, note }) => {
+            await runLifecycle('unable-to-complete', { reason, note })
+            setUnableOpen(false)
+          }}
+          reasons={Object.entries(unableReasonLabels)}
+        />
+      ) : null}
+
+      {skipOpen ? (
+        <JobLifecycleDialog
+          title="Skip this visit"
+          description="This affects only this visit, not the entire Recurring Service."
+          submitLabel="Skip Visit"
+          destructive
+          onClose={() => setSkipOpen(false)}
+          onSubmit={async ({ reason, note }) => {
+            await runLifecycle('skip', { reason, note })
+            setSkipOpen(false)
+          }}
+          reasons={[
+            ['CUSTOMER_REQUEST', 'Customer request'],
+            ['WEATHER', 'Weather'],
+            ['ACCESS_ISSUE', 'Access issue'],
+            ['STAFFING', 'Staffing'],
+            ['EQUIPMENT', 'Equipment'],
+            ['HOLIDAY', 'Holiday'],
+            ['OTHER', 'Other'],
+          ]}
+        />
+      ) : null}
+
+      {rescheduleOpen ? (
+        <RescheduleJobDialog
+          job={job}
+          onClose={() => setRescheduleOpen(false)}
+          onSubmit={async (startsAt, endsAt) => {
+            await runLifecycle('reschedule', { startsAt, endsAt })
+            setRescheduleOpen(false)
+          }}
+        />
+      ) : null}
+
       <ConfirmDialog
         open={archiveOpen}
         title="Archive this Job?"
@@ -1036,6 +1316,204 @@ function JobDetailDrawer({
           }
         }}
       />
+    </div>
+  )
+}
+
+function JobLifecycleDialog({
+  title,
+  description,
+  submitLabel,
+  destructive = false,
+  reasons,
+  onClose,
+  onSubmit,
+}: {
+  title: string
+  description?: string
+  submitLabel: string
+  destructive?: boolean
+  reasons: Array<[string, string]>
+  onClose: () => void
+  onSubmit: (input: { reason: string; note: string | null }) => Promise<void>
+}) {
+  const [reason, setReason] = useState(reasons[0]?.[0] ?? '')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-3 sm:items-center">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="job-lifecycle-dialog-title"
+        className="border-app bg-app-surface-raised w-full max-w-md rounded-2xl border p-5 shadow-2xl"
+      >
+        <h3
+          id="job-lifecycle-dialog-title"
+          className="text-app-primary text-lg font-semibold"
+        >
+          {title}
+        </h3>
+        {description ? (
+          <p className="text-app-secondary mt-1 text-sm">{description}</p>
+        ) : null}
+        {error ? (
+          <Alert variant="error" className="mt-4">
+            {error}
+          </Alert>
+        ) : null}
+        <form
+          className="mt-4 space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault()
+            setBusy(true)
+            setError(null)
+            try {
+              await onSubmit({ reason, note: note.trim() || null })
+            } catch (submitError) {
+              setError(apiErrorMessage(submitError))
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
+          <div>
+            <Label htmlFor="job-lifecycle-reason">Reason</Label>
+            <Select
+              id="job-lifecycle-reason"
+              className="mt-1"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            >
+              {reasons.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="job-lifecycle-note">Notes</Label>
+            <Textarea
+              id="job-lifecycle-note"
+              className="mt-1"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Optional context for management"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onClose}
+              disabled={busy}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant={destructive ? 'danger' : 'primary'}
+              loading={busy}
+            >
+              {submitLabel}
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  )
+}
+
+function RescheduleJobDialog({
+  job,
+  onClose,
+  onSubmit,
+}: {
+  job: JobClientRecord
+  onClose: () => void
+  onSubmit: (startsAt: string, endsAt: string) => Promise<void>
+}) {
+  const [startsAt, setStartsAt] = useState(
+    toDateTimeInput(job.scheduledStartAt),
+  )
+  const [endsAt, setEndsAt] = useState(toDateTimeInput(job.scheduledEndAt))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-3 sm:items-center">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reschedule-job-title"
+        className="border-app bg-app-surface-raised w-full max-w-md rounded-2xl border p-5 shadow-2xl"
+      >
+        <h3
+          id="reschedule-job-title"
+          className="text-app-primary text-lg font-semibold"
+        >
+          Reschedule this visit
+        </h3>
+        <p className="text-app-secondary mt-1 text-sm">
+          This changes only this Job through Scheduling.
+        </p>
+        {error ? (
+          <Alert variant="error" className="mt-4">
+            {error}
+          </Alert>
+        ) : null}
+        <form
+          className="mt-4 space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault()
+            setBusy(true)
+            setError(null)
+            try {
+              const start = toIsoDate(startsAt)
+              const end = toIsoDate(endsAt)
+              if (!start || !end)
+                throw new Error('Choose a valid start and end time.')
+              await onSubmit(start, end)
+            } catch (submitError) {
+              setError(apiErrorMessage(submitError))
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
+          <div>
+            <Label htmlFor="reschedule-job-start">Starts</Label>
+            <Input
+              id="reschedule-job-start"
+              type="datetime-local"
+              className="mt-1"
+              value={startsAt}
+              onChange={(event) => setStartsAt(event.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="reschedule-job-end">Ends</Label>
+            <Input
+              id="reschedule-job-end"
+              type="datetime-local"
+              className="mt-1"
+              value={endsAt}
+              onChange={(event) => setEndsAt(event.target.value)}
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={busy}>
+              Reschedule
+            </Button>
+          </div>
+        </form>
+      </section>
     </div>
   )
 }

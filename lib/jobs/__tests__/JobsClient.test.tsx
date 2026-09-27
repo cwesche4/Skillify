@@ -156,6 +156,37 @@ function installJobsApi({
         state.steps.push(created)
         return response({ ok: true, workItem: created }, 201)
       }
+      const lifecycleMatch = url.match(
+        /\/jobs\/([^/]+)\/lifecycle\/(start|complete|update|unable-to-complete|skip|reschedule)$/,
+      )
+      if (method === 'POST' && lifecycleMatch) {
+        const id = decodeURIComponent(lifecycleMatch[1])
+        const action = lifecycleMatch[2]
+        const index = state.jobs.findIndex((job) => job.id === id)
+        const current = state.jobs[index]
+        const updated = {
+          ...current,
+          ...body,
+          status:
+            action === 'start'
+              ? ('IN_PROGRESS' as const)
+              : action === 'complete'
+                ? ('COMPLETED' as const)
+                : action === 'unable-to-complete'
+                  ? ('UNABLE_TO_COMPLETE' as const)
+                  : current.status,
+          unableToCompleteReason:
+            action === 'unable-to-complete'
+              ? body.reason
+              : current.unableToCompleteReason,
+          unableToCompleteNote:
+            action === 'unable-to-complete'
+              ? body.note
+              : current.unableToCompleteNote,
+        }
+        state.jobs[index] = updated
+        return response({ ok: true, job: updated })
+      }
       const jobMatch = url.match(/\/jobs\/([^/]+)$/)
       if (jobMatch && method === 'PATCH') {
         const id = decodeURIComponent(jobMatch[1])
@@ -282,6 +313,81 @@ describe('durable Jobs UI', () => {
     expect(await within(dialog).findByText('Edge sidewalks')).toBeTruthy()
     expect(within(dialog).queryByText('Trim east hedge')).toBeNull()
     expect(within(dialog).queryByText('Office To-Do')).toBeNull()
+  })
+
+  it('renders normalized Team assignments instead of calling a recurring Job unassigned', async () => {
+    installJobsApi({
+      jobs: [
+        makeJob({
+          assigneeMemberId: null,
+          assignments: [
+            {
+              id: 'assignment-team',
+              workspaceId: 'ws-a',
+              jobId: 'job-1',
+              assignmentType: 'TEAM',
+              workspaceMemberId: null,
+              teamId: 'team-1',
+              roleLabel: null,
+              displaySnapshot: 'Crew One',
+              createdAt: '2026-09-20T12:00:00.000Z',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          ],
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    renderJobs()
+
+    expect(await screen.findByText('Crew One')).toBeTruthy()
+    await user.click(
+      screen.getByRole('button', { name: 'Open Job Weekly lawn service' }),
+    )
+    expect(
+      within(
+        screen.getByRole('dialog', { name: /weekly lawn service/i }),
+      ).getByText('Crew One'),
+    ).toBeTruthy()
+  })
+
+  it('keeps finalized recurring Job history read-only in management UI', async () => {
+    installJobsApi({
+      jobs: [
+        makeJob({
+          status: 'COMPLETED',
+          completedAt: '2026-09-22T16:00:00.000Z',
+          recurringServiceId: 'service-1',
+          schedulingEventId: 'occurrence-1',
+          canCurrentMemberExecute: true,
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    renderJobs()
+
+    await user.click(await screen.findByRole('button', { name: /All Jobs/i }))
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open Job Weekly lawn service',
+      }),
+    )
+    const detail = screen.getByRole('dialog', {
+      name: /weekly lawn service/i,
+    })
+    expect(await within(detail).findByText('Edge sidewalks')).toBeTruthy()
+    expect(within(detail).queryByRole('button', { name: 'Edit' })).toBeNull()
+    expect(
+      within(detail).queryByRole('button', { name: 'Archive Job' }),
+    ).toBeNull()
+    expect(
+      within(detail).queryByRole('button', { name: 'Add Job Step' }),
+    ).toBeNull()
+    expect(
+      within(detail).queryByRole('button', {
+        name: 'Complete Edge sidewalks',
+      }),
+    ).toBeNull()
   })
 
   it('creates a durable Job through the API-backed form', async () => {
@@ -475,7 +581,9 @@ describe('durable Jobs UI', () => {
     const user = userEvent.setup()
     renderJobs(false)
 
-    expect(await screen.findByText(/Job details are read-only/i)).toBeTruthy()
+    expect(
+      await screen.findByText(/Open an assigned Job to start work/i),
+    ).toBeTruthy()
     expect(
       fetchMock.mock.calls.some(([input]) =>
         String(input).endsWith('/customers'),
@@ -536,6 +644,93 @@ describe('durable Jobs UI', () => {
         notes: 'Started edging.',
       }),
     )
+  })
+
+  it('uses server-derived Team eligibility for explicit field Job execution', async () => {
+    const { state, fetchMock } = installJobsApi({
+      jobs: [
+        makeJob({
+          status: 'SCHEDULED',
+          assigneeMemberId: null,
+          recurringServiceId: 'service-1',
+          schedulingEventId: 'event-1',
+          serviceInstructionsSnapshot: 'Use the side gate.',
+          canCurrentMemberExecute: true,
+          assignments: [
+            {
+              id: 'assignment-1',
+              workspaceId: 'ws-a',
+              jobId: 'job-1',
+              assignmentType: 'TEAM',
+              workspaceMemberId: null,
+              teamId: 'team-1',
+              roleLabel: null,
+              displaySnapshot: 'Crew One',
+              createdAt: '2026-09-20T12:00:00.000Z',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          ],
+        }),
+      ],
+      steps: [makeStep({ assigneeMemberId: null })],
+    })
+    const user = userEvent.setup()
+    renderJobs(false)
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open Job Weekly lawn service',
+      }),
+    )
+    const detail = screen.getByRole('dialog', { name: /weekly lawn service/i })
+    expect(within(detail).getByText('Crew One')).toBeTruthy()
+    expect(within(detail).getByText('Use the side gate.')).toBeTruthy()
+    expect(
+      within(detail).queryByRole('button', { name: 'Skip Visit' }),
+    ).toBeNull()
+    await user.click(within(detail).getByRole('button', { name: 'Start Job' }))
+    await waitFor(() => expect(state.jobs[0].status).toBe('IN_PROGRESS'))
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).endsWith('/jobs/job-1/lifecycle/start'),
+      ),
+    ).toBe(true)
+    expect(
+      await within(detail).findByRole('button', { name: 'Complete Job' }),
+    ).toBeTruthy()
+    expect(
+      within(detail).getByRole('button', { name: 'Complete Edge sidewalks' }),
+    ).toBeTruthy()
+  })
+
+  it('does not show field controls to an unrelated Member', async () => {
+    installJobsApi({
+      jobs: [
+        makeJob({
+          status: 'SCHEDULED',
+          assigneeMemberId: null,
+          recurringServiceId: 'service-1',
+          schedulingEventId: 'event-1',
+          canCurrentMemberExecute: false,
+        }),
+      ],
+      steps: [makeStep({ assigneeMemberId: null })],
+    })
+    const user = userEvent.setup()
+    renderJobs(false)
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open Job Weekly lawn service',
+      }),
+    )
+    const detail = screen.getByRole('dialog', { name: /weekly lawn service/i })
+    expect(await within(detail).findByText('Edge sidewalks')).toBeTruthy()
+    expect(
+      within(detail).queryByRole('button', { name: 'Start Job' }),
+    ).toBeNull()
+    expect(
+      within(detail).queryByRole('button', { name: 'Complete Edge sidewalks' }),
+    ).toBeNull()
   })
 
   it('shows an API error without falling back to preview Jobs', async () => {

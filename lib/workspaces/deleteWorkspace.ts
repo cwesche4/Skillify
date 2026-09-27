@@ -112,6 +112,17 @@ export async function deleteWorkspaceCascade(
   await deleteMany(tx, 'schedulingAttendee', { workspaceId })
   await deleteMany(tx, 'schedulingAvailabilityRecord', { workspaceId })
   await deleteMany(tx, 'schedulingRecurrenceMutation', { workspaceId })
+  // Generated Jobs restrict both their Recurring Service template and source
+  // Scheduling occurrence. Remove operational children first only as part of
+  // this explicit whole-workspace cascade.
+  await deleteMany(tx, 'jobAssignment', { workspaceId })
+  await deleteMany(tx, 'workItem', { workspaceId })
+  await deleteMany(tx, 'job', { workspaceId })
+  // Recurring Services restrict both Customer and Scheduling series deletion.
+  // Remove their reusable step templates and service records before either
+  // parent domain is deleted during an explicit workspace cascade.
+  await deleteMany(tx, 'recurringServiceStepTemplate', { workspaceId })
+  await deleteMany(tx, 'recurringService', { workspaceId })
   await updateMany(
     tx,
     'schedulingEvent',
@@ -134,11 +145,6 @@ export async function deleteWorkspaceCascade(
   await deleteMany(tx, 'dashboardPreference', { workspaceId })
   await deleteMany(tx, 'auditLog', { workspaceId })
   await deleteMany(tx, 'workspaceInvite', { workspaceId })
-
-  // Durable operational history uses restrictive workspace/member foreign
-  // keys, so children must be removed explicitly during workspace deletion.
-  await deleteMany(tx, 'workItem', { workspaceId })
-  await deleteMany(tx, 'job', { workspaceId })
 
   // Leads may reference their converted Customer with a restrictive FK.
   // Delete Leads before Customers, then remove both before assigned members.

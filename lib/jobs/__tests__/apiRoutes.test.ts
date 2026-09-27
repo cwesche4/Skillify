@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   updateWorkItem: vi.fn(),
   executeAssignedWorkItem: vi.fn(),
   archiveWorkItem: vi.fn(),
+  listWorkspaceMemberExecutableJobIds: vi.fn(),
 }))
 
 vi.mock('@/lib/automations/authorization', () => ({
@@ -35,6 +36,11 @@ vi.mock('@/lib/jobs/defaultService', () => ({
     executeAssignedWorkItem: mocks.executeAssignedWorkItem,
     archiveWorkItem: mocks.archiveWorkItem,
   },
+}))
+
+vi.mock('@/lib/jobs/jobExecutionAuthorization', () => ({
+  listWorkspaceMemberExecutableJobIds:
+    mocks.listWorkspaceMemberExecutableJobIds,
 }))
 
 import {
@@ -80,6 +86,7 @@ describe('Jobs and Work Items API routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.authorizeWorkspaceAccess.mockResolvedValue(managerAuthorization)
+    mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(new Set())
   })
 
   it('creates a Job with server-authoritative workspace and actor context', async () => {

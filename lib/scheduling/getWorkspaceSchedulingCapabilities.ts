@@ -1,4 +1,4 @@
-import type { WorkspaceBusinessModel } from '@/lib/prisma/enums'
+import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
 import {
   SCHEDULING_PRESETS,
   getDefaultSchedulingPresetForBusinessModel,
@@ -39,6 +39,9 @@ export function getWorkspaceSchedulingCapabilities({
     ),
     supportedEventTypes: definition.supportedEventTypes,
     ...definition.linkSupport,
+    supportsCustomerLinks:
+      definition.linkSupport.supportsCustomerLinks ||
+      businessModel === WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
   }
 }
 

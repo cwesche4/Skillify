@@ -34,6 +34,7 @@ export const jobStatusLabels: Record<JobStatusValue, string> = {
   SCHEDULED: 'Scheduled',
   IN_PROGRESS: 'In Progress',
   WAITING_ON_CLIENT: 'Waiting on Client',
+  UNABLE_TO_COMPLETE: 'Unable to Complete',
   COMPLETED: 'Completed',
   CANCELED: 'Canceled',
 }
@@ -157,6 +158,7 @@ export function getAllowedJobStatuses(current: JobStatusValue) {
       JobStatus.COMPLETED,
       JobStatus.CANCELED,
     ],
+    UNABLE_TO_COMPLETE: [JobStatus.UNABLE_TO_COMPLETE],
     COMPLETED: [JobStatus.COMPLETED, JobStatus.IN_PROGRESS],
     CANCELED: [JobStatus.CANCELED, JobStatus.OPEN],
   }

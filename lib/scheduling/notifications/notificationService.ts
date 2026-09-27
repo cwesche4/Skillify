@@ -12,6 +12,8 @@ import {
 } from '@prisma/client'
 
 import { prisma } from '@/lib/db'
+import { reconcileRecurringServiceJobsForSchedulingOutbox } from '@/lib/recurring-services/jobMaterialization'
+import { reconcileRecurringJobLifecycleForSchedulingOutbox } from '@/lib/recurring-services/jobLifecycle'
 import {
   APPOINTMENT_REMINDER_DEFINITION_VERSION,
   APPOINTMENT_REMINDER_LIFECYCLE_ERRORS,
@@ -305,11 +307,7 @@ async function claimOutboxRecords({
   `
 }
 
-async function markOutboxProcessed(
-  id: string,
-  nowUtc: Date,
-  workerId: string,
-) {
+async function markOutboxProcessed(id: string, nowUtc: Date, workerId: string) {
   await prisma.domainOutboxEvent.updateMany({
     where: {
       id,
@@ -656,9 +654,13 @@ async function establishScheduleChangeWork({
   if (!readiness.ready) return false
   const config = asRecord(installation.config)
   const configuredChanges = Array.isArray(config.changes)
-    ? config.changes.filter((value): value is string => typeof value === 'string')
+    ? config.changes.filter(
+        (value): value is string => typeof value === 'string',
+      )
     : []
-  if (!change.data.changeTypes.some((type) => configuredChanges.includes(type))) {
+  if (
+    !change.data.changeTypes.some((type) => configuredChanges.includes(type))
+  ) {
     return false
   }
 
@@ -715,6 +717,24 @@ async function processSingleOutboxRecord({
   workerId: string
 }) {
   const payload = asRecord(record.payload)
+  // The same leased Scheduling outbox is the durable lifecycle boundary for
+  // recurring Jobs. Replays are harmless because each reconciliation reads
+  // and conditionally writes current authoritative state.
+  await reconcileRecurringJobLifecycleForSchedulingOutbox({
+    outboxEventId: record.id,
+    workspaceId: record.workspaceId,
+    topic: record.topic,
+    aggregateId: record.aggregateId,
+    payload,
+    now: nowUtc,
+  })
+  // Scheduling owns recurrence and emits the durable materialization signal;
+  // Operations consumes it idempotently before this lease is finalized.
+  await reconcileRecurringServiceJobsForSchedulingOutbox({
+    workspaceId: record.workspaceId,
+    topic: record.topic,
+    payload,
+  })
   const seriesIds = Array.from(
     new Set(
       ['seriesId', 'originalSeriesId', 'newSeriesId']
@@ -858,7 +878,10 @@ async function processSingleOutboxRecord({
     establishedAt: record.createdAt,
   })
   for (const seriesId of seriesIds) {
-    if (seriesId === event.recurrenceSeriesId || seriesId === event.masterSeries?.id) {
+    if (
+      seriesId === event.recurrenceSeriesId ||
+      seriesId === event.masterSeries?.id
+    ) {
       continue
     }
     await reconcileSchedulingReminders({
@@ -951,9 +974,7 @@ async function getActiveAppointmentReminderInstallation(
     },
   })
   if (!installation) return null
-  const offsetMinutes = getAppointmentReminderOffsetMinutes(
-    installation.config,
-  )
+  const offsetMinutes = getAppointmentReminderOffsetMinutes(installation.config)
   if (!offsetMinutes) return null
   const readiness = await getSimpleAutomationReadiness({
     workspaceId,
@@ -1381,7 +1402,9 @@ async function processSimpleScheduleChange(
   if (!readiness.ready) return 'skipped' as const
   const config = asRecord(installation.config)
   const selectedChanges = Array.isArray(config.changes)
-    ? config.changes.filter((value): value is string => typeof value === 'string')
+    ? config.changes.filter(
+        (value): value is string => typeof value === 'string',
+      )
     : []
   if (!change.changeTypes.some((type) => selectedChanges.includes(type))) {
     return 'skipped' as const
@@ -2351,10 +2374,7 @@ export async function getSchedulingNotificationWorkerDiagnostics({
           { status: DomainOutboxStatus.PENDING },
           {
             status: DomainOutboxStatus.FAILED,
-            OR: [
-              { nextAttemptAt: null },
-              { nextAttemptAt: { lte: nowUtc } },
-            ],
+            OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: nowUtc } }],
           },
         ],
       },
@@ -2405,20 +2425,14 @@ export async function getSchedulingNotificationWorkerDiagnostics({
       where: {
         status: PrismaSchedulingReminderStatus.SCHEDULED,
         scheduledForUtc: { lte: nowUtc },
-        OR: [
-          { nextAttemptAt: null },
-          { nextAttemptAt: { lte: nowUtc } },
-        ],
+        OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: nowUtc } }],
       },
     }),
     prisma.schedulingReminderSchedule.findFirst({
       where: {
         status: PrismaSchedulingReminderStatus.SCHEDULED,
         scheduledForUtc: { lte: nowUtc },
-        OR: [
-          { nextAttemptAt: null },
-          { nextAttemptAt: { lte: nowUtc } },
-        ],
+        OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: nowUtc } }],
       },
       orderBy: { scheduledForUtc: 'asc' },
       select: { scheduledForUtc: true },

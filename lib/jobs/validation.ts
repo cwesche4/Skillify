@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   JobStatus,
+  JobUnableToCompleteReason,
   OperationsPriority,
   WorkItemKind,
   WorkItemStatus,
@@ -118,9 +119,57 @@ export const executeAssignedWorkItemSchema = z
     notes: optionalText(10_000),
   })
   .strict()
+
+export const executeAssignedJobSchema = z
+  .object({
+    status: z.enum(['IN_PROGRESS', 'COMPLETED']).optional(),
+    notes: optionalText(10_000),
+  })
+  .strict()
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Provide a status or notes update.',
   })
+
+export const reportUnableToCompleteSchema = z
+  .object({
+    reason: z.nativeEnum(JobUnableToCompleteReason),
+    note: optionalText(2_000),
+  })
+  .strict()
+
+export const skipRecurringJobSchema = z
+  .object({
+    reason: z.enum([
+      'CUSTOMER_REQUEST',
+      'WEATHER',
+      'ACCESS_ISSUE',
+      'STAFFING',
+      'EQUIPMENT',
+      'HOLIDAY',
+      'OTHER',
+    ]),
+    note: optionalText(2_000),
+    expectedVersion: z.number().int().min(1).optional(),
+    idempotencyKey: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict()
+
+export const rescheduleUnableRecurringJobSchema = z
+  .object({
+    startsAt: z.string().datetime({ offset: true }),
+    endsAt: z.string().datetime({ offset: true }),
+    expectedVersion: z.number().int().min(1).optional(),
+    idempotencyKey: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict()
+  .refine(
+    (value) =>
+      new Date(value.endsAt).getTime() > new Date(value.startsAt).getTime(),
+    {
+      message: 'Scheduled end must be after scheduled start.',
+      path: ['endsAt'],
+    },
+  )
 
 export type CreateJobInput = z.infer<typeof createJobSchema>
 export type UpdateJobInput = z.infer<typeof updateJobSchema>
@@ -129,3 +178,4 @@ export type UpdateWorkItemInput = z.infer<typeof updateWorkItemSchema>
 export type ExecuteAssignedWorkItemInput = z.infer<
   typeof executeAssignedWorkItemSchema
 >
+export type ExecuteAssignedJobInput = z.infer<typeof executeAssignedJobSchema>

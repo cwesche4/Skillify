@@ -64,13 +64,41 @@ enum OperationsPriority {
   URGENT
 }
 
+enum RecurringServiceStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
 enum JobStatus {
   OPEN
   SCHEDULED
   IN_PROGRESS
   WAITING_ON_CLIENT
+  UNABLE_TO_COMPLETE
   COMPLETED
   CANCELED
+}
+
+enum JobCancellationReason {
+  CUSTOMER_REQUEST
+  WEATHER
+  ACCESS_ISSUE
+  STAFFING
+  EQUIPMENT
+  HOLIDAY
+  SERVICE_ENDED
+  SCHEDULE_CANCELED
+  OTHER
+}
+
+enum JobUnableToCompleteReason {
+  WEATHER
+  CUSTOMER_UNAVAILABLE
+  ACCESS_ISSUE
+  EQUIPMENT
+  RAN_OUT_OF_TIME
+  OTHER
 }
 
 enum WorkItemKind {
@@ -775,6 +803,7 @@ model UserProfile {
   workItemsCreated                        WorkItem[]                     @relation("WorkItemCreatedBy")
   customersCreated                        Customer[]                     @relation("CustomerCreatedBy")
   leadsCreated                            Lead[]                         @relation("LeadCreatedBy")
+  recurringServicesCreated                RecurringService[]             @relation("RecurringServiceCreatedBy")
 
   @@index([clerkId])
 }
@@ -916,6 +945,8 @@ model Workspace {
   workItems                         WorkItem[]
   customers                         Customer[]
   leads                             Lead[]
+  recurringServices                 RecurringService[]
+  jobAssignments                    JobAssignment[]
 
   @@index([ownerId])
   @@index([slug])
@@ -936,6 +967,8 @@ model WorkspaceMember {
   ownedCalendarConnections     CalendarConnection[]  @relation("CalendarConnectionOwner")
   connectedCalendarConnections CalendarConnection[]  @relation("CalendarConnectionConnector")
   assignedJobs                 Job[]                 @relation("JobAssignee")
+  unableToCompleteJobs         Job[]                 @relation("JobUnableReporter")
+  jobAssignments               JobAssignment[]
   assignedWorkItems            WorkItem[]            @relation("WorkItemAssignee")
   assignedCustomers            Customer[]            @relation("CustomerAssignee")
   assignedLeads                Lead[]                @relation("LeadAssignee")
@@ -963,30 +996,75 @@ model Job {
   valueCents          Int?
   currency            String  @default("USD")
 
-  // Operational scheduling context; intentionally not coupled to SchedulingEvent.
+  // Operational scheduling snapshot. A generated Job retains its source event
+  // below; Phase 8C synchronizes this snapshot from Scheduling lifecycle work.
   scheduledStartAt DateTime?
   scheduledEndAt   DateTime?
 
-  completedAt      DateTime?
-  assigneeMemberId String?
-  createdByUserId  String
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  archivedAt       DateTime?
+  // Immutable-at-materialization Recurring Service context. These optional
+  // fields remain null for ordinary/manual Jobs.
+  recurringServiceId          String?
+  schedulingEventId           String?
+  serviceInstructionsSnapshot String?
 
-  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  customer  Customer?        @relation("JobCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  assignee  WorkspaceMember? @relation("JobAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  createdBy UserProfile      @relation("JobCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  workItems WorkItem[]
+  completedAt                        DateTime?
+  cancellationReason                 JobCancellationReason?
+  cancellationNote                   String?
+  canceledAt                         DateTime?
+  unableToCompleteReason             JobUnableToCompleteReason?
+  unableToCompleteNote               String?
+  unableToCompleteAt                 DateTime?
+  unableToCompleteReportedByMemberId String?
+  assigneeMemberId                   String?
+  createdByUserId                    String
+  createdAt                          DateTime                   @default(now())
+  updatedAt                          DateTime                   @updatedAt
+  archivedAt                         DateTime?
+
+  workspace                  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  customer                   Customer?         @relation("JobCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  assignee                   WorkspaceMember?  @relation("JobAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  unableToCompleteReportedBy WorkspaceMember?  @relation("JobUnableReporter", fields: [unableToCompleteReportedByMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy                  UserProfile       @relation("JobCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  workItems                  WorkItem[]
+  assignments                JobAssignment[]
+  recurringService           RecurringService? @relation(fields: [recurringServiceId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  schedulingEvent            SchedulingEvent?  @relation(fields: [schedulingEventId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
 
   @@unique([id, workspaceId])
+  @@unique([schedulingEventId, workspaceId])
   @@index([workspaceId, archivedAt, status])
   @@index([workspaceId, assigneeMemberId, archivedAt])
   @@index([workspaceId, scheduledStartAt])
   @@index([workspaceId, customerId, archivedAt])
   @@index([workspaceId, customerReferenceId])
+  @@index([workspaceId, recurringServiceId, scheduledStartAt])
+  @@index([workspaceId, unableToCompleteReportedByMemberId])
   @@index([createdByUserId])
+}
+
+model JobAssignment {
+  id                String                   @id @default(cuid())
+  workspaceId       String
+  jobId             String
+  assignmentType    SchedulingAssignmentType
+  workspaceMemberId String?
+  teamId            String?
+  roleLabel         String?
+  displaySnapshot   String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @default(now()) @updatedAt
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  job             Job              @relation(fields: [jobId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  workspaceMember WorkspaceMember? @relation(fields: [workspaceMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  team            WorkspaceTeam?   @relation(fields: [teamId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+
+  @@unique([jobId, workspaceMemberId])
+  @@unique([jobId, teamId])
+  @@index([workspaceId, jobId])
+  @@index([workspaceId, workspaceMemberId, jobId])
+  @@index([workspaceId, teamId, jobId])
 }
 
 model WorkItem {
@@ -1001,6 +1079,7 @@ model WorkItem {
   priority    OperationsPriority @default(NORMAL)
   dueAt       DateTime?
   completedAt DateTime?
+  sortOrder   Int?
 
   assigneeMemberId String?
   createdByUserId  String
@@ -1013,6 +1092,7 @@ model WorkItem {
   assignee  WorkspaceMember? @relation("WorkItemAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   createdBy UserProfile      @relation("WorkItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
+  @@unique([jobId, sortOrder])
   @@index([workspaceId, archivedAt, kind, status])
   @@index([workspaceId, jobId, archivedAt])
   @@index([workspaceId, assigneeMemberId, archivedAt])
@@ -1045,11 +1125,12 @@ model Customer {
   updatedAt        DateTime  @updatedAt
   archivedAt       DateTime?
 
-  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  jobs          Job[]            @relation("JobCustomer")
-  convertedLead Lead?            @relation("LeadConvertedCustomer")
-  assignee      WorkspaceMember? @relation("CustomerAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  createdBy     UserProfile      @relation("CustomerCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  jobs              Job[]              @relation("JobCustomer")
+  recurringServices RecurringService[] @relation("RecurringServiceCustomer")
+  convertedLead     Lead?              @relation("LeadConvertedCustomer")
+  assignee          WorkspaceMember?   @relation("CustomerAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy         UserProfile        @relation("CustomerCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@unique([id, workspaceId])
   @@index([workspaceId, archivedAt, displayName])
@@ -1057,6 +1138,54 @@ model Customer {
   @@index([workspaceId, phone])
   @@index([workspaceId, assignedMemberId, archivedAt])
   @@index([createdByUserId])
+}
+
+model RecurringService {
+  id                 String @id @default(cuid())
+  workspaceId        String
+  customerId         String
+  recurrenceSeriesId String
+
+  name                String
+  description         String?
+  serviceInstructions String?
+  pricePerVisitCents  Int
+  currency            String                 @default("USD")
+  defaultJobPriority  OperationsPriority     @default(NORMAL)
+  status              RecurringServiceStatus @default(ACTIVE)
+
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  endedAt         DateTime?
+
+  workspace        Workspace                      @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  customer         Customer                       @relation("RecurringServiceCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  recurrenceSeries SchedulingRecurrenceSeries     @relation(fields: [recurrenceSeriesId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy        UserProfile                    @relation("RecurringServiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  stepTemplates    RecurringServiceStepTemplate[]
+  jobs             Job[]
+
+  @@unique([id, workspaceId])
+  @@unique([recurrenceSeriesId, workspaceId])
+  @@index([workspaceId, status, customerId])
+  @@index([createdByUserId])
+}
+
+model RecurringServiceStepTemplate {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  recurringServiceId String
+  title              String
+  description        String?
+  sortOrder          Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  recurringService RecurringService @relation(fields: [recurringServiceId, workspaceId], references: [id, workspaceId], onDelete: Cascade, map: "RecurringServiceStepTemplate_recurringServiceId_workspaceId_fke")
+
+  @@unique([recurringServiceId, sortOrder])
+  @@index([workspaceId, recurringServiceId, sortOrder], map: "RecurringServiceStepTemplate_workspaceId_recurringServiceId_sor")
 }
 
 model Lead {
@@ -1115,9 +1244,11 @@ model WorkspaceTeam {
   updatedAt    DateTime           @updatedAt
   archivedAt   DateTime?
 
-  workspace Workspace             @relation(fields: [workspaceId], references: [id])
-  members   WorkspaceTeamMember[]
+  workspace      Workspace             @relation(fields: [workspaceId], references: [id])
+  members        WorkspaceTeamMember[]
+  jobAssignments JobAssignment[]
 
+  @@unique([id, workspaceId])
   @@index([workspaceId, isActive])
   @@index([workspaceId, name])
   @@index([workspaceId, archivedAt])
@@ -2847,7 +2978,9 @@ model SchedulingEvent {
   syncConflicts    CalendarSyncConflict[]
   notifications    SchedulingNotificationDelivery[]
   activity         SchedulingEventActivity[]
+  materializedJob  Job?
 
+  @@unique([id, workspaceId])
   @@index([workspaceId, startsAtUtc])
   @@index([workspaceId, endsAtUtc])
   @@index([workspaceId, eventTypeKey])
@@ -2885,10 +3018,12 @@ model SchedulingRecurrenceSeries {
   createdAt           DateTime                         @default(now())
   updatedAt           DateTime                         @updatedAt
 
-  workspace   Workspace         @relation(fields: [workspaceId], references: [id])
-  masterEvent SchedulingEvent   @relation("SchedulingMasterEvent", fields: [masterEventId], references: [id])
-  events      SchedulingEvent[] @relation("SchedulingEventSeries")
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id])
+  masterEvent      SchedulingEvent   @relation("SchedulingMasterEvent", fields: [masterEventId], references: [id])
+  events           SchedulingEvent[] @relation("SchedulingEventSeries")
+  recurringService RecurringService?
 
+  @@unique([id, workspaceId])
   @@index([workspaceId])
   @@index([workspaceId, status])
   @@index([workspaceId, version])

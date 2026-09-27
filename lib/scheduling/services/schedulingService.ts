@@ -27,6 +27,7 @@ import {
 import { getWorkspaceCapabilities } from '@/lib/workspaces/getWorkspaceCapabilities'
 import type {
   SchedulingEvent,
+  SchedulingAssignmentTarget,
   SchedulingEventStatus,
   SchedulingCapabilities,
   SchedulingReminderInput,
@@ -133,6 +134,45 @@ function normalizeStringArray(value: unknown) {
         .filter(Boolean),
     ),
   ]
+}
+
+function normalizeSchedulingAssignments(value: unknown) {
+  if (!Array.isArray(value)) return undefined
+  const assignments: SchedulingAssignmentTarget[] = []
+  value.forEach((item) => {
+    if (!isPlainRecord(item)) return
+    const assignmentType = String(item.assignmentType ?? '')
+    if (assignmentType === 'MEMBER') {
+      const workspaceMemberId = String(item.workspaceMemberId ?? '').trim()
+      if (!workspaceMemberId) return
+      assignments.push({
+        assignmentType: 'MEMBER',
+        workspaceMemberId,
+        roleLabel:
+          typeof item.roleLabel === 'string' ? item.roleLabel.trim() : null,
+        displaySnapshot:
+          typeof item.displaySnapshot === 'string'
+            ? item.displaySnapshot.trim()
+            : null,
+      })
+      return
+    }
+    if (assignmentType === 'TEAM') {
+      const teamId = String(item.teamId ?? '').trim()
+      if (!teamId) return
+      assignments.push({
+        assignmentType: 'TEAM',
+        teamId,
+        roleLabel:
+          typeof item.roleLabel === 'string' ? item.roleLabel.trim() : null,
+        displaySnapshot:
+          typeof item.displaySnapshot === 'string'
+            ? item.displaySnapshot.trim()
+            : null,
+      })
+    }
+  })
+  return assignments.length ? assignments : []
 }
 
 function normalizeEventReminderPolicy(
@@ -272,6 +312,7 @@ function normalizeSchedulingEventInput(
         ? value.phoneNumber.trim()
         : undefined,
     assignedMemberIds: normalizeStringArray(value.assignedMemberIds),
+    assignments: normalizeSchedulingAssignments(value.assignments),
     linkedRecord:
       linkedRecord?.recordType && linkedRecord.recordId && linkedRecord.label
         ? linkedRecord
@@ -863,7 +904,11 @@ export async function updateSchedulingEvent({
     existingEvent,
     overrideReason,
   })
-  const normalizedScope = scope ? normalizeRecurrenceScope(scope) : null
+  const normalizedScope = existingEvent.recurrenceSeriesId
+    ? normalizeRecurrenceScope(scope)
+    : scope
+      ? normalizeRecurrenceScope(scope)
+      : null
   let event: SchedulingEvent | null
   if (normalizedScope && existingEvent.recurrenceSeriesId) {
     event = await schedulingRepository.updateRecurringEvent({
@@ -945,6 +990,7 @@ export async function changeSchedulingEventStatus({
   scope,
   expectedVersion,
   idempotencyKey,
+  jobCancellation,
 }: {
   actor: SchedulingMutationActor
   eventId: string
@@ -952,6 +998,19 @@ export async function changeSchedulingEventStatus({
   scope?: SchedulingRecurrenceActionScope
   expectedVersion?: number
   idempotencyKey?: string
+  jobCancellation?: {
+    reason:
+      | 'CUSTOMER_REQUEST'
+      | 'WEATHER'
+      | 'ACCESS_ISSUE'
+      | 'STAFFING'
+      | 'EQUIPMENT'
+      | 'HOLIDAY'
+      | 'SERVICE_ENDED'
+      | 'SCHEDULE_CANCELED'
+      | 'OTHER'
+    note: string | null
+  }
 }) {
   assertCanManage(actor)
   const existingEvent = await schedulingRepository.getEventById({
@@ -964,7 +1023,11 @@ export async function changeSchedulingEventStatus({
       404,
     )
   }
-  const normalizedScope = scope ? normalizeRecurrenceScope(scope) : null
+  const normalizedScope = existingEvent.recurrenceSeriesId
+    ? normalizeRecurrenceScope(scope)
+    : scope
+      ? normalizeRecurrenceScope(scope)
+      : null
   if (
     normalizedScope &&
     existingEvent.recurrenceSeriesId &&
@@ -977,6 +1040,7 @@ export async function changeSchedulingEventStatus({
       scope: normalizedScope,
       expectedVersion,
       idempotencyKey,
+      jobCancellation,
     })
     const event = await schedulingRepository.getEventById({
       workspaceId: actor.workspaceId,
@@ -1047,7 +1111,11 @@ export async function deleteSchedulingEvent({
       404,
     )
   }
-  const normalizedScope = scope ? normalizeRecurrenceScope(scope) : null
+  const normalizedScope = existingEvent.recurrenceSeriesId
+    ? normalizeRecurrenceScope(scope)
+    : scope
+      ? normalizeRecurrenceScope(scope)
+      : null
   if (normalizedScope && existingEvent.recurrenceSeriesId) {
     await schedulingRepository.deleteRecurringEvent({
       workspaceId: actor.workspaceId,

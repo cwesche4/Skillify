@@ -15,6 +15,18 @@ const mocks = vi.hoisted(() => ({
   reminderUpsert: vi.fn(),
   reminderUpdate: vi.fn(),
   outboxUpdateMany: vi.fn(),
+  reconcileRecurringJobs: vi.fn(),
+  reconcileRecurringJobLifecycle: vi.fn(async () => 'ignored'),
+}))
+
+vi.mock('@/lib/recurring-services/jobMaterialization', () => ({
+  reconcileRecurringServiceJobsForSchedulingOutbox:
+    mocks.reconcileRecurringJobs,
+}))
+
+vi.mock('@/lib/recurring-services/jobLifecycle', () => ({
+  reconcileRecurringJobLifecycleForSchedulingOutbox:
+    mocks.reconcileRecurringJobLifecycle,
 }))
 
 vi.mock('@/lib/automations/simpleAutomationDispatch', () => ({
@@ -199,6 +211,12 @@ beforeEach(() => {
   mocks.reminderUpdate.mockResolvedValue({ id: 'reminder-1' })
   mocks.outboxUpdateMany.mockResolvedValue({ count: 1 })
   mocks.dispatch.mockResolvedValue({ dispatched: true, runId: 'run-1' })
+  mocks.reconcileRecurringJobs.mockResolvedValue({
+    examined: 0,
+    created: 0,
+    existing: 0,
+    ineligible: 0,
+  })
 })
 
 describe('Simple Appointment Reminder scheduling', () => {
@@ -295,9 +313,9 @@ describe('Simple Appointment Reminder scheduling', () => {
     })
 
     expect(result.canceled).toBe(1)
-    expect(mocks.reminderUpsert.mock.calls[0][0].create.scheduledForUtc).toEqual(
-      new Date('2026-10-02T13:00:00.000Z'),
-    )
+    expect(
+      mocks.reminderUpsert.mock.calls[0][0].create.scheduledForUtc,
+    ).toEqual(new Date('2026-10-02T13:00:00.000Z'))
   })
 
   it('keeps jobs and internal meetings outside the target set', async () => {
@@ -564,8 +582,8 @@ describe('Simple Schedule Change Notification processing', () => {
     await processSchedulingNotificationOutbox({ nowUtc: now })
 
     const idempotencyKey =
-      mocks.reminderUpsert.mock.calls[0][0].where
-        .workspaceId_idempotencyKey.idempotencyKey
+      mocks.reminderUpsert.mock.calls[0][0].where.workspaceId_idempotencyKey
+        .idempotencyKey
     expect(mocks.reminderUpsert).toHaveBeenCalledTimes(2)
     expect(
       mocks.reminderUpsert.mock.calls.map(
@@ -574,8 +592,7 @@ describe('Simple Schedule Change Notification processing', () => {
     ).toEqual([idempotencyKey, idempotencyKey])
     expect(
       mocks.reminderUpdateMany.mock.calls.every(
-        ([input]) =>
-          input.where.source?.not === SIMPLE_SCHEDULE_CHANGE_SOURCE,
+        ([input]) => input.where.source?.not === SIMPLE_SCHEDULE_CHANGE_SOURCE,
       ),
     ).toBe(true)
   })
@@ -823,6 +840,25 @@ describe('recurring Scheduling outbox routing', () => {
     const result = await processSchedulingNotificationOutbox({ nowUtc: now })
 
     expect(result).toMatchObject({ claimed: 1, processed: 1, failed: 0 })
+    expect(mocks.reconcileRecurringJobs).toHaveBeenCalledWith({
+      workspaceId: 'workspace-1',
+      topic: 'scheduling.recurrence.materialized',
+      payload: {
+        seriesId: 'series-1',
+        materializedOccurrenceIds: ['occurrence-1'],
+      },
+    })
+    expect(mocks.reconcileRecurringJobLifecycle).toHaveBeenCalledWith({
+      outboxEventId: 'outbox-materialized',
+      workspaceId: 'workspace-1',
+      topic: 'scheduling.recurrence.materialized',
+      aggregateId: 'series-1',
+      payload: {
+        seriesId: 'series-1',
+        materializedOccurrenceIds: ['occurrence-1'],
+      },
+      now,
+    })
     expect(mocks.reminderUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
@@ -869,6 +905,44 @@ describe('recurring Scheduling outbox routing', () => {
       expect.objectContaining({
         where: expect.objectContaining({ recurrenceSeriesId: 'series-1' }),
         take: 500,
+      }),
+    )
+  })
+
+  it('keeps a failed recurring Job materialization retryable under the outbox lease', async () => {
+    mocks.queryRaw.mockResolvedValue([
+      {
+        id: 'outbox-materialized-failure',
+        workspaceId: 'workspace-1',
+        topic: 'scheduling.recurrence.materialized',
+        aggregateType: 'SchedulingEvent',
+        aggregateId: 'series-1',
+        payload: {
+          seriesId: 'series-1',
+          materializedOccurrenceIds: ['occurrence-1'],
+        },
+        attempts: 1,
+        createdAt: now,
+      },
+    ])
+    mocks.reconcileRecurringJobs.mockRejectedValueOnce(
+      new Error('Job persistence unavailable'),
+    )
+
+    const result = await processSchedulingNotificationOutbox({
+      nowUtc: now,
+      workerId: 'recurring-job-worker',
+    })
+
+    expect(result).toMatchObject({ claimed: 1, processed: 0, failed: 1 })
+    expect(mocks.outboxUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'outbox-materialized-failure',
+          status: 'PROCESSING',
+          claimedBy: 'recurring-job-worker',
+        },
+        data: expect.objectContaining({ status: 'FAILED' }),
       }),
     )
   })

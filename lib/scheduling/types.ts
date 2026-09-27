@@ -253,6 +253,14 @@ export type SchedulingFormErrorKey =
   | 'customEndDate'
   | 'customCount'
 
+export type SchedulingAssignmentTarget = {
+  assignmentType: 'MEMBER' | 'TEAM'
+  workspaceMemberId?: string | null
+  teamId?: string | null
+  roleLabel?: string | null
+  displaySnapshot?: string | null
+}
+
 export type SchedulingEvent = {
   id: string
   workspaceId: string
@@ -271,6 +279,7 @@ export type SchedulingEvent = {
   meetingUrl?: string
   phoneNumber?: string
   assignedMemberIds: string[]
+  assignments?: SchedulingAssignmentTarget[]
   linkedRecord?: {
     recordType: SchedulingLinkedRecordType
     recordId: string

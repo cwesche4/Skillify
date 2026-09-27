@@ -29,6 +29,16 @@ function completedJob(overrides: Record<string, unknown> = {}) {
     currency: 'USD',
     scheduledStartAt: null,
     scheduledEndAt: null,
+    recurringServiceId: null,
+    schedulingEventId: null,
+    serviceInstructionsSnapshot: null,
+    cancellationReason: null,
+    cancellationNote: null,
+    canceledAt: null,
+    unableToCompleteReason: null,
+    unableToCompleteNote: null,
+    unableToCompleteAt: null,
+    unableToCompleteReportedByMemberId: null,
     completedAt: COMPLETED_AT,
     assigneeMemberId: 'member-a',
     createdByUserId: 'profile-a',
@@ -45,6 +55,9 @@ function transaction(overrides: Record<string, unknown> = {}) {
     job: {
       updateMany: vi.fn(async () => ({ count: 1 })),
       findFirst: vi.fn(async () => completedJob()),
+    },
+    schedulingEvent: {
+      findFirst: vi.fn(async () => ({ id: 'occurrence-a' })),
     },
     simpleAutomationInstallation: {
       findFirst: vi.fn(async () => ({ id: 'installation-a' })),
@@ -187,6 +200,102 @@ describe('Prisma Job completion transactional outbox', () => {
 
     expect(result?.completionEventId).toBeNull()
     expect(tx.domainOutboxEvent.create).not.toHaveBeenCalled()
+  })
+
+  it('always writes a durable Scheduling completion signal for a linked recurring Job even without an automation installation', async () => {
+    const tx = transaction({
+      job: {
+        updateMany: vi.fn(async () => ({ count: 1 })),
+        findFirst: vi.fn(async () =>
+          completedJob({
+            recurringServiceId: 'service-a',
+            schedulingEventId: 'occurrence-a',
+          }),
+        ),
+      },
+      simpleAutomationInstallation: { findFirst: vi.fn(async () => null) },
+    })
+    mocks.transaction.mockImplementation(async (callback) => callback(tx))
+
+    const result = await prismaJobsStore.updateJob({
+      workspaceId: 'workspace-a',
+      jobId: 'job-a',
+      actorUserId: 'profile-manager',
+      expectedStatus: JobStatus.IN_PROGRESS,
+      data: { status: JobStatus.COMPLETED, completedAt: COMPLETED_AT },
+    })
+
+    expect(result?.completionEventId).toBeNull()
+    expect(tx.domainOutboxEvent.create).toHaveBeenCalledOnce()
+    expect(tx.domainOutboxEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        topic: 'scheduling.recurring_job.completed',
+        aggregateType: 'Job',
+        aggregateId: 'job-a',
+        payload: expect.objectContaining({
+          schedulingEventId: 'occurrence-a',
+          actorUserId: 'profile-manager',
+          completedAt: COMPLETED_AT.toISOString(),
+        }),
+      }),
+    })
+  })
+
+  it('fails the recurring completion transition when Scheduling already finalized the occurrence', async () => {
+    const tx = transaction({
+      job: {
+        updateMany: vi.fn(async () => ({ count: 1 })),
+        findFirst: vi.fn(async () =>
+          completedJob({
+            recurringServiceId: 'service-a',
+            schedulingEventId: 'occurrence-a',
+          }),
+        ),
+      },
+      schedulingEvent: { findFirst: vi.fn(async () => null) },
+    })
+    mocks.transaction.mockImplementation(async (callback) => callback(tx))
+
+    await expect(
+      prismaJobsStore.updateJob({
+        workspaceId: 'workspace-a',
+        jobId: 'job-a',
+        actorUserId: 'profile-member',
+        expectedStatus: JobStatus.IN_PROGRESS,
+        data: { status: JobStatus.COMPLETED, completedAt: COMPLETED_AT },
+      }),
+    ).resolves.toBeNull()
+    expect(tx.job.updateMany).not.toHaveBeenCalled()
+    expect(tx.domainOutboxEvent.create).not.toHaveBeenCalled()
+  })
+
+  it('fails a recurring management start when Scheduling already finalized the occurrence', async () => {
+    const tx = transaction({
+      job: {
+        updateMany: vi.fn(async () => ({ count: 1 })),
+        findFirst: vi.fn(async () =>
+          completedJob({
+            status: JobStatus.SCHEDULED,
+            completedAt: null,
+            recurringServiceId: 'service-a',
+            schedulingEventId: 'occurrence-a',
+          }),
+        ),
+      },
+      schedulingEvent: { findFirst: vi.fn(async () => null) },
+    })
+    mocks.transaction.mockImplementation(async (callback) => callback(tx))
+
+    await expect(
+      prismaJobsStore.updateJob({
+        workspaceId: 'workspace-a',
+        jobId: 'job-a',
+        actorUserId: 'profile-manager',
+        expectedStatus: JobStatus.SCHEDULED,
+        data: { status: JobStatus.IN_PROGRESS },
+      }),
+    ).resolves.toBeNull()
+    expect(tx.job.updateMany).not.toHaveBeenCalled()
   })
 
   it('uses distinct revisions for separate legitimate completion occurrences', async () => {

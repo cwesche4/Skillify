@@ -1,5 +1,7 @@
-import { prisma } from '@/lib/db'
+import { Prisma } from '@prisma/client'
+
 import type { CustomerStore } from '@/lib/customers/service'
+import { prisma } from '@/lib/db'
 
 export const prismaCustomerStore: CustomerStore = {
   async getWorkspaceBusinessModel(workspaceId) {
@@ -64,6 +66,21 @@ export const prismaCustomerStore: CustomerStore = {
 
   archiveCustomer({ workspaceId, customerId, archivedAt }) {
     return prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "Customer" WHERE "id" = ${customerId} AND "workspaceId" = ${workspaceId} AND "archivedAt" IS NULL FOR UPDATE`,
+      )
+      if (locked.length !== 1) return null
+      const activeRecurringService = await tx.recurringService.findFirst({
+        where: {
+          workspaceId,
+          customerId,
+          status: { in: ['ACTIVE', 'PAUSED'] },
+        },
+        select: { id: true },
+      })
+      if (activeRecurringService) {
+        return { blockedByActiveRecurringService: true } as const
+      }
       const result = await tx.customer.updateMany({
         where: { id: customerId, workspaceId, archivedAt: null },
         data: { archivedAt },
