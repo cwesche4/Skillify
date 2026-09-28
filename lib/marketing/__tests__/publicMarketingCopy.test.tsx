@@ -16,8 +16,8 @@ describe('public marketing repositioning', () => {
     expect(home).toContain('Run your business from one intelligent workspace.')
     expect(home).toContain('px-6 pb-24 pt-24 lg:pb-32 lg:pt-20')
     expect(indexHome).toContain('px-6 pb-20 pt-24 lg:pb-28 lg:pt-20')
-    expect(home).toContain(
-      'Business operations and intelligence for growing service businesses',
+    expect(home).toMatch(
+      /Business operations and intelligence for growing service\s+businesses/,
     )
     expect(home).toContain('Manage leads, customers, jobs, scheduling')
     expect(home).not.toContain(
@@ -182,8 +182,8 @@ describe('public marketing repositioning', () => {
   it('focuses Solutions on service-business segments', () => {
     const solutions = source('app/marketing/solutions/page.tsx')
 
-    expect(solutions).toContain(
-      'Built for service businesses that run on customers, crews, and schedules.',
+    expect(solutions).toMatch(
+      /Built for service businesses that run on customers, crews, and\s+schedules\./,
     )
 
     for (const segment of [

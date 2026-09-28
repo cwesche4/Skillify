@@ -1,7 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { authenticateServiceToken } from '@/lib/auth/serviceToken'
 import { prisma } from '@/lib/db'
 
-export async function GET() {
+export const dynamic = 'force-dynamic'
+
+export async function GET(request: NextRequest) {
+  const authorization = await authenticateServiceToken(
+    request,
+    'AUTOMATION_OPERATIONS',
+  )
+  if (!authorization.ok) return authorization.response
+
   const [lastAudit, lastRateLimit, lastAlert] = await Promise.all([
     prisma.aiActionAudit.findFirst({
       orderBy: { createdAt: 'desc' },

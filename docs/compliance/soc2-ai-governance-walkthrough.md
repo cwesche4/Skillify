@@ -18,7 +18,7 @@ Use this script during a live audit call. Follow the steps; do not improvise bey
 
 - **Audit CSV export**: Call `/api/workspaces/{workspaceId}/ai-actions/audit/export` with a small filter window; download CSV and point out headers + footer metadata.
 - **Evidence bundle ZIP**: Call `/api/workspaces/{workspaceId}/ai-actions/evidence` (optional filters) and show contents (audit.csv, control-registry.json, runbook references).
-- **Governance status**: Call `/api/internal/governance/status` to show last audit/rate-limit/alert timestamps (read-only).
+- **Governance status**: Call `/api/internal/governance/status` with a service token scoped to `AUTOMATION_OPERATIONS` to show last audit/rate-limit/alert timestamps (read-only).
 
 ## 4) Integrity Verification
 

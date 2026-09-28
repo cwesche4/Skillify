@@ -12,6 +12,7 @@ const ignoredDirectories = new Set([
   'dist',
 ])
 const ignoredFiles = new Set(['package-lock.json', 'project_tree.txt'])
+const vercelManagedLocalVariables = new Set(['VERCEL_OIDC_TOKEN'])
 const scannedExtensions = new Set([
   '.cjs',
   '.js',
@@ -160,7 +161,11 @@ describe('environment configuration templates', () => {
     const exampleKeys = new Set(readEnvKeys(path.join(rootDir, '.env.example')))
     const localKeys = readEnvKeys(path.join(rootDir, '.env.local'))
 
-    expect(localKeys.filter((key) => !exampleKeys.has(key))).toEqual([])
+    expect(
+      localKeys.filter(
+        (key) => !exampleKeys.has(key) && !vercelManagedLocalVariables.has(key),
+      ),
+    ).toEqual([])
   })
 
   it('keeps template-only placeholders explicit and removes obsolete names', () => {

@@ -20,7 +20,7 @@ This packet provides auditors with a self-contained view of AI governance contro
 - **Exports**: CSV via `GET /api/workspaces/{workspaceId}/ai-actions/audit/export` (headers + footer metadata); bundled ZIP via `.../ai-actions/evidence/route.ts`.
 - **Metrics & alerts**: Structured logs from `lib/observability/aiMetrics.ts` (`[ai-metric]`) and `lib/observability/aiAlerts.ts` (`[ai-alert]`).
 - **Runbooks/Tabletops**: `docs/runbooks/ai-actions.md`; tabletop exercises at `docs/incidents/ai-governance-tabletop.md`.
-- **Self-audit & status**: Read-only checks in `lib/governance/selfAudit.ts`; governance status endpoint `app/api/internal/governance/status/route.ts`.
+- **Self-audit & status**: Read-only checks in `lib/governance/selfAudit.ts`; governance status endpoint `app/api/internal/governance/status/route.ts`, protected by the `AUTOMATION_OPERATIONS` service-token scope.
 - **Control registry**: `lib/compliance/controlRegistry.ts` enumerates enforcement locations.
 
 ## 4) Operational Safeguards
@@ -39,4 +39,4 @@ This packet provides auditors with a self-contained view of AI governance contro
    - Rate limit: POST `/api/ai/node-improve` repeatedly until 429; verify `retryAfterMs` and `[ai-alert] rate_limit_spike` logs.
    - Undo conflicts: Call `/api/workspaces/{workspaceId}/ai-actions/undo` with mismatched `currentNodeData` to elicit 409; confirm audit `reason=conflict_detected`.
 4. **Review alerts/incidents**: Check server logs for `[ai-metric]` and `[ai-alert]` entries keyed by workspaceId; follow runbook `docs/runbooks/ai-actions.md`.
-5. **Self-audit/status**: Run `runGovernanceSelfAudit` (read-only) or call `GET /api/internal/governance/status` to see last audit/rate-limit/alert timestamps.
+5. **Self-audit/status**: Run `runGovernanceSelfAudit` (read-only) or call `GET /api/internal/governance/status` with a service token scoped to `AUTOMATION_OPERATIONS` to see last audit/rate-limit/alert timestamps.
