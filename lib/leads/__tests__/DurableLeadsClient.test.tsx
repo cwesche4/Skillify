@@ -6,6 +6,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DurableLeadsClient } from '@/components/dashboard/leads/DurableLeadsClient'
 import type { LeadClientRecord } from '@/lib/leads/clientTypes'
 
+const navigation = vi.hoisted(() => ({
+  replace: vi.fn(),
+  search: '',
+}))
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/dashboard/acme/leads',
+  useRouter: () => ({ replace: navigation.replace }),
+  useSearchParams: () => new URLSearchParams(navigation.search),
+}))
+
 const members = [{ id: 'member-a', name: 'Alex Manager', role: 'MANAGER' }]
 
 function makeLead(overrides: Partial<LeadClientRecord> = {}): LeadClientRecord {
@@ -133,7 +144,11 @@ function installApi(
   return { state, fetchMock }
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  navigation.search = ''
+  navigation.replace.mockReset()
+})
 
 describe('DurableLeadsClient', () => {
   it('shows honest loading/empty states and creates a durable Lead', async () => {
@@ -204,6 +219,50 @@ describe('DurableLeadsClient', () => {
     expect(state.leads[0].nextStep).toBe('Send estimate')
     await user.click(screen.getByRole('button', { name: 'Archive' }))
     await waitFor(() => expect(state.leads).toHaveLength(1))
+  })
+
+  it('honors canonical follow-up views, the historical alias, and Lead deep links', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-09-29T14:00:00.000Z'))
+    navigation.search = 'view=needs-follow-up&leadId=lead-overdue'
+    installApi([
+      makeLead({
+        id: 'lead-overdue',
+        displayName: 'Overdue Lead',
+        followUpAt: '2026-09-28T14:00:00.000Z',
+      }),
+      makeLead({
+        id: 'lead-today',
+        displayName: 'Due Today Lead',
+        followUpAt: '2026-09-29T18:00:00.000Z',
+      }),
+      makeLead({
+        id: 'lead-future',
+        displayName: 'Future Lead',
+        followUpAt: '2026-09-30T14:00:00.000Z',
+      }),
+    ])
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(
+      <DurableLeadsClient
+        workspaceId="ws-a"
+        workspaceSlug="acme"
+        workspaceTimezone="America/New_York"
+        members={members}
+      />,
+    )
+
+    expect(await screen.findByText('Due Today Lead')).toBeTruthy()
+    expect(screen.queryByText('Future Lead')).toBeNull()
+    expect(
+      await screen.findByRole('dialog', { name: 'Overdue Lead' }),
+    ).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: /Overdue \(1\)/ }))
+    expect(navigation.replace).toHaveBeenCalledWith(
+      '/dashboard/acme/leads?view=overdue&leadId=lead-overdue',
+      { scroll: false },
+    )
+    vi.useRealTimers()
   })
 
   it('keeps Won explicit and converts only after a clear confirmation', async () => {

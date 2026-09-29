@@ -53,16 +53,30 @@ export function customerOperationalSnapshots(
 export function presentJobOperationalContext(
   job: JobRecord,
   mayViewOperationalContext: boolean,
+  mayViewExceptionContext = mayViewOperationalContext,
 ) {
-  if (mayViewOperationalContext) return job
+  if (mayViewOperationalContext && mayViewExceptionContext) return job
+
   return {
     ...job,
-    customerReferenceId: null,
-    customerId: null,
-    customerDisplayName: null,
-    serviceLocationSnapshot: null,
-    customerContactNameSnapshot: null,
-    customerPhoneSnapshot: null,
-    customerEmailSnapshot: null,
+    ...(mayViewOperationalContext
+      ? {}
+      : {
+          customerReferenceId: null,
+          customerId: null,
+          customerDisplayName: null,
+          serviceLocationSnapshot: null,
+          customerContactNameSnapshot: null,
+          customerPhoneSnapshot: null,
+          customerEmailSnapshot: null,
+        }),
+    ...(mayViewExceptionContext
+      ? {}
+      : {
+          unableToCompleteReason: null,
+          unableToCompleteNote: null,
+          unableToCompleteAt: null,
+          unableToCompleteReportedByMemberId: null,
+        }),
   }
 }

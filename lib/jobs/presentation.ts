@@ -14,6 +14,7 @@ export type JobSavedView =
   | 'open'
   | 'urgent'
   | 'scheduled-today'
+  | 'needs-attention'
   | 'waiting'
   | 'completed'
 
@@ -27,6 +28,7 @@ export const jobSavedViews: Array<{
   { id: 'open', label: 'Open', tone: 'cyan' },
   { id: 'urgent', label: 'Urgent', tone: 'rose' },
   { id: 'scheduled-today', label: 'Scheduled Today', tone: 'purple' },
+  { id: 'needs-attention', label: 'Needs Attention', tone: 'rose' },
   { id: 'waiting', label: 'Waiting on Client', tone: 'amber' },
   { id: 'completed', label: 'Completed', tone: 'green' },
 ]
@@ -83,6 +85,8 @@ export function matchesJobSavedView(
       return isOpenJob(job) && job.priority === OperationsPriority.URGENT
     case 'scheduled-today':
       return isOpenJob(job) && isScheduledToday(job, now)
+    case 'needs-attention':
+      return job.status === JobStatus.UNABLE_TO_COMPLETE
     case 'waiting':
       return job.status === JobStatus.WAITING_ON_CLIENT
     case 'completed':

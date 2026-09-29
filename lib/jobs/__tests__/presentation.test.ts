@@ -164,4 +164,50 @@ describe('durable Jobs presentation filters', () => {
       ),
     ).toBe(false)
   })
+
+  it('derives Needs Attention only from unresolved durable Unable state', () => {
+    const statuses: JobClientRecord['status'][] = [
+      'OPEN',
+      'SCHEDULED',
+      'IN_PROGRESS',
+      'WAITING_ON_CLIENT',
+      'COMPLETED',
+      'CANCELED',
+    ]
+    expect(
+      matchesJobSavedView(
+        job({
+          id: 'unable',
+          title: 'Unable',
+          status: 'UNABLE_TO_COMPLETE',
+        }),
+        'needs-attention',
+        now,
+      ),
+    ).toBe(true)
+    for (const status of statuses) {
+      expect(
+        matchesJobSavedView(
+          job({ id: status, title: status, status }),
+          'needs-attention',
+          now,
+        ),
+      ).toBe(false)
+    }
+    expect(
+      filterJobs(
+        [
+          job({
+            id: 'archived-unable',
+            title: 'Archived',
+            status: 'UNABLE_TO_COMPLETE',
+            archivedAt: '2026-09-22T10:00:00.000Z',
+          }),
+        ],
+        'needs-attention',
+        '',
+        now,
+      ),
+    ).toEqual([])
+  })
 })

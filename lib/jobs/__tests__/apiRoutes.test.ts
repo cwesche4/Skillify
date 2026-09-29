@@ -146,6 +146,10 @@ describe('Jobs and Work Items API routes', () => {
         customerContactNameSnapshot: 'Private Customer',
         customerPhoneSnapshot: '555-0199',
         customerEmailSnapshot: 'private@example.com',
+        unableToCompleteReason: 'ACCESS_ISSUE',
+        unableToCompleteNote: 'Private gate details',
+        unableToCompleteAt: new Date('2026-09-28T12:00:00.000Z'),
+        unableToCompleteReportedByMemberId: 'member-other',
       },
     ])
     mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(
@@ -172,6 +176,10 @@ describe('Jobs and Work Items API routes', () => {
       customerContactNameSnapshot: null,
       customerPhoneSnapshot: null,
       customerEmailSnapshot: null,
+      unableToCompleteReason: null,
+      unableToCompleteNote: null,
+      unableToCompleteAt: null,
+      unableToCompleteReportedByMemberId: null,
       canCurrentMemberExecute: false,
     })
 
@@ -183,6 +191,10 @@ describe('Jobs and Work Items API routes', () => {
       customerContactNameSnapshot: 'Private Customer',
       customerPhoneSnapshot: '555-0199',
       customerEmailSnapshot: 'private@example.com',
+      unableToCompleteReason: 'ACCESS_ISSUE',
+      unableToCompleteNote: 'Private gate details',
+      unableToCompleteAt: new Date('2026-09-28T12:00:00.000Z'),
+      unableToCompleteReportedByMemberId: 'member-other',
     })
     mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(false)
     const unrelatedResponse = await getJobRoute(
@@ -198,6 +210,10 @@ describe('Jobs and Work Items API routes', () => {
         customerContactNameSnapshot: null,
         customerPhoneSnapshot: null,
         customerEmailSnapshot: null,
+        unableToCompleteReason: null,
+        unableToCompleteNote: null,
+        unableToCompleteAt: null,
+        unableToCompleteReportedByMemberId: null,
         canCurrentMemberExecute: false,
       },
     })
@@ -223,6 +239,76 @@ describe('Jobs and Work Items API routes', () => {
         serviceLocationSnapshot: '10 Main Street',
         customerPhoneSnapshot: '555-0110',
         canCurrentMemberExecute: true,
+      },
+    })
+  })
+
+  it('retains reporter exception context without retaining Customer context after Team access is removed', async () => {
+    mocks.authorizeWorkspaceAccess.mockResolvedValue(memberAuthorization)
+    const unableJob = {
+      id: 'job-unable-reported-by-member',
+      customerId: 'customer-private',
+      customerDisplayName: 'Private Customer',
+      serviceLocationSnapshot: '99 Private Lane',
+      customerContactNameSnapshot: 'Private Customer',
+      customerPhoneSnapshot: '555-0199',
+      customerEmailSnapshot: 'private@example.com',
+      unableToCompleteReason: 'ACCESS_ISSUE',
+      unableToCompleteNote: 'Gate code no longer works',
+      unableToCompleteAt: new Date('2026-09-28T12:00:00.000Z'),
+      unableToCompleteReportedByMemberId: 'member-a',
+    }
+    mocks.listJobs.mockResolvedValue([unableJob])
+    mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(new Set())
+
+    const listResponse = await listJobsRoute(
+      new Request('http://localhost/api/workspaces/ws-a/jobs'),
+      { params: { workspaceId: 'ws-a' } },
+    )
+    expect(await listResponse.json()).toMatchObject({
+      jobs: [
+        {
+          id: 'job-unable-reported-by-member',
+          customerId: null,
+          customerDisplayName: null,
+          serviceLocationSnapshot: null,
+          customerContactNameSnapshot: null,
+          customerPhoneSnapshot: null,
+          customerEmailSnapshot: null,
+          unableToCompleteReason: 'ACCESS_ISSUE',
+          unableToCompleteNote: 'Gate code no longer works',
+          unableToCompleteReportedByMemberId: 'member-a',
+          canCurrentMemberExecute: false,
+        },
+      ],
+    })
+
+    mocks.getJob.mockResolvedValue(unableJob)
+    mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(false)
+    const detailResponse = await getJobRoute(
+      new Request(
+        'http://localhost/api/workspaces/ws-a/jobs/job-unable-reported-by-member',
+      ),
+      {
+        params: {
+          workspaceId: 'ws-a',
+          jobId: 'job-unable-reported-by-member',
+        },
+      },
+    )
+    expect(await detailResponse.json()).toMatchObject({
+      job: {
+        id: 'job-unable-reported-by-member',
+        customerId: null,
+        customerDisplayName: null,
+        serviceLocationSnapshot: null,
+        customerContactNameSnapshot: null,
+        customerPhoneSnapshot: null,
+        customerEmailSnapshot: null,
+        unableToCompleteReason: 'ACCESS_ISSUE',
+        unableToCompleteNote: 'Gate code no longer works',
+        unableToCompleteReportedByMemberId: 'member-a',
+        canCurrentMemberExecute: false,
       },
     })
   })

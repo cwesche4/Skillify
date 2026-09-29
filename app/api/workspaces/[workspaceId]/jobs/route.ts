@@ -40,7 +40,13 @@ export async function GET(request: Request, { params }: RouteContext) {
     const presentedJobs = jobs.map((job) => {
       const canExecute = canManage || executableJobIds.has(job.id)
       return {
-        ...presentJobOperationalContext(job, canExecute),
+        ...presentJobOperationalContext(
+          job,
+          canExecute,
+          canManage ||
+            job.unableToCompleteReportedByMemberId ===
+              authorization.workspaceMemberId,
+        ),
         canCurrentMemberExecute: canExecute,
       }
     })

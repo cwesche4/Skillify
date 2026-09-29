@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn(),
   findProfile: vi.fn(),
   findWorkspace: vi.fn(),
+  getPersistedSchedulingSettings: vi.fn(),
 }))
 
 vi.mock('@clerk/nextjs/server', () => ({ auth: mocks.auth }))
@@ -17,9 +18,20 @@ vi.mock('@/lib/db', () => ({
     workspace: { findUnique: mocks.findWorkspace },
   },
 }))
+vi.mock('@/lib/scheduling/services/schedulingService', () => ({
+  getPersistedSchedulingSettings: mocks.getPersistedSchedulingSettings,
+}))
 vi.mock('@/components/dashboard/leads/DurableLeadsClient', () => ({
-  DurableLeadsClient: ({ workspaceId }: { workspaceId: string }) => (
-    <div>Durable Leads: {workspaceId}</div>
+  DurableLeadsClient: ({
+    workspaceId,
+    workspaceTimezone,
+  }: {
+    workspaceId: string
+    workspaceTimezone: string
+  }) => (
+    <div>
+      Durable Leads: {workspaceId} ({workspaceTimezone})
+    </div>
   ),
 }))
 vi.mock('@/components/dashboard/sales/LeadsClient', () => ({
@@ -50,6 +62,9 @@ describe('Leads route workspace-model branch', () => {
     vi.clearAllMocks()
     mocks.auth.mockReturnValue({ userId: 'clerk-a' })
     mocks.findProfile.mockResolvedValue({ id: 'user-a' })
+    mocks.getPersistedSchedulingSettings.mockResolvedValue({
+      timezone: 'Pacific/Honolulu',
+    })
     mocks.redirect.mockImplementation((location: string) => {
       throw new Error(`REDIRECT:${location}`)
     })
@@ -62,7 +77,12 @@ describe('Leads route workspace-model branch', () => {
         workspace('SIMPLE_SERVICE_BUSINESS', role),
       )
       render(await LeadsPage({ params: { workspaceSlug: 'acme' } }))
-      expect(screen.getByText('Durable Leads: ws-a')).toBeTruthy()
+      expect(
+        screen.getByText('Durable Leads: ws-a (Pacific/Honolulu)'),
+      ).toBeTruthy()
+      expect(mocks.getPersistedSchedulingSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ workspaceId: 'ws-a' }),
+      )
       expect(screen.queryByText('Legacy Leads')).toBeNull()
     },
   )

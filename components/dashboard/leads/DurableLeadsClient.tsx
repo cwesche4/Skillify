@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Archive, Pencil, Plus, X } from 'lucide-react'
 
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
@@ -36,6 +37,13 @@ import type {
   LeadMutationInput,
 } from '@/lib/leads/clientTypes'
 import { leadSources } from '@/lib/leads/validation'
+import {
+  durableLeadSavedViews,
+  filterDurableLeads,
+  matchesDurableLeadSavedView,
+  normalizeDurableLeadSavedView,
+  type DurableLeadSavedView,
+} from '@/lib/leads/presentation'
 import { LeadStage, type LeadStage as LeadStageValue } from '@/lib/prisma/enums'
 
 const stageLabels: Record<LeadStageValue, string> = {
@@ -55,17 +63,6 @@ const stageVariants: Record<LeadStageValue, BadgeVariant> = {
   WON: 'green',
   LOST: 'red',
 }
-
-type SavedView = 'ALL' | LeadStageValue | 'HIGH_VALUE'
-
-const views: Array<{ id: SavedView; label: string }> = [
-  { id: 'ALL', label: 'All Leads' },
-  ...Object.values(LeadStage).map((stage) => ({
-    id: stage,
-    label: stageLabels[stage],
-  })),
-  { id: 'HIGH_VALUE', label: 'High Value' },
-]
 
 const highValueCents = 350_000
 
@@ -382,18 +379,26 @@ function LeadForm({
 export function DurableLeadsClient({
   workspaceId,
   workspaceSlug,
+  workspaceTimezone = 'UTC',
   members,
 }: {
   workspaceId: string
   workspaceSlug: string
+  workspaceTimezone?: string
   members: LeadMemberOption[]
 }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const requestedView = searchParams.get('view')
   const [leads, setLeads] = useState<LeadClientRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [view, setView] = useState<SavedView>('ALL')
+  const [view, setView] = useState<DurableLeadSavedView>(() =>
+    normalizeDurableLeadSavedView(requestedView),
+  )
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState<LeadClientRecord | null>(null)
   const [editing, setEditing] = useState(false)
@@ -422,49 +427,69 @@ export function DurableLeadsClient({
     void load()
   }, [load])
 
+  useEffect(() => {
+    setView(normalizeDurableLeadSavedView(requestedView))
+  }, [requestedView])
+
+  useEffect(() => {
+    if (loading) return
+    const leadId = searchParams.get('leadId')
+    if (!leadId) return
+    const lead = leads.find((candidate) => candidate.id === leadId)
+    if (lead) {
+      setSelected(lead)
+      return
+    }
+    setNotice('That Lead is no longer available in this workspace.')
+  }, [leads, loading, searchParams])
+
   const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return leads.filter((lead) => {
-      const matchesView =
-        view === 'ALL'
-          ? true
-          : view === 'HIGH_VALUE'
-            ? (lead.estimatedValueCents ?? 0) >= highValueCents
-            : lead.stage === view
-      const matchesSearch =
-        !query ||
-        [
-          lead.displayName,
-          lead.companyName,
-          lead.email,
-          lead.phone,
-          lead.nextStep,
-          lead.source,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-          .includes(query)
-      return matchesView && matchesSearch
+    return filterDurableLeads(leads, view, search, {
+      timezone: workspaceTimezone,
+      highValueCents,
     })
-  }, [leads, search, view])
+  }, [leads, search, view, workspaceTimezone])
 
   const counts = useMemo(
     () =>
       new Map(
-        views.map((item) => [
+        durableLeadSavedViews.map((item) => [
           item.id,
           leads.filter((lead) =>
-            item.id === 'ALL'
-              ? true
-              : item.id === 'HIGH_VALUE'
-                ? (lead.estimatedValueCents ?? 0) >= highValueCents
-                : lead.stage === item.id,
+            matchesDurableLeadSavedView(lead, item.id, {
+              timezone: workspaceTimezone,
+              highValueCents,
+            }),
           ).length,
         ]),
       ),
-    [leads],
+    [leads, workspaceTimezone],
   )
+
+  const selectView = (next: DurableLeadSavedView) => {
+    setView(next)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('view', next)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  const openLead = (lead: LeadClientRecord) => {
+    setSelected(lead)
+    setActionError(null)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('leadId', lead.id)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  const closeLead = () => {
+    setSelected(null)
+    setConversionStep(null)
+    setDuplicateCandidates([])
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('leadId')
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
 
   const replace = (lead: LeadClientRecord) => {
     setLeads((current) =>
@@ -531,6 +556,7 @@ export function DurableLeadsClient({
 
   return (
     <DashboardShell className="max-w-7xl">
+      <div id="leads-workspace" className="scroll-mt-28" />
       <PageHeader
         title="Leads"
         description="Track new prospects and the next step needed to win their work."
@@ -559,12 +585,12 @@ export function DurableLeadsClient({
           className="flex gap-2 overflow-x-auto pb-1"
           aria-label="Lead saved views"
         >
-          {views.map((item) => (
+          {durableLeadSavedViews.map((item) => (
             <Button
               key={item.id}
               size="sm"
               variant={view === item.id ? 'primary' : 'outline'}
-              onClick={() => setView(item.id)}
+              onClick={() => selectView(item.id)}
             >
               {item.label} ({counts.get(item.id) ?? 0})
             </Button>
@@ -606,10 +632,7 @@ export function DurableLeadsClient({
             <button
               key={lead.id}
               type="button"
-              onClick={() => {
-                setSelected(lead)
-                setActionError(null)
-              }}
+              onClick={() => openLead(lead)}
               className="border-app bg-app-surface-raised hover:bg-app-surface-hover focus-visible:ring-brand-primary/70 rounded-xl border p-4 text-left transition focus:outline-none focus-visible:ring-2"
             >
               <div className="flex items-start justify-between gap-3">
@@ -672,11 +695,7 @@ export function DurableLeadsClient({
         <Modal
           title={selected.displayName}
           description={selected.companyName || 'Lead details'}
-          onClose={() => {
-            setSelected(null)
-            setConversionStep(null)
-            setDuplicateCandidates([])
-          }}
+          onClose={closeLead}
         >
           <div className="space-y-5">
             {actionError ? (

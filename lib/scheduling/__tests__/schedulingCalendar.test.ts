@@ -1676,6 +1676,38 @@ describe('scheduling calendar helpers', () => {
     ).toBe('true')
   })
 
+  it('keeps Month a compact seven-column grid on mobile with work indicators', () => {
+    const anchor = dateKeyToCalendarDate('2026-07-27')
+    const period = getCalendarPeriod({
+      view: 'month',
+      anchorDate: anchor,
+      weekStartsOn: 0,
+      timezone: 'America/New_York',
+    })
+    const occurrences = getSchedulingOccurrencesForRange({
+      events: [baseEvent],
+      rangeStart: period.rangeStart,
+      rangeEnd: period.rangeEnd,
+      timezone: 'America/New_York',
+    })
+    const { container } = renderCalendarView({
+      view: 'month',
+      anchorDate: anchor,
+      todayDate: dateKeyToCalendarDate('2026-07-29'),
+      occurrences,
+    })
+
+    const grid = container.querySelector('[data-month-layout="compact-mobile"]')
+    expect(grid?.className).toContain('grid-cols-7')
+    expect(grid?.className).toContain('sm:min-h-[520px]')
+    expect(
+      container.querySelector('[data-mobile-month-has-events="true"]'),
+    ).not.toBeNull()
+    expect(
+      container.querySelector('[data-month-day-events="true"]')?.className,
+    ).toContain('hidden')
+  })
+
   it('renders the Today badge only when Day view is anchored to today', () => {
     const today = dateKeyToCalendarDate('2026-07-26')
     const { rerender } = renderCalendarView({

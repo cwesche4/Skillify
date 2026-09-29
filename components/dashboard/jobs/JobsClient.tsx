@@ -239,7 +239,7 @@ export function JobsClient({
     () =>
       canManage
         ? jobSavedViews.filter((view) => view.id !== 'my-jobs')
-        : jobSavedViews,
+        : jobSavedViews.filter((view) => view.id !== 'needs-attention'),
     [canManage],
   )
   const availableSavedViewIds = useMemo(
@@ -247,13 +247,11 @@ export function JobsClient({
     [availableSavedViews],
   )
   const defaultView: JobSavedView = canManage ? 'open' : 'my-jobs'
-  const [activeView, setActiveView] = useState<JobSavedView>(
-    requestedView &&
-      (canManage ? requestedView !== 'my-jobs' : true) &&
-      jobSavedViews.some((view) => view.id === requestedView)
+  const requestedSavedView: JobSavedView =
+    requestedView && availableSavedViewIds.has(requestedView as JobSavedView)
       ? (requestedView as JobSavedView)
-      : defaultView,
-  )
+      : defaultView
+  const [activeView, setActiveView] = useState<JobSavedView>(requestedSavedView)
   const [jobs, setJobs] = useState<JobClientRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -283,6 +281,10 @@ export function JobsClient({
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    setActiveView(requestedSavedView)
+  }, [requestedSavedView])
 
   const loadCustomers = useCallback(async () => {
     if (!canManage || !durableCustomersEnabled) return
@@ -365,7 +367,7 @@ export function JobsClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div id="request-queue" className="scroll-mt-28 space-y-6">
       <PageHeader
         title="Jobs"
         description="Keep customer work, schedules, and the steps your team needs to finish in one place."
@@ -1056,15 +1058,33 @@ function JobDetailDrawer({
             </section>
           )}
 
-          {job.status === JobStatus.UNABLE_TO_COMPLETE ? (
+          {job.unableToCompleteAt ? (
             <Alert variant="warning">
               <div className="space-y-1">
-                <p className="font-medium">Unable to Complete</p>
+                <p className="font-medium">
+                  {job.status === JobStatus.UNABLE_TO_COMPLETE
+                    ? 'Unable to Complete'
+                    : 'Previously Unable to Complete'}
+                </p>
                 <p>{unableReasonLabel(job.unableToCompleteReason)}</p>
                 {job.unableToCompleteNote ? (
                   <p>{job.unableToCompleteNote}</p>
                 ) : null}
-                {!canManage ? (
+                <p className="text-xs opacity-80">
+                  Reported{' '}
+                  {new Intl.DateTimeFormat('en-US', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  }).format(new Date(job.unableToCompleteAt))}
+                  {job.unableToCompleteReportedByMemberId
+                    ? ` by ${memberName(
+                        members,
+                        job.unableToCompleteReportedByMemberId,
+                      )}`
+                    : ''}
+                  .
+                </p>
+                {job.status === JobStatus.UNABLE_TO_COMPLETE && !canManage ? (
                   <p>
                     Management action is required to reschedule or skip this
                     visit.

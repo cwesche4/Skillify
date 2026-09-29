@@ -34,6 +34,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
       members: true,
       automations: {
         include: {
+          simpleAutomationInstallation: { select: { id: true } },
           runs: {
             orderBy: { startedAt: 'desc' },
             take: 100,
@@ -67,6 +68,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
         startedAt: run.startedAt,
         finishedAt: run.finishedAt,
         durationMs: run.durationMs,
+        managedBySimple: Boolean(automation.simpleAutomationInstallation),
       })),
     )
     .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
@@ -91,6 +93,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
       automations: workspace.automations.map((automation) => ({
         id: automation.id,
         name: automation.name,
+        managedBySimple: Boolean(automation.simpleAutomationInstallation),
         runs: runs.filter((run) => run.automationId === automation.id),
       })),
     },

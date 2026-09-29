@@ -312,6 +312,7 @@ export type WorkspaceCommandCenterData = {
     successRate: string
     activeAutomations: number
     failedRuns: number
+    failedRunsHref: string
     avgDuration: string
   }
   revenueInsights: DashboardRevenueInsight[]
@@ -490,7 +491,7 @@ function getInsightHref(workspaceSlug: string, insight: DashboardInsight) {
     return `/dashboard/${workspaceSlug}/leads?view=needs-follow-up#leads-workspace`
   }
   if (text.includes('automation') || text.includes('failed')) {
-    return `/dashboard/${workspaceSlug}/executions?view=failed#execution-history`
+    return `/dashboard/${workspaceSlug}/automations`
   }
   if (
     insight.id === 'requests' ||
@@ -2136,10 +2137,8 @@ export function WorkspaceCommandCenter({
         <PreviewActions>
           <Link
             href={
-              preview.activity.status === 'Failed'
-                ? (preview.activity.executionHref ??
-                  `/dashboard/${data.workspaceSlug}/executions?view=failed&executionId=${preview.activity.id}#execution-history`)
-                : `/dashboard/${data.workspaceSlug}/executions?executionId=${preview.activity.id}#execution-history`
+              preview.activity.executionHref ??
+              `/dashboard/${data.workspaceSlug}/automations`
             }
             className={previewButtonClass}
           >
@@ -2607,7 +2606,7 @@ export function WorkspaceCommandCenter({
               </p>
             </Link>
             <Link
-              href={`/dashboard/${data.workspaceSlug}/executions?view=failed#execution-history`}
+              href={data.automationHealth.failedRunsHref}
               className="recommendation-card-surface rounded-xl border p-2 transition hover:border-rose-500/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50"
               aria-label="Open failed runs"
             >
@@ -3126,7 +3125,7 @@ export function WorkspaceAnalyticsCharts({
             tone: failedRuns > 0 ? ('rose' as const) : ('green' as const),
             cta: 'Review executions',
             onClick: () => {
-              window.location.href = `/dashboard/${data.workspaceSlug}/executions`
+              window.location.href = data.automationHealth.failedRunsHref
             },
           },
           modules.opportunities

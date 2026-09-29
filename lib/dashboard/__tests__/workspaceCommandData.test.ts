@@ -187,4 +187,84 @@ describe('workspace command center data', () => {
     expect(source).toContain('{modules.opportunities ? (')
     expect(source).not.toContain('modules.opportunities || modules.sales')
   })
+
+  it('routes Simple and Advanced failures to truthful distinct history surfaces', () => {
+    const failedRun = {
+      status: 'FAILED',
+      startedAt: new Date('2026-09-29T12:00:00.000Z'),
+      finishedAt: new Date('2026-09-29T12:00:01.000Z'),
+      durationMs: 1000,
+    }
+    const data = buildWorkspaceCommandCenterData({
+      workspace: {
+        ...baseWorkspace,
+        automations: [
+          {
+            id: 'simple-a',
+            name: 'Simple A',
+            status: 'ACTIVE',
+            managedBySimple: true,
+            runs: [],
+          },
+          {
+            id: 'advanced-a',
+            name: 'Advanced A',
+            status: 'ACTIVE',
+            managedBySimple: false,
+            runs: [],
+          },
+        ],
+      },
+      runs: [
+        {
+          ...failedRun,
+          id: 'simple-run',
+          automationId: 'simple-a',
+          automationName: 'Simple A',
+          managedBySimple: true,
+        },
+        {
+          ...failedRun,
+          id: 'advanced-run',
+          automationId: 'advanced-a',
+          automationName: 'Advanced A',
+          managedBySimple: false,
+        },
+      ],
+      capabilities: getWorkspaceCapabilities({
+        businessModel: WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
+      }),
+    })
+
+    expect(data.automationHealth.failedRunsHref).toBe(
+      '/dashboard/commerce-co/automations',
+    )
+    expect(data.recentActivity[0].executionHref).toContain(
+      '/automations/simple/executions',
+    )
+    expect(data.recentActivity[1].executionHref).toContain(
+      '/automations/advanced/executions',
+    )
+    expect(data.attention).toMatchObject({
+      failureHref: '/dashboard/commerce-co/automations/simple/executions',
+      workflowHref: '/dashboard/commerce-co/automations',
+    })
+
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        'components',
+        'dashboard',
+        'command-center',
+        'WorkspaceCommandCenter.tsx',
+      ),
+      'utf8',
+    )
+    expect(source).not.toContain(
+      '/executions?view=failed&executionId=${preview.activity.id}',
+    )
+    expect(source).not.toContain(
+      '/executions?executionId=${preview.activity.id}',
+    )
+  })
 })

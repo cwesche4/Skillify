@@ -9,11 +9,15 @@ import type {
   WorkItemClientRecord,
 } from '@/lib/jobs/clientTypes'
 
-const replace = vi.fn()
+const navigation = vi.hoisted(() => ({
+  replace: vi.fn(),
+  search: '',
+}))
+const replace = navigation.replace
 vi.mock('next/navigation', () => ({
   usePathname: () => '/dashboard/acme/service-requests',
   useRouter: () => ({ replace }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(navigation.search),
 }))
 
 function makeJob(overrides: Partial<JobClientRecord> = {}): JobClientRecord {
@@ -274,6 +278,7 @@ function renderJobs(
 describe('durable Jobs UI', () => {
   beforeEach(() => {
     replace.mockReset()
+    navigation.search = ''
   })
 
   afterEach(() => {
@@ -817,6 +822,88 @@ describe('durable Jobs UI', () => {
         screen.getByRole('button', { name: /My Jobs/ }).textContent,
       ).toContain('0'),
     )
+  })
+
+  it('provides management a durable Needs Attention queue and preserves resolved Unable context', async () => {
+    installJobsApi({
+      jobs: [
+        makeJob({
+          id: 'unable-job',
+          title: 'Unable visit',
+          status: 'UNABLE_TO_COMPLETE',
+          unableToCompleteReason: 'ACCESS_ISSUE',
+          unableToCompleteNote: 'Gate code did not work.',
+          unableToCompleteAt: '2026-09-28T14:00:00.000Z',
+          unableToCompleteReportedByMemberId: 'member-a',
+        }),
+        makeJob({
+          id: 'rescheduled-job',
+          title: 'Rescheduled visit',
+          status: 'SCHEDULED',
+          unableToCompleteReason: 'WEATHER',
+          unableToCompleteNote: 'Lightning nearby.',
+          unableToCompleteAt: '2026-09-27T14:00:00.000Z',
+          unableToCompleteReportedByMemberId: 'member-a',
+        }),
+        makeJob({ id: 'open-job', title: 'Ordinary open Job' }),
+      ],
+    })
+    const user = userEvent.setup()
+    renderJobs(true)
+
+    const attention = await screen.findByRole('button', {
+      name: /Needs Attention.*1/,
+    })
+    await user.click(attention)
+    expect(screen.getByText('Unable visit')).toBeTruthy()
+    expect(screen.queryByText('Rescheduled visit')).toBeNull()
+    await user.click(
+      screen.getByRole('button', { name: 'Open Job Unable visit' }),
+    )
+    const current = screen.getByRole('dialog', { name: 'Unable visit' })
+    expect(within(current).getByText('Access issue')).toBeTruthy()
+    expect(within(current).getByText('Gate code did not work.')).toBeTruthy()
+    expect(within(current).getByText(/by Alex Rivera/)).toBeTruthy()
+
+    await user.click(within(current).getByRole('button', { name: /close/i }))
+    await user.click(screen.getByRole('button', { name: /All Jobs/ }))
+    await user.click(
+      screen.getByRole('button', { name: 'Open Job Rescheduled visit' }),
+    )
+    const resolved = screen.getByRole('dialog', {
+      name: 'Rescheduled visit',
+    })
+    expect(
+      within(resolved).getByText('Previously Unable to Complete'),
+    ).toBeTruthy()
+    expect(within(resolved).getByText('Lightning nearby.')).toBeTruthy()
+  })
+
+  it('does not expose the management exception view to a Member', async () => {
+    installJobsApi({ jobs: [makeJob({ status: 'UNABLE_TO_COMPLETE' })] })
+    renderJobs(false)
+    await screen.findByRole('button', { name: /My Jobs/ })
+    expect(screen.queryByRole('button', { name: /Needs Attention/ })).toBeNull()
+  })
+
+  it('rejects a management-only Needs Attention URL for a Member', async () => {
+    navigation.search = 'view=needs-attention'
+    installJobsApi({
+      jobs: [
+        makeJob({
+          id: 'unable-job',
+          title: 'Unable visit',
+          status: 'UNABLE_TO_COMPLETE',
+          canCurrentMemberExecute: false,
+        }),
+        makeJob({ id: 'assigned-job', title: 'Assigned visit' }),
+      ],
+    })
+    renderJobs(false)
+
+    expect(await screen.findByText('Assigned visit')).toBeTruthy()
+    expect(screen.queryByText('Unable visit')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Needs Attention/ })).toBeNull()
   })
 
   it('does not show field controls to an unrelated Member', async () => {

@@ -40,6 +40,7 @@ export type JobClientRecord = {
   unableToCompleteReason?: string | null
   unableToCompleteNote?: string | null
   unableToCompleteAt?: string | null
+  unableToCompleteReportedByMemberId?: string | null
   canCurrentMemberExecute?: boolean
 }
 

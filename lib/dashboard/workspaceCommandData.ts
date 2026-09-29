@@ -40,6 +40,7 @@ export type WorkspaceAutomationRunView = {
   startedAt: Date
   finishedAt: Date | null
   durationMs: number | null
+  managedBySimple?: boolean
 }
 
 export type WorkspaceCommandSource = {
@@ -51,8 +52,34 @@ export type WorkspaceCommandSource = {
     id: string
     name: string
     status?: string
+    managedBySimple?: boolean
     runs: WorkspaceAutomationRunView[]
   }>
+}
+
+export function getAutomationExecutionHref(
+  workspaceSlug: string,
+  run: Pick<WorkspaceAutomationRunView, 'id' | 'status' | 'managedBySimple'>,
+) {
+  if (run.managedBySimple) {
+    return `/dashboard/${workspaceSlug}/automations/simple/executions`
+  }
+  return `/dashboard/${workspaceSlug}/automations/advanced/executions?view=${
+    run.status === 'FAILED' ? 'failed' : 'all'
+  }&executionId=${run.id}#execution-history`
+}
+
+export function getFailedAutomationRunsHref(
+  workspaceSlug: string,
+  failedRuns: Array<Pick<WorkspaceAutomationRunView, 'managedBySimple'>>,
+) {
+  const hasSimple = failedRuns.some((run) => run.managedBySimple)
+  const hasAdvanced = failedRuns.some((run) => !run.managedBySimple)
+  if (hasSimple && hasAdvanced) return `/dashboard/${workspaceSlug}/automations`
+  if (hasSimple) {
+    return `/dashboard/${workspaceSlug}/automations/simple/executions`
+  }
+  return `/dashboard/${workspaceSlug}/automations/advanced/executions?view=failed#execution-history`
 }
 
 function formatCurrency(value: number) {
@@ -177,6 +204,7 @@ export function buildWorkspaceCommandCenterData({
 }): WorkspaceCommandCenterData {
   const successfulRuns = runs.filter((run) => run.status === 'SUCCESS')
   const failedRuns = runs.filter((run) => run.status === 'FAILED')
+  const failedRunsHref = getFailedAutomationRunsHref(workspace.slug, failedRuns)
   const successRate =
     runs.length > 0
       ? Math.round((successfulRuns.length / runs.length) * 100)
@@ -229,8 +257,13 @@ export function buildWorkspaceCommandCenterData({
             issue:
               'A recent workflow run failed and may need review before the next commerce automation runs.',
             time: latestFailedRun.startedAt.toLocaleString(),
-            failureHref: `/dashboard/${workspace.slug}/automations/${latestFailedRun.automationId}/runs/${latestFailedRun.id}`,
-            workflowHref: `/dashboard/${workspace.slug}/automations/${latestFailedRun.automationId}/builder`,
+            failureHref: getAutomationExecutionHref(
+              workspace.slug,
+              latestFailedRun,
+            ),
+            workflowHref: latestFailedRun.managedBySimple
+              ? `/dashboard/${workspace.slug}/automations`
+              : `/dashboard/${workspace.slug}/automations/${latestFailedRun.automationId}/builder`,
           }
         : null,
       kpis: [
@@ -297,7 +330,7 @@ export function buildWorkspaceCommandCenterData({
           value: failedRuns.length.toString(),
           helper: 'Recent execution window',
           tone: failedRuns.length > 0 ? 'rose' : 'emerald',
-          href: `/dashboard/${workspace.slug}/executions?view=failed#execution-history`,
+          href: failedRunsHref,
         },
       ],
       revenueSeries: [],
@@ -323,11 +356,11 @@ export function buildWorkspaceCommandCenterData({
             : run.status === 'FAILED'
               ? 'Failed'
               : 'Pending',
-        href: `/dashboard/${workspace.slug}/automations/${run.automationId}/runs/${run.id}`,
-        executionHref: `/dashboard/${workspace.slug}/executions?view=${
-          run.status === 'FAILED' ? 'failed' : 'all'
-        }&executionId=${run.id}#execution-history`,
-        workflowHref: `/dashboard/${workspace.slug}/automations/${run.automationId}/builder`,
+        href: getAutomationExecutionHref(workspace.slug, run),
+        executionHref: getAutomationExecutionHref(workspace.slug, run),
+        workflowHref: run.managedBySimple
+          ? `/dashboard/${workspace.slug}/automations`
+          : `/dashboard/${workspace.slug}/automations/${run.automationId}/builder`,
         workflowName: run.automationName,
         startedAt: run.startedAt.toLocaleString(),
         duration: formatDurationMs(run.durationMs),
@@ -372,6 +405,7 @@ export function buildWorkspaceCommandCenterData({
         successRate: successRate.toString(),
         activeAutomations: activeAutomations.length,
         failedRuns: failedRuns.length,
+        failedRunsHref,
         avgDuration: avgDuration ? `${avgDuration} ms` : '—',
       },
       revenueInsights: [
@@ -696,7 +730,7 @@ export function buildWorkspaceCommandCenterData({
       value: failedRuns.length.toString(),
       helper: 'Recent execution window',
       tone: failedRuns.length > 0 ? ('rose' as const) : ('emerald' as const),
-      href: `/dashboard/${workspace.slug}/executions?view=failed#execution-history`,
+      href: failedRunsHref,
     },
     modules.tasks
       ? {
@@ -782,8 +816,13 @@ export function buildWorkspaceCommandCenterData({
           issue:
             'A recent workflow run failed and may need review before the next customer action.',
           time: latestFailedRun.startedAt.toLocaleString(),
-          failureHref: `/dashboard/${workspace.slug}/automations/${latestFailedRun.automationId}/runs/${latestFailedRun.id}`,
-          workflowHref: `/dashboard/${workspace.slug}/automations/${latestFailedRun.automationId}/builder`,
+          failureHref: getAutomationExecutionHref(
+            workspace.slug,
+            latestFailedRun,
+          ),
+          workflowHref: latestFailedRun.managedBySimple
+            ? `/dashboard/${workspace.slug}/automations`
+            : `/dashboard/${workspace.slug}/automations/${latestFailedRun.automationId}/builder`,
         }
       : null,
     kpis: dashboardKpis,
@@ -837,11 +876,11 @@ export function buildWorkspaceCommandCenterData({
           : run.status === 'FAILED'
             ? 'Failed'
             : 'Pending',
-      href: `/dashboard/${workspace.slug}/automations/${run.automationId}/runs/${run.id}`,
-      executionHref: `/dashboard/${workspace.slug}/executions?view=${
-        run.status === 'FAILED' ? 'failed' : 'all'
-      }&executionId=${run.id}#execution-history`,
-      workflowHref: `/dashboard/${workspace.slug}/automations/${run.automationId}/builder`,
+      href: getAutomationExecutionHref(workspace.slug, run),
+      executionHref: getAutomationExecutionHref(workspace.slug, run),
+      workflowHref: run.managedBySimple
+        ? `/dashboard/${workspace.slug}/automations`
+        : `/dashboard/${workspace.slug}/automations/${run.automationId}/builder`,
       workflowName: run.automationName,
       startedAt: run.startedAt.toLocaleString(),
       duration: formatDurationMs(run.durationMs),
@@ -983,6 +1022,7 @@ export function buildWorkspaceCommandCenterData({
       successRate: successRate.toString(),
       activeAutomations: activeAutomations.length,
       failedRuns: failedRuns.length,
+      failedRunsHref,
       avgDuration: avgDuration ? `${avgDuration} ms` : '—',
     },
     revenueInsights: modules.opportunities

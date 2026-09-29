@@ -2703,7 +2703,10 @@ export function CalendarView({
       addDays(periodStart, index),
     )
     return (
-      <div className="grid min-h-[520px] gap-px bg-slate-800/80 p-px sm:grid-cols-7">
+      <div
+        className="grid grid-cols-7 gap-px bg-slate-800/80 p-px sm:min-h-[520px]"
+        data-month-layout="compact-mobile"
+      >
         {days.map((day) => {
           const dayKey = getCalendarDateKey(day)
           const dayEvents = eventsForDay(occurrences, day, timezone)
@@ -2743,7 +2746,7 @@ export function CalendarView({
               }}
               className={cn(
                 'cursor-pointer',
-                'flex min-h-28 flex-col bg-slate-950/90 p-2 text-left transition hover:bg-slate-900/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50',
+                'flex min-h-14 min-w-0 flex-col bg-slate-950/90 p-1 text-left transition hover:bg-slate-900/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50 sm:min-h-28 sm:p-2',
                 !visual.isInActiveMonth && 'bg-slate-950/70 opacity-65',
                 visual.isToday &&
                   !visual.isSelected &&
@@ -2754,7 +2757,7 @@ export function CalendarView({
               )}
             >
               <div
-                className="flex h-7 shrink-0 items-start justify-start"
+                className="flex h-7 shrink-0 items-start justify-center sm:justify-start"
                 data-month-day-header="true"
               >
                 <span
@@ -2773,7 +2776,7 @@ export function CalendarView({
                 </span>
               </div>
               <div
-                className="mt-1 space-y-1 overflow-hidden"
+                className="mt-1 hidden space-y-1 overflow-hidden sm:block"
                 data-month-day-events="true"
               >
                 {dayEvents.slice(0, 3).map((event) => (
@@ -2791,6 +2794,13 @@ export function CalendarView({
                   </span>
                 ) : null}
               </div>
+              {dayEvents.length ? (
+                <span
+                  className="mx-auto mt-0.5 inline-flex h-2 w-2 rounded-full bg-cyan-300 sm:hidden"
+                  data-mobile-month-has-events="true"
+                  aria-label={`${dayEvents.length} scheduled ${dayEvents.length === 1 ? 'item' : 'items'}`}
+                />
+              ) : null}
             </div>
           )
         })}

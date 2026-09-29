@@ -46,7 +46,13 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({
       ok: true,
       job: {
-        ...presentJobOperationalContext(job, canExecute),
+        ...presentJobOperationalContext(
+          job,
+          canExecute,
+          canManage ||
+            job.unableToCompleteReportedByMemberId ===
+              authorization.workspaceMemberId,
+        ),
         canCurrentMemberExecute: canExecute,
       },
     })
