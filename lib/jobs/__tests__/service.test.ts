@@ -66,6 +66,7 @@ function createMemoryStore() {
     'ws-b:member-b',
   ])
   const activeTeamMemberships = new Set<string>()
+  const activeTeams = new Set(['ws-a:team-a'])
   const calls: string[] = []
 
   const canExecuteJob = ({
@@ -84,10 +85,7 @@ function createMemoryStore() {
         candidate.archivedAt === null,
     )
     if (!job) return false
-    if (!job.schedulingEventId) {
-      return job.assigneeMemberId === workspaceMemberId
-    }
-    return (job.assignments ?? []).some(
+    const normalizedEligible = (job.assignments ?? []).some(
       (assignment) =>
         assignment.workspaceId === workspaceId &&
         ((assignment.assignmentType === 'MEMBER' &&
@@ -97,6 +95,12 @@ function createMemoryStore() {
             activeTeamMemberships.has(
               `${workspaceId}:${assignment.teamId}:${workspaceMemberId}`,
             ))),
+    )
+    if (normalizedEligible) return true
+    return (
+      !job.assignments?.length &&
+      !job.schedulingEventId &&
+      job.assigneeMemberId === workspaceMemberId
     )
   }
 
@@ -125,10 +129,42 @@ function createMemoryStore() {
           candidate.archivedAt === null,
       )
       return customer
-        ? { id: customer.id, displayName: customer.displayName }
+        ? {
+            id: customer.id,
+            displayName: customer.displayName,
+            contactName: customer.id === 'customer-a' ? 'Pat Customer' : null,
+            email: customer.id === 'customer-a' ? 'pat@example.com' : null,
+            phone: customer.id === 'customer-a' ? '555-0100' : null,
+            serviceAddressLine1:
+              customer.id === 'customer-a' ? '123 Main Street' : null,
+            serviceAddressLine2: null,
+            serviceAddressCity:
+              customer.id === 'customer-a' ? 'Hartford' : null,
+            serviceAddressRegion: customer.id === 'customer-a' ? 'CT' : null,
+            serviceAddressPostalCode:
+              customer.id === 'customer-a' ? '06103' : null,
+            serviceAddressCountry: null,
+          }
         : null
     },
-    async createJob(data: CreateJobData) {
+    async resolveJobAssignments({ workspaceId, assignments }) {
+      calls.push('resolveJobAssignments')
+      const valid = assignments.every((assignment) =>
+        assignment.assignmentType === 'MEMBER'
+          ? members.has(`${workspaceId}:${assignment.workspaceMemberId}`)
+          : activeTeams.has(`${workspaceId}:${assignment.teamId}`),
+      )
+      return valid
+        ? assignments.map((assignment) => ({
+            ...assignment,
+            displaySnapshot:
+              assignment.assignmentType === 'MEMBER'
+                ? 'Workspace member'
+                : 'Field Crew',
+          }))
+        : null
+    },
+    async createJob(data: CreateJobData, assignments) {
       calls.push('createJob')
       const customer = data.customerId
         ? customers.find(
@@ -160,6 +196,25 @@ function createMemoryStore() {
         createdAt: NOW,
         updatedAt: NOW,
         archivedAt: null,
+        assignments: assignments.map((assignment, index) => ({
+          id: `assignment-${index + 1}`,
+          workspaceId: data.workspaceId,
+          jobId: `job-${jobSequence + 1}`,
+          assignmentType: assignment.assignmentType,
+          workspaceMemberId:
+            assignment.assignmentType === 'MEMBER'
+              ? assignment.workspaceMemberId
+              : null,
+          teamId:
+            assignment.assignmentType === 'TEAM' ? assignment.teamId : null,
+          roleLabel: assignment.roleLabel ?? null,
+          displaySnapshot:
+            assignment.assignmentType === 'TEAM'
+              ? 'Field Crew'
+              : 'Workspace member',
+          createdAt: NOW,
+          updatedAt: NOW,
+        })),
       }
       jobs.push(row)
       return row
@@ -190,6 +245,7 @@ function createMemoryStore() {
       executionMemberId,
       expectedStatus,
       data,
+      assignments,
     }) {
       calls.push('updateJob')
       const index = jobs.findIndex(
@@ -227,6 +283,31 @@ function createMemoryStore() {
         ...data,
         ...(customer ? { customerDisplayName: customer.displayName } : {}),
         updatedAt: NOW,
+        ...(assignments
+          ? {
+              assignments: assignments.map((assignment, assignmentIndex) => ({
+                id: `assignment-${assignmentIndex + 1}`,
+                workspaceId,
+                jobId,
+                assignmentType: assignment.assignmentType,
+                workspaceMemberId:
+                  assignment.assignmentType === 'MEMBER'
+                    ? assignment.workspaceMemberId
+                    : null,
+                teamId:
+                  assignment.assignmentType === 'TEAM'
+                    ? assignment.teamId
+                    : null,
+                roleLabel: assignment.roleLabel ?? null,
+                displaySnapshot:
+                  assignment.assignmentType === 'TEAM'
+                    ? 'Field Crew'
+                    : 'Workspace member',
+                createdAt: NOW,
+                updatedAt: NOW,
+              })),
+            }
+          : {}),
       }
       return { job: jobs[index], completionEventId: null }
     },
@@ -410,7 +491,7 @@ describe('durable Jobs and Work Items service', () => {
     })
     expect(memory.calls).toEqual([
       'getWorkspaceBusinessModel',
-      'isWorkspaceMember',
+      'resolveJobAssignments',
       'createJob',
     ])
     expect(memory.calls).not.toContain('createAutomation')
@@ -439,7 +520,46 @@ describe('durable Jobs and Work Items service', () => {
     expect(job).toMatchObject({
       customerId: 'customer-a',
       customerDisplayName: 'ABC Landscaping',
+      serviceLocationSnapshot: '123 Main Street\nHartford, CT 06103',
+      customerContactNameSnapshot: 'Pat Customer',
+      customerPhoneSnapshot: '555-0100',
+      customerEmailSnapshot: 'pat@example.com',
     })
+  })
+
+  it('creates and replaces mixed manual MEMBER/TEAM assignments using the normalized model', async () => {
+    const job = await service.createJob(actorA, {
+      title: 'Mixed crew work',
+      assignments: [
+        { assignmentType: 'MEMBER', workspaceMemberId: 'member-a' },
+        { assignmentType: 'TEAM', teamId: 'team-a' },
+      ],
+    })
+
+    expect(job.assigneeMemberId).toBeNull()
+    expect(job.assignments).toMatchObject([
+      { assignmentType: 'MEMBER', workspaceMemberId: 'member-a' },
+      { assignmentType: 'TEAM', teamId: 'team-a' },
+    ])
+
+    const updated = await service.updateJob(actorA, job.id, {
+      assignments: [
+        { assignmentType: 'MEMBER', workspaceMemberId: 'member-other' },
+      ],
+    })
+    expect(updated.assigneeMemberId).toBe('member-other')
+    expect(updated.assignments).toMatchObject([
+      { assignmentType: 'MEMBER', workspaceMemberId: 'member-other' },
+    ])
+  })
+
+  it('rejects foreign or inactive manual assignment targets', async () => {
+    await expect(
+      service.createJob(actorA, {
+        title: 'Foreign team',
+        assignments: [{ assignmentType: 'TEAM', teamId: 'team-foreign' }],
+      }),
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
   })
 
   it('allows an unlinked Job and rejects foreign or archived Customers', async () => {
@@ -578,12 +698,12 @@ describe('durable Jobs and Work Items service', () => {
     const baseCreate = memory.store.createJob
     const racingStore: JobsStore = {
       ...memory.store,
-      async createJob(data) {
+      async createJob(data, assignments) {
         const customer = memory.customers.find(
           (candidate) => candidate.id === data.customerId,
         )
         if (customer) customer.archivedAt = NOW
-        return baseCreate(data)
+        return baseCreate(data, assignments)
       },
     }
     const racingService = createOperationsService(racingStore, {
@@ -850,6 +970,26 @@ describe('durable Jobs and Work Items service', () => {
         status: JobStatus.IN_PROGRESS,
       }),
     ).resolves.toMatchObject({ status: JobStatus.IN_PROGRESS })
+  })
+
+  it('authorizes a manual Team assignment only while membership is current', async () => {
+    const job = await service.createJob(actorA, {
+      title: 'Manual crew assignment',
+      assignments: [{ assignmentType: 'TEAM', teamId: 'team-a' }],
+    })
+    memory.activeTeamMemberships.add('ws-a:team-a:member-a')
+    await expect(
+      service.executeAssignedJob(memberActorA, job.id, {
+        status: JobStatus.IN_PROGRESS,
+      }),
+    ).resolves.toMatchObject({ status: JobStatus.IN_PROGRESS })
+
+    memory.activeTeamMemberships.delete('ws-a:team-a:member-a')
+    await expect(
+      service.executeAssignedJob(memberActorA, job.id, {
+        notes: 'No longer authorized.',
+      }),
+    ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' })
   })
 
   it('conflicts deterministically when another crew action wins before the atomic Job update', async () => {

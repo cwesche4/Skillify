@@ -989,12 +989,19 @@ model Job {
   priority    OperationsPriority @default(NORMAL)
 
   // Legacy opaque context retained for compatibility; do not interpret as Customer.id.
-  customerReferenceId String?
-  customerId          String?
+  customerReferenceId         String?
+  customerId                  String?
   // Historical snapshot captured when the durable Customer association changes.
-  customerDisplayName String?
-  valueCents          Int?
-  currency            String  @default("USD")
+  customerDisplayName         String?
+  // Job-scoped execution context. These values are captured when the Customer
+  // association is established so later Customer edits cannot erase the
+  // destination or contact details needed in the field.
+  serviceLocationSnapshot     String?
+  customerContactNameSnapshot String?
+  customerPhoneSnapshot       String?
+  customerEmailSnapshot       String?
+  valueCents                  Int?
+  currency                    String  @default("USD")
 
   // Operational scheduling snapshot. A generated Job retains its source event
   // below; Phase 8C synchronizes this snapshot from Scheduling lifecycle work.

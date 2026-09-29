@@ -81,8 +81,8 @@ describe('durable Job Customer relation migration', () => {
     expect(customerRelationMigration).not.toMatch(
       /^\s*(UPDATE|INSERT|DELETE FROM|DROP|TRUNCATE)\b/m,
     )
-    expect(schema).toContain('customerReferenceId String?')
-    expect(schema).toContain('customerDisplayName String?')
+    expect(schema).toMatch(/customerReferenceId\s+String\?/)
+    expect(schema).toMatch(/customerDisplayName\s+String\?/)
     expect(migration).not.toContain('customerId')
   })
 })

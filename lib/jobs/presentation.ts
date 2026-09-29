@@ -10,6 +10,7 @@ import type { JobClientRecord } from '@/lib/jobs/clientTypes'
 
 export type JobSavedView =
   | 'all'
+  | 'my-jobs'
   | 'open'
   | 'urgent'
   | 'scheduled-today'
@@ -21,6 +22,7 @@ export const jobSavedViews: Array<{
   label: string
   tone: 'cyan' | 'rose' | 'purple' | 'amber' | 'green' | 'slate'
 }> = [
+  { id: 'my-jobs', label: 'My Jobs', tone: 'cyan' },
   { id: 'all', label: 'All Jobs', tone: 'slate' },
   { id: 'open', label: 'Open', tone: 'cyan' },
   { id: 'urgent', label: 'Urgent', tone: 'rose' },
@@ -73,6 +75,8 @@ export function matchesJobSavedView(
   now = new Date(),
 ) {
   switch (view) {
+    case 'my-jobs':
+      return isOpenJob(job) && job.canCurrentMemberExecute === true
     case 'open':
       return isOpenJob(job)
     case 'urgent':

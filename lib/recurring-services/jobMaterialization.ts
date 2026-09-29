@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 
 import { prisma } from '@/lib/db'
+import { customerOperationalSnapshots } from '@/lib/jobs/operationalContext'
 
 export const RECURRING_SERVICE_MATERIALIZATION_TOPIC =
   'scheduling.recurrence.materialized' as const
@@ -219,7 +220,22 @@ export const prismaRecurringJobMaterializationStore: RecurringJobMaterialization
               recurrenceSeriesId: event.recurrenceSeriesId,
             },
             include: {
-              customer: { select: { displayName: true, archivedAt: true } },
+              customer: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  contactName: true,
+                  email: true,
+                  phone: true,
+                  serviceAddressLine1: true,
+                  serviceAddressLine2: true,
+                  serviceAddressCity: true,
+                  serviceAddressRegion: true,
+                  serviceAddressPostalCode: true,
+                  serviceAddressCountry: true,
+                  archivedAt: true,
+                },
+              },
               stepTemplates: {
                 orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
               },
@@ -306,6 +322,9 @@ export const prismaRecurringJobMaterializationStore: RecurringJobMaterialization
             jobAssignments[0].assignmentType === 'MEMBER'
               ? jobAssignments[0].workspaceMemberId
               : null
+          const operationalContext = customerOperationalSnapshots(
+            service.customer,
+          )
 
           const job = await tx.job.create({
             data: {
@@ -322,6 +341,14 @@ export const prismaRecurringJobMaterializationStore: RecurringJobMaterialization
               customerReferenceId: null,
               customerId: service.customerId,
               customerDisplayName: service.customer.displayName,
+              serviceLocationSnapshot:
+                event.locationAddress ??
+                event.locationLabel ??
+                operationalContext.serviceLocationSnapshot,
+              customerContactNameSnapshot:
+                operationalContext.customerContactNameSnapshot,
+              customerPhoneSnapshot: operationalContext.customerPhoneSnapshot,
+              customerEmailSnapshot: operationalContext.customerEmailSnapshot,
               valueCents: service.pricePerVisitCents,
               currency: service.currency,
               scheduledStartAt: event.startsAtUtc,

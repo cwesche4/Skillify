@@ -38,6 +38,7 @@ function makeJob(overrides: Partial<JobClientRecord> = {}): JobClientRecord {
     createdAt: '2026-09-20T12:00:00.000Z',
     updatedAt: '2026-09-20T12:00:00.000Z',
     archivedAt: null,
+    canCurrentMemberExecute: true,
     ...overrides,
   }
 }
@@ -252,12 +253,18 @@ function installJobsApi({
 
 const members = [{ id: 'member-a', name: 'Alex Rivera', role: 'MANAGER' }]
 
-function renderJobs(canManage = true, durableCustomersEnabled = true) {
+function renderJobs(
+  canManage = true,
+  durableCustomersEnabled = true,
+  teams: Array<{ id: string; name: string }> = [],
+) {
   return render(
     <JobsClient
       workspaceId="ws-a"
+      workspaceSlug="acme"
       currentMemberId="member-a"
       members={members}
+      teams={teams}
       canManage={canManage}
       durableCustomersEnabled={durableCustomersEnabled}
     />,
@@ -351,6 +358,58 @@ describe('durable Jobs UI', () => {
     ).toBeTruthy()
   })
 
+  it('shows Job-scoped field context and management-only related-record links', async () => {
+    installJobsApi({
+      jobs: [
+        makeJob({
+          customerId: 'customer-a',
+          recurringServiceId: 'service-1',
+          schedulingEventId: 'event-1',
+          serviceLocationSnapshot: '10 Main Street\nHartford, CT 06103',
+          customerContactNameSnapshot: 'Morgan Rivera',
+          customerPhoneSnapshot: '555-0110',
+          customerEmailSnapshot: 'morgan@example.com',
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    renderJobs()
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open Job Weekly lawn service',
+      }),
+    )
+    const detail = screen.getByRole('dialog', { name: /weekly lawn service/i })
+    expect(within(detail).getByText(/10 Main Street/)).toBeTruthy()
+    expect(within(detail).getByText('Morgan Rivera')).toBeTruthy()
+    expect(
+      within(detail)
+        .getByRole('link', { name: '555-0110' })
+        .getAttribute('href'),
+    ).toBe('tel:555-0110')
+    expect(
+      within(detail)
+        .getByRole('link', { name: 'morgan@example.com' })
+        .getAttribute('href'),
+    ).toBe('mailto:morgan@example.com')
+    expect(
+      within(detail)
+        .getByRole('link', { name: 'Open Customer' })
+        .getAttribute('href'),
+    ).toBe('/dashboard/acme/clients?customerId=customer-a')
+    expect(
+      within(detail)
+        .getByRole('link', { name: 'Open Recurring Services' })
+        .getAttribute('href'),
+    ).toBe('/dashboard/acme/scheduling/recurring-services')
+    expect(
+      within(detail)
+        .getByRole('link', { name: 'Open Scheduling' })
+        .getAttribute('href'),
+    ).toBe('/dashboard/acme/scheduling/jobs')
+  })
+
   it('keeps finalized recurring Job history read-only in management UI', async () => {
     installJobsApi({
       jobs: [
@@ -390,10 +449,10 @@ describe('durable Jobs UI', () => {
     ).toBeNull()
   })
 
-  it('creates a durable Job through the API-backed form', async () => {
+  it('creates a durable Job with mixed normalized assignments through the API-backed form', async () => {
     const { state } = installJobsApi({ jobs: [], steps: [] })
     const user = userEvent.setup()
-    renderJobs()
+    renderJobs(true, true, [{ id: 'team-a', name: 'Crew One' }])
     await screen.findByText('No Jobs yet')
 
     await user.click(screen.getAllByRole('button', { name: 'Create Job' })[0])
@@ -406,6 +465,10 @@ describe('durable Jobs UI', () => {
       within(dialog).getByLabelText('Customer'),
       'customer-a',
     )
+    await user.click(
+      within(dialog).getByRole('checkbox', { name: /Alex Rivera/ }),
+    )
+    await user.click(within(dialog).getByRole('checkbox', { name: /Crew One/ }))
     await user.click(within(dialog).getByRole('button', { name: 'Create Job' }))
 
     expect(
@@ -415,6 +478,10 @@ describe('durable Jobs UI', () => {
       title: 'Fall cleanup',
       customerId: 'customer-a',
       customerDisplayName: 'Morgan Home',
+      assignments: [
+        { assignmentType: 'MEMBER', workspaceMemberId: 'member-a' },
+        { assignmentType: 'TEAM', teamId: 'team-a' },
+      ],
     })
   })
 
@@ -562,7 +629,7 @@ describe('durable Jobs UI', () => {
     expect(within(detail).queryByText('Blow all clippings')).toBeNull()
   })
 
-  it('lets Members execute only their assigned Job Steps while Jobs stay read-only', async () => {
+  it('lets authorized Job crew execute its Job Steps while management stays read-only', async () => {
     const { state, fetchMock } = installJobsApi({
       steps: [
         makeStep(),
@@ -608,15 +675,15 @@ describe('durable Jobs UI', () => {
       }),
     ).toBeTruthy()
     expect(
-      within(detail).queryByRole('button', {
+      within(detail).getByRole('button', {
         name: 'Complete Other crew step',
       }),
-    ).toBeNull()
+    ).toBeTruthy()
     expect(
-      within(detail).queryByRole('button', {
+      within(detail).getByRole('button', {
         name: 'Complete Unassigned step',
       }),
-    ).toBeNull()
+    ).toBeTruthy()
 
     await user.click(
       within(detail).getByRole('button', {
@@ -655,6 +722,9 @@ describe('durable Jobs UI', () => {
           recurringServiceId: 'service-1',
           schedulingEventId: 'event-1',
           serviceInstructionsSnapshot: 'Use the side gate.',
+          serviceLocationSnapshot: '10 Main Street',
+          customerContactNameSnapshot: 'Morgan Rivera',
+          customerPhoneSnapshot: '555-0110',
           canCurrentMemberExecute: true,
           assignments: [
             {
@@ -685,6 +755,12 @@ describe('durable Jobs UI', () => {
     const detail = screen.getByRole('dialog', { name: /weekly lawn service/i })
     expect(within(detail).getByText('Crew One')).toBeTruthy()
     expect(within(detail).getByText('Use the side gate.')).toBeTruthy()
+    expect(within(detail).getByText('10 Main Street')).toBeTruthy()
+    expect(within(detail).getByText('Morgan Rivera')).toBeTruthy()
+    expect(within(detail).getByRole('link', { name: '555-0110' })).toBeTruthy()
+    expect(
+      within(detail).queryByRole('link', { name: 'Open Scheduling' }),
+    ).toBeNull()
     expect(
       within(detail).queryByRole('button', { name: 'Skip Visit' }),
     ).toBeNull()
@@ -703,6 +779,46 @@ describe('durable Jobs UI', () => {
     ).toBeTruthy()
   })
 
+  it('removes an unable recurring Job from My Jobs after field reporting', async () => {
+    installJobsApi({
+      jobs: [
+        makeJob({
+          status: 'IN_PROGRESS',
+          recurringServiceId: 'service-1',
+          schedulingEventId: 'event-1',
+          canCurrentMemberExecute: true,
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    renderJobs(false)
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Open Job Weekly lawn service',
+      }),
+    )
+    await user.click(
+      within(
+        screen.getByRole('dialog', { name: /weekly lawn service/i }),
+      ).getByRole('button', { name: 'Unable to Complete' }),
+    )
+    const reportDialog = screen.getByRole('dialog', {
+      name: 'Report Unable to Complete',
+    })
+    await user.click(
+      within(reportDialog).getByRole('button', {
+        name: 'Report Unable to Complete',
+      }),
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /My Jobs/ }).textContent,
+      ).toContain('0'),
+    )
+  })
+
   it('does not show field controls to an unrelated Member', async () => {
     installJobsApi({
       jobs: [
@@ -718,6 +834,7 @@ describe('durable Jobs UI', () => {
     })
     const user = userEvent.setup()
     renderJobs(false)
+    await user.click(await screen.findByRole('button', { name: /All Jobs/ }))
     await user.click(
       await screen.findByRole('button', {
         name: 'Open Job Weekly lawn service',

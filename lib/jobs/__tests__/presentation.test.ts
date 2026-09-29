@@ -38,6 +38,28 @@ describe('durable Jobs presentation filters', () => {
   it('maps saved views to durable fields without fabricated semantics', () => {
     expect(
       matchesJobSavedView(
+        job({
+          id: 'mine',
+          title: 'My assigned Job',
+          canCurrentMemberExecute: true,
+        }),
+        'my-jobs',
+        now,
+      ),
+    ).toBe(true)
+    expect(
+      matchesJobSavedView(
+        job({
+          id: 'unrelated',
+          title: 'Another crew Job',
+          canCurrentMemberExecute: false,
+        }),
+        'my-jobs',
+        now,
+      ),
+    ).toBe(false)
+    expect(
+      matchesJobSavedView(
         job({ id: 'urgent', title: 'Urgent', priority: 'URGENT' }),
         'urgent',
         now,

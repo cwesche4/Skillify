@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   executeAssignedWorkItem: vi.fn(),
   archiveWorkItem: vi.fn(),
   listWorkspaceMemberExecutableJobIds: vi.fn(),
+  canWorkspaceMemberExecuteJob: vi.fn(),
 }))
 
 vi.mock('@/lib/automations/authorization', () => ({
@@ -41,6 +42,7 @@ vi.mock('@/lib/jobs/defaultService', () => ({
 vi.mock('@/lib/jobs/jobExecutionAuthorization', () => ({
   listWorkspaceMemberExecutableJobIds:
     mocks.listWorkspaceMemberExecutableJobIds,
+  canWorkspaceMemberExecuteJob: mocks.canWorkspaceMemberExecuteJob,
 }))
 
 import {
@@ -87,6 +89,7 @@ describe('Jobs and Work Items API routes', () => {
     vi.clearAllMocks()
     mocks.authorizeWorkspaceAccess.mockResolvedValue(managerAuthorization)
     mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(new Set())
+    mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(false)
   })
 
   it('creates a Job with server-authoritative workspace and actor context', async () => {
@@ -122,6 +125,105 @@ describe('Jobs and Work Items API routes', () => {
     expect(response.status).toBe(200)
     expect(mocks.listJobs).toHaveBeenCalledWith('ws-a', {
       customerId: 'customer-a',
+    })
+  })
+
+  it('returns Job-scoped field context only for a server-authorized Member', async () => {
+    mocks.authorizeWorkspaceAccess.mockResolvedValue(memberAuthorization)
+    mocks.listJobs.mockResolvedValue([
+      {
+        id: 'job-assigned',
+        serviceLocationSnapshot: '10 Main Street',
+        customerContactNameSnapshot: 'Alex Rivera',
+        customerPhoneSnapshot: '555-0110',
+        customerEmailSnapshot: 'alex@example.com',
+      },
+      {
+        id: 'job-unrelated',
+        customerId: 'customer-private',
+        customerDisplayName: 'Private Customer',
+        serviceLocationSnapshot: '99 Private Lane',
+        customerContactNameSnapshot: 'Private Customer',
+        customerPhoneSnapshot: '555-0199',
+        customerEmailSnapshot: 'private@example.com',
+      },
+    ])
+    mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(
+      new Set(['job-assigned']),
+    )
+
+    const response = await listJobsRoute(
+      new Request('http://localhost/api/workspaces/ws-a/jobs'),
+      { params: { workspaceId: 'ws-a' } },
+    )
+    const body = await response.json()
+
+    expect(body.jobs[0]).toMatchObject({
+      id: 'job-assigned',
+      serviceLocationSnapshot: '10 Main Street',
+      customerPhoneSnapshot: '555-0110',
+      canCurrentMemberExecute: true,
+    })
+    expect(body.jobs[1]).toMatchObject({
+      id: 'job-unrelated',
+      customerId: null,
+      customerDisplayName: null,
+      serviceLocationSnapshot: null,
+      customerContactNameSnapshot: null,
+      customerPhoneSnapshot: null,
+      customerEmailSnapshot: null,
+      canCurrentMemberExecute: false,
+    })
+
+    mocks.getJob.mockResolvedValue({
+      id: 'job-unrelated',
+      customerId: 'customer-private',
+      customerDisplayName: 'Private Customer',
+      serviceLocationSnapshot: '99 Private Lane',
+      customerContactNameSnapshot: 'Private Customer',
+      customerPhoneSnapshot: '555-0199',
+      customerEmailSnapshot: 'private@example.com',
+    })
+    mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(false)
+    const unrelatedResponse = await getJobRoute(
+      new Request('http://localhost/api/workspaces/ws-a/jobs/job-unrelated'),
+      { params: { workspaceId: 'ws-a', jobId: 'job-unrelated' } },
+    )
+    expect(await unrelatedResponse.json()).toMatchObject({
+      job: {
+        id: 'job-unrelated',
+        customerId: null,
+        customerDisplayName: null,
+        serviceLocationSnapshot: null,
+        customerContactNameSnapshot: null,
+        customerPhoneSnapshot: null,
+        customerEmailSnapshot: null,
+        canCurrentMemberExecute: false,
+      },
+    })
+
+    mocks.getJob.mockResolvedValue({
+      id: 'job-assigned',
+      customerId: 'customer-a',
+      customerDisplayName: 'Rivera Family',
+      serviceLocationSnapshot: '10 Main Street',
+      customerContactNameSnapshot: 'Alex Rivera',
+      customerPhoneSnapshot: '555-0110',
+      customerEmailSnapshot: 'alex@example.com',
+    })
+    mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(true)
+    const assignedResponse = await getJobRoute(
+      new Request('http://localhost/api/workspaces/ws-a/jobs/job-assigned'),
+      { params: { workspaceId: 'ws-a', jobId: 'job-assigned' } },
+    )
+    expect(await assignedResponse.json()).toMatchObject({
+      job: {
+        id: 'job-assigned',
+        customerId: 'customer-a',
+        serviceLocationSnapshot: '10 Main Street',
+        customerPhoneSnapshot: '555-0110',
+        canCurrentMemberExecute: true,
+      },
     })
   })
 

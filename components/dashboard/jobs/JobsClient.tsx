@@ -10,6 +10,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
+import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   Archive,
@@ -24,8 +25,12 @@ import {
   Search,
   Play,
   AlertTriangle,
+  Mail,
+  MapPin,
+  Phone,
   Trash2,
   UserRound,
+  UsersRound,
   X,
 } from 'lucide-react'
 
@@ -61,6 +66,7 @@ import type {
   JobStepMutationInput,
   WorkItemClientRecord,
   WorkspaceMemberOption,
+  WorkspaceTeamOption,
 } from '@/lib/jobs/clientTypes'
 import {
   filterJobs,
@@ -110,7 +116,6 @@ const priorityVariant: Record<OperationsPriorityValue, BadgeVariant> = {
   URGENT: 'red',
 }
 
-const savedViewIds = new Set(jobSavedViews.map((view) => view.id))
 const focusableSelector = [
   'button:not([disabled])',
   '[href]',
@@ -211,14 +216,18 @@ function unableReasonLabel(reason: string | null | undefined) {
 
 export function JobsClient({
   workspaceId,
+  workspaceSlug,
   currentMemberId,
   members,
+  teams,
   canManage,
   durableCustomersEnabled,
 }: {
   workspaceId: string
+  workspaceSlug: string
   currentMemberId: string
   members: WorkspaceMemberOption[]
+  teams: WorkspaceTeamOption[]
   canManage: boolean
   durableCustomersEnabled: boolean
 }) {
@@ -226,10 +235,24 @@ export function JobsClient({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const requestedView = searchParams.get('view')
+  const availableSavedViews = useMemo(
+    () =>
+      canManage
+        ? jobSavedViews.filter((view) => view.id !== 'my-jobs')
+        : jobSavedViews,
+    [canManage],
+  )
+  const availableSavedViewIds = useMemo(
+    () => new Set(availableSavedViews.map((view) => view.id)),
+    [availableSavedViews],
+  )
+  const defaultView: JobSavedView = canManage ? 'open' : 'my-jobs'
   const [activeView, setActiveView] = useState<JobSavedView>(
-    requestedView && savedViewIds.has(requestedView as JobSavedView)
+    requestedView &&
+      (canManage ? requestedView !== 'my-jobs' : true) &&
+      jobSavedViews.some((view) => view.id === requestedView)
       ? (requestedView as JobSavedView)
-      : 'open',
+      : defaultView,
   )
   const [jobs, setJobs] = useState<JobClientRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -298,19 +321,19 @@ export function JobsClient({
 
   const savedViews = useMemo(
     () =>
-      jobSavedViews.map((view) => ({
+      availableSavedViews.map((view) => ({
         ...view,
         count: jobs.filter(
           (job) => !job.archivedAt && matchesJobSavedView(job, view.id),
         ).length,
       })),
-    [jobs],
+    [availableSavedViews, jobs],
   )
 
   const selectView = (view: string) => {
-    const next = savedViewIds.has(view as JobSavedView)
+    const next = availableSavedViewIds.has(view as JobSavedView)
       ? (view as JobSavedView)
-      : 'open'
+      : defaultView
     setActiveView(next)
     const params = new URLSearchParams(searchParams.toString())
     params.set('view', next)
@@ -472,6 +495,7 @@ export function JobsClient({
       {createOpen ? (
         <JobFormDialog
           members={members}
+          teams={teams}
           customers={customers}
           durableCustomersEnabled={durableCustomersEnabled}
           customersLoading={customersLoading}
@@ -496,8 +520,10 @@ export function JobsClient({
           key={selectedJob.id}
           job={selectedJob}
           workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
           currentMemberId={currentMemberId}
           members={members}
+          teams={teams}
           customers={customers}
           durableCustomersEnabled={durableCustomersEnabled}
           customersLoading={customersLoading}
@@ -588,8 +614,10 @@ function JobCard({
 function JobDetailDrawer({
   job,
   workspaceId,
+  workspaceSlug,
   currentMemberId,
   members,
+  teams,
   customers,
   durableCustomersEnabled,
   customersLoading,
@@ -603,8 +631,10 @@ function JobDetailDrawer({
 }: {
   job: JobClientRecord
   workspaceId: string
+  workspaceSlug: string
   currentMemberId: string
   members: WorkspaceMemberOption[]
+  teams: WorkspaceTeamOption[]
   customers: CustomerClientRecord[]
   durableCustomersEnabled: boolean
   customersLoading: boolean
@@ -746,7 +776,10 @@ function JobDetailDrawer({
       )
       onUpdated({
         ...updated,
-        canCurrentMemberExecute: job.canCurrentMemberExecute,
+        canCurrentMemberExecute:
+          updated.status === JobStatus.UNABLE_TO_COMPLETE
+            ? false
+            : job.canCurrentMemberExecute,
       })
       setFieldNotes(updated.notes ?? '')
       return updated
@@ -874,6 +907,101 @@ function JobDetailDrawer({
               <DetailItem label="Status" value={jobStatusLabels[job.status]} />
             </div>
           </section>
+
+          {(job.serviceLocationSnapshot ||
+            job.customerContactNameSnapshot ||
+            job.customerPhoneSnapshot ||
+            job.customerEmailSnapshot) && (
+            <section
+              className="border-brand-primary/25 bg-brand-primary/[0.06] rounded-2xl border p-4"
+              aria-labelledby="job-field-context-heading"
+            >
+              <h3
+                id="job-field-context-heading"
+                className="text-app-primary text-sm font-semibold"
+              >
+                Service location & contact
+              </h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {job.serviceLocationSnapshot ? (
+                  <div className="flex items-start gap-2">
+                    <MapPin
+                      className="mt-0.5 h-4 w-4 shrink-0 text-brand-primary"
+                      aria-hidden="true"
+                    />
+                    <p className="text-app-secondary whitespace-pre-wrap text-sm">
+                      {job.serviceLocationSnapshot}
+                    </p>
+                  </div>
+                ) : null}
+                <div className="space-y-2">
+                  {job.customerContactNameSnapshot ? (
+                    <p className="text-app-secondary text-sm">
+                      {job.customerContactNameSnapshot}
+                    </p>
+                  ) : null}
+                  {job.customerPhoneSnapshot ? (
+                    <a
+                      href={`tel:${job.customerPhoneSnapshot}`}
+                      className="text-app-secondary flex items-center gap-2 text-sm hover:text-brand-primary"
+                    >
+                      <Phone className="h-4 w-4" aria-hidden="true" />
+                      {job.customerPhoneSnapshot}
+                    </a>
+                  ) : null}
+                  {job.customerEmailSnapshot ? (
+                    <a
+                      href={`mailto:${job.customerEmailSnapshot}`}
+                      className="text-app-secondary flex items-center gap-2 break-all text-sm hover:text-brand-primary"
+                    >
+                      <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      {job.customerEmailSnapshot}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {canManage &&
+          (job.customerId ||
+            job.recurringServiceId ||
+            job.schedulingEventId) ? (
+            <section aria-labelledby="job-related-records-heading">
+              <h3
+                id="job-related-records-heading"
+                className="text-app-primary text-sm font-semibold"
+              >
+                Related records
+              </h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {job.customerId ? (
+                  <Link
+                    href={`/dashboard/${workspaceSlug}/clients?customerId=${encodeURIComponent(job.customerId)}`}
+                    className="border-app text-app-primary hover:bg-app-surface-hover inline-flex h-8 items-center rounded-xl border px-3 text-xs font-medium"
+                  >
+                    Open Customer
+                  </Link>
+                ) : null}
+                {job.recurringServiceId ? (
+                  <Link
+                    href={`/dashboard/${workspaceSlug}/scheduling/recurring-services`}
+                    className="border-app text-app-primary hover:bg-app-surface-hover inline-flex h-8 items-center rounded-xl border px-3 text-xs font-medium"
+                  >
+                    Open Recurring Services
+                  </Link>
+                ) : null}
+                {job.schedulingEventId ? (
+                  <Link
+                    href={`/dashboard/${workspaceSlug}/scheduling/jobs`}
+                    className="border-app text-app-primary hover:bg-app-surface-hover inline-flex h-8 items-center rounded-xl border px-3 text-xs font-medium"
+                  >
+                    Open Scheduling
+                  </Link>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           {job.recurringServiceId ? (
             <Alert variant="info">
@@ -1161,6 +1289,7 @@ function JobDetailDrawer({
         <JobFormDialog
           job={job}
           members={members}
+          teams={teams}
           customers={customers}
           durableCustomersEnabled={durableCustomersEnabled}
           customersLoading={customersLoading}
@@ -1630,6 +1759,7 @@ function JobStepRow({
 function JobFormDialog({
   job,
   members,
+  teams,
   customers,
   durableCustomersEnabled,
   customersLoading,
@@ -1640,6 +1770,7 @@ function JobFormDialog({
 }: {
   job?: JobClientRecord
   members: WorkspaceMemberOption[]
+  teams: WorkspaceTeamOption[]
   customers: CustomerClientRecord[]
   durableCustomersEnabled: boolean
   customersLoading: boolean
@@ -1671,7 +1802,26 @@ function JobFormDialog({
   const [priority, setPriority] = useState<OperationsPriorityValue>(
     job?.priority ?? OperationsPriority.NORMAL,
   )
-  const [assignee, setAssignee] = useState(job?.assigneeMemberId ?? '')
+  const [assignedMemberIds, setAssignedMemberIds] = useState<string[]>(() => {
+    const normalized = job?.assignments?.flatMap((assignment) =>
+      assignment.assignmentType === 'MEMBER' && assignment.workspaceMemberId
+        ? [assignment.workspaceMemberId]
+        : [],
+    )
+    return normalized?.length
+      ? normalized
+      : job?.assigneeMemberId
+        ? [job.assigneeMemberId]
+        : []
+  })
+  const [assignedTeamIds, setAssignedTeamIds] = useState<string[]>(
+    () =>
+      job?.assignments?.flatMap((assignment) =>
+        assignment.assignmentType === 'TEAM' && assignment.teamId
+          ? [assignment.teamId]
+          : [],
+      ) ?? [],
+  )
   const [description, setDescription] = useState(job?.description ?? '')
   const [notes, setNotes] = useState(job?.notes ?? '')
   const [submitting, setSubmitting] = useState(false)
@@ -1712,7 +1862,16 @@ function JobFormDialog({
         currency: 'USD',
         status,
         priority,
-        assigneeMemberId: assignee || null,
+        assignments: [
+          ...assignedMemberIds.map((workspaceMemberId) => ({
+            assignmentType: 'MEMBER' as const,
+            workspaceMemberId,
+          })),
+          ...assignedTeamIds.map((teamId) => ({
+            assignmentType: 'TEAM' as const,
+            teamId,
+          })),
+        ],
         description: description.trim() || null,
         notes: notes.trim() || null,
       }
@@ -1890,19 +2049,64 @@ function JobFormDialog({
                 ))}
               </Select>
             </Field>
-            <Field label="Assignee" htmlFor="job-assignee">
-              <Select
-                id="job-assignee"
-                value={assignee}
-                onChange={(event) => setAssignee(event.target.value)}
-              >
-                <option value="">Unassigned</option>
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name}
-                  </option>
-                ))}
-              </Select>
+            <Field label="Assigned crew" htmlFor="job-assignment-members" wide>
+              <div className="border-app bg-app-surface rounded-xl border p-3">
+                <p className="text-app-muted text-xs">
+                  Select any combination of individual Members and Teams.
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {members.map((member) => (
+                    <label
+                      key={member.id}
+                      className="text-app-secondary flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        id={
+                          member.id === members[0]?.id
+                            ? 'job-assignment-members'
+                            : undefined
+                        }
+                        type="checkbox"
+                        checked={assignedMemberIds.includes(member.id)}
+                        onChange={(event) =>
+                          setAssignedMemberIds((current) =>
+                            event.target.checked
+                              ? [...current, member.id]
+                              : current.filter((id) => id !== member.id),
+                          )
+                        }
+                      />
+                      <UserRound className="h-4 w-4" aria-hidden="true" />
+                      {member.name}
+                    </label>
+                  ))}
+                  {teams.map((team) => (
+                    <label
+                      key={team.id}
+                      className="text-app-secondary flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={assignedTeamIds.includes(team.id)}
+                        onChange={(event) =>
+                          setAssignedTeamIds((current) =>
+                            event.target.checked
+                              ? [...current, team.id]
+                              : current.filter((id) => id !== team.id),
+                          )
+                        }
+                      />
+                      <UsersRound className="h-4 w-4" aria-hidden="true" />
+                      {team.name}
+                    </label>
+                  ))}
+                </div>
+                {!members.length && !teams.length ? (
+                  <p className="text-app-muted mt-3 text-sm">
+                    No active Members or Teams are available.
+                  </p>
+                ) : null}
+              </div>
             </Field>
             <Field label="Description" htmlFor="job-description" wide>
               <Textarea

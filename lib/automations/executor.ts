@@ -16,6 +16,7 @@ import {
   resolveWorkspacePlan,
 } from '@/lib/subscriptions/getWorkspacePlan'
 import { getAutomationCapabilities } from '@/lib/automations/capabilities'
+import { jobCompletionRelatedRecordLink } from '@/lib/automations/jobCompletionLinks'
 import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
 import { nativeJobCompletedPayloadSchema } from '@/lib/domain-events/nativeJobEvents'
 import {
@@ -1583,7 +1584,10 @@ export async function executeNode(
             recipientWorkspaceMemberId,
             title: 'Job completed',
             body: `Job completed: ${contextLabel}`,
-            deepLink: `/dashboard/${workspace.slug}/jobs`,
+            deepLink: jobCompletionRelatedRecordLink(
+              workspace.slug,
+              occurrence.jobId,
+            ),
             entityType: 'Job',
             entityId: occurrence.jobId,
             relatedRecordType: 'job',

@@ -1285,6 +1285,7 @@ describe('Simple Automation execution', () => {
             recipientWorkspaceMemberId: 'member-1',
             title: 'Job completed',
             body: 'Job completed: Spring Cleanup for Ramirez Landscaping',
+            deepLink: '/dashboard/garden-care/service-requests?jobId=job-1',
             entityType: 'Job',
             entityId: 'job-1',
           }),

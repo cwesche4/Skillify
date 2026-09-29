@@ -36,7 +36,43 @@ describe('central Job execution authorization', () => {
       OR: [
         {
           schedulingEventId: null,
-          assigneeMemberId: 'member-a',
+          OR: [
+            {
+              assignments: {
+                some: {
+                  workspaceId: 'workspace-a',
+                  OR: [
+                    {
+                      assignmentType: 'MEMBER',
+                      workspaceMemberId: 'member-a',
+                      teamId: null,
+                    },
+                    {
+                      assignmentType: 'TEAM',
+                      workspaceMemberId: null,
+                      team: {
+                        is: {
+                          workspaceId: 'workspace-a',
+                          isActive: true,
+                          archivedAt: null,
+                          members: {
+                            some: {
+                              workspaceId: 'workspace-a',
+                              workspaceMemberId: 'member-a',
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              assignments: { none: {} },
+              assigneeMemberId: 'member-a',
+            },
+          ],
         },
         {
           schedulingEventId: { not: null },
@@ -177,7 +213,6 @@ describe('central Job execution authorization', () => {
             ],
           }),
       },
-      workspaceTeam: { findFirst: vi.fn(async () => null) },
     } as unknown as Prisma.TransactionClient
 
     const input = {
@@ -192,5 +227,123 @@ describe('central Job execution authorization', () => {
     await expect(lockAndValidateRecurringJobExecution(input)).resolves.toBe(
       false,
     )
+  })
+
+  it('locks current Team membership before authorizing a recurring field write', async () => {
+    const queryRaw = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: 'occurrence-a' }])
+      .mockResolvedValueOnce([{ id: 'membership-a' }])
+      .mockResolvedValueOnce([{ id: 'occurrence-a' }])
+      .mockResolvedValueOnce([])
+    const tx = {
+      job: {
+        findFirst: vi.fn(async () => ({
+          schedulingEventId: 'occurrence-a',
+        })),
+      },
+      $queryRaw: queryRaw,
+      schedulingEvent: {
+        findFirst: vi.fn(async () => ({
+          assignments: [
+            {
+              assignmentType: 'TEAM',
+              workspaceMemberId: null,
+              teamId: 'team-a',
+            },
+          ],
+        })),
+      },
+    } as unknown as Prisma.TransactionClient
+
+    const input = {
+      tx,
+      workspaceId: 'workspace-a',
+      jobId: 'job-a',
+      workspaceMemberId: 'member-a',
+    }
+    await expect(lockAndValidateRecurringJobExecution(input)).resolves.toBe(
+      true,
+    )
+    await expect(lockAndValidateRecurringJobExecution(input)).resolves.toBe(
+      false,
+    )
+
+    expect(queryRaw).toHaveBeenCalledTimes(4)
+  })
+
+  it('locks current Team membership before authorizing a manual field write', async () => {
+    const queryRaw = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: 'membership-a' }])
+      .mockResolvedValueOnce([])
+    const tx = {
+      job: {
+        findFirst: vi.fn(async () => ({
+          schedulingEventId: null,
+          assigneeMemberId: null,
+          assignments: [
+            {
+              assignmentType: 'TEAM',
+              workspaceMemberId: null,
+              teamId: 'team-a',
+            },
+          ],
+        })),
+      },
+      $queryRaw: queryRaw,
+    } as unknown as Prisma.TransactionClient
+
+    const input = {
+      tx,
+      workspaceId: 'workspace-a',
+      jobId: 'job-a',
+      workspaceMemberId: 'member-a',
+    }
+    await expect(lockAndValidateRecurringJobExecution(input)).resolves.toBe(
+      true,
+    )
+    await expect(lockAndValidateRecurringJobExecution(input)).resolves.toBe(
+      false,
+    )
+  })
+
+  it('preserves direct normalized and legacy manual execution compatibility', async () => {
+    const jobFindFirst = vi
+      .fn()
+      .mockResolvedValueOnce({
+        schedulingEventId: null,
+        assigneeMemberId: null,
+        assignments: [
+          {
+            assignmentType: 'MEMBER',
+            workspaceMemberId: 'member-a',
+            teamId: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        schedulingEventId: null,
+        assigneeMemberId: 'member-a',
+        assignments: [],
+      })
+    const tx = {
+      job: { findFirst: jobFindFirst },
+      $queryRaw: vi.fn(),
+    } as unknown as Prisma.TransactionClient
+
+    const input = {
+      tx,
+      workspaceId: 'workspace-a',
+      jobId: 'job-a',
+      workspaceMemberId: 'member-a',
+    }
+    await expect(lockAndValidateRecurringJobExecution(input)).resolves.toBe(
+      true,
+    )
+    await expect(lockAndValidateRecurringJobExecution(input)).resolves.toBe(
+      true,
+    )
+    expect(tx.$queryRaw).not.toHaveBeenCalled()
   })
 })

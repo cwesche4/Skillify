@@ -8,6 +8,7 @@ import {
 } from '@/lib/jobs/api'
 import { operationsService } from '@/lib/jobs/defaultService'
 import { listWorkspaceMemberExecutableJobIds } from '@/lib/jobs/jobExecutionAuthorization'
+import { presentJobOperationalContext } from '@/lib/jobs/operationalContext'
 import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
 type RouteContext = { params: { workspaceId: string } }
@@ -36,10 +37,13 @@ export async function GET(request: Request, { params }: RouteContext) {
             jobIds: jobs.map((job) => job.id),
             workspaceMemberId: authorization.workspaceMemberId,
           })
-    const presentedJobs = jobs.map((job) => ({
-      ...job,
-      canCurrentMemberExecute: canManage || executableJobIds.has(job.id),
-    }))
+    const presentedJobs = jobs.map((job) => {
+      const canExecute = canManage || executableJobIds.has(job.id)
+      return {
+        ...presentJobOperationalContext(job, canExecute),
+        canCurrentMemberExecute: canExecute,
+      }
+    })
     return NextResponse.json({ ok: true, jobs: presentedJobs })
   } catch (error) {
     return operationsApiError(error)

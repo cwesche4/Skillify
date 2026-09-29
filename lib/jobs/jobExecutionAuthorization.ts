@@ -68,6 +68,58 @@ function recurringExecutionWhere(
   }
 }
 
+function manualExecutionWhere(
+  workspaceId: string,
+  workspaceMemberId: string,
+): Prisma.JobWhereInput {
+  return {
+    schedulingEventId: null,
+    OR: [
+      {
+        assignments: {
+          some: jobAssignmentEligibilityWhere(workspaceId, workspaceMemberId),
+        },
+      },
+      {
+        // Preserve pre-Phase-9A manual Jobs that only have the compatibility
+        // assignee. Once normalized assignments exist they are authoritative.
+        assignments: { none: {} },
+        assigneeMemberId: workspaceMemberId,
+      },
+    ],
+  }
+}
+
+async function lockCurrentTeamExecutionMembership(input: {
+  tx: Prisma.TransactionClient
+  workspaceId: string
+  workspaceMemberId: string
+  teamIds: string[]
+}) {
+  if (!input.teamIds.length) return false
+  // Fence membership removal for the rest of the execution transaction. The
+  // final guarded mutation still rechecks that the matching Team is active.
+  const memberships = await input.tx.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`
+      SELECT membership."id"
+      FROM "WorkspaceTeamMember" AS membership
+      WHERE membership."workspaceId" = ${input.workspaceId}
+        AND membership."workspaceMemberId" = ${input.workspaceMemberId}
+        AND membership."teamId" IN (${Prisma.join(input.teamIds)})
+        AND EXISTS (
+          SELECT 1
+          FROM "WorkspaceTeam" AS team
+          WHERE team."id" = membership."teamId"
+            AND team."workspaceId" = ${input.workspaceId}
+            AND team."isActive" = TRUE
+            AND team."archivedAt" IS NULL
+        )
+      FOR SHARE OF membership
+    `,
+  )
+  return memberships.length > 0
+}
+
 export async function lockAndValidateRecurringJobExecution(input: {
   tx: Prisma.TransactionClient
   workspaceId: string
@@ -80,10 +132,50 @@ export async function lockAndValidateRecurringJobExecution(input: {
       workspaceId: input.workspaceId,
       archivedAt: null,
     },
-    select: { schedulingEventId: true },
+    select: {
+      schedulingEventId: true,
+      assigneeMemberId: true,
+      assignments: {
+        select: {
+          assignmentType: true,
+          workspaceMemberId: true,
+          teamId: true,
+        },
+      },
+    },
   })
   if (!reference) return false
-  if (!reference.schedulingEventId) return true
+  if (!reference.schedulingEventId) {
+    if (
+      reference.assignments.some(
+        (assignment) =>
+          assignment.assignmentType === 'MEMBER' &&
+          assignment.workspaceMemberId === input.workspaceMemberId &&
+          assignment.teamId === null,
+      )
+    ) {
+      return true
+    }
+    const teamIds = reference.assignments.flatMap((assignment) =>
+      assignment.assignmentType === 'TEAM' &&
+      assignment.teamId &&
+      !assignment.workspaceMemberId
+        ? [assignment.teamId]
+        : [],
+    )
+    if (teamIds.length) {
+      return lockCurrentTeamExecutionMembership({
+        tx: input.tx,
+        workspaceId: input.workspaceId,
+        workspaceMemberId: input.workspaceMemberId,
+        teamIds,
+      })
+    }
+    return (
+      reference.assignments.length === 0 &&
+      reference.assigneeMemberId === input.workspaceMemberId
+    )
+  }
 
   const lockedEvents = await input.tx.$queryRaw<Array<{ id: string }>>(
     Prisma.sql`SELECT "id" FROM "SchedulingEvent" WHERE "id" = ${reference.schedulingEventId} AND "workspaceId" = ${input.workspaceId} FOR UPDATE`,
@@ -118,22 +210,12 @@ export async function lockAndValidateRecurringJobExecution(input: {
       : [],
   )
   if (!teamIds.length) return false
-  const team = await input.tx.workspaceTeam.findFirst({
-    where: {
-      id: { in: teamIds },
-      workspaceId: input.workspaceId,
-      isActive: true,
-      archivedAt: null,
-      members: {
-        some: {
-          workspaceId: input.workspaceId,
-          workspaceMemberId: input.workspaceMemberId,
-        },
-      },
-    },
-    select: { id: true },
+  return lockCurrentTeamExecutionMembership({
+    tx: input.tx,
+    workspaceId: input.workspaceId,
+    workspaceMemberId: input.workspaceMemberId,
+    teamIds,
   })
-  return Boolean(team)
 }
 
 export function jobExecutionEligibilityWhere(input: {
@@ -147,12 +229,7 @@ export function jobExecutionEligibilityWhere(input: {
     workspaceId,
     archivedAt: null,
     OR: [
-      // Legacy/manual Jobs continue to use the original single-assignee field.
-      // Recurring Jobs never authorize from this compatibility mirror alone.
-      {
-        schedulingEventId: null,
-        assigneeMemberId: workspaceMemberId,
-      },
+      manualExecutionWhere(workspaceId, workspaceMemberId),
       {
         ...recurringExecutionWhere(workspaceId, workspaceMemberId),
       },
@@ -190,10 +267,7 @@ export async function listWorkspaceMemberExecutableJobIds(
       id: { in: input.jobIds },
       archivedAt: null,
       OR: [
-        {
-          schedulingEventId: null,
-          assigneeMemberId: input.workspaceMemberId,
-        },
+        manualExecutionWhere(input.workspaceId, input.workspaceMemberId),
         {
           ...recurringExecutionWhere(
             input.workspaceId,

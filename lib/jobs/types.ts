@@ -18,6 +18,10 @@ export type JobRecord = {
   customerReferenceId: string | null
   customerId: string | null
   customerDisplayName: string | null
+  serviceLocationSnapshot: string | null
+  customerContactNameSnapshot: string | null
+  customerPhoneSnapshot: string | null
+  customerEmailSnapshot: string | null
   valueCents: number | null
   currency: string
   scheduledStartAt: Date | null
@@ -52,6 +56,24 @@ export type JobAssignmentRecord = {
   displaySnapshot: string | null
   createdAt: Date
   updatedAt: Date
+}
+
+export type JobAssignmentTarget =
+  | {
+      assignmentType: 'MEMBER'
+      workspaceMemberId: string
+      teamId?: never
+      roleLabel?: string | null
+    }
+  | {
+      assignmentType: 'TEAM'
+      teamId: string
+      workspaceMemberId?: never
+      roleLabel?: string | null
+    }
+
+export type ResolvedJobAssignment = JobAssignmentTarget & {
+  displaySnapshot: string | null
 }
 
 export type WorkItemRecord = {
@@ -101,6 +123,10 @@ export type UpdateJobData = Partial<
     | 'customerReferenceId'
     | 'customerId'
     | 'customerDisplayName'
+    | 'serviceLocationSnapshot'
+    | 'customerContactNameSnapshot'
+    | 'customerPhoneSnapshot'
+    | 'customerEmailSnapshot'
     | 'valueCents'
     | 'currency'
     | 'scheduledStartAt'

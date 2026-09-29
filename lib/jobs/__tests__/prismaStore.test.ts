@@ -353,3 +353,95 @@ describe('Prisma Job completion transactional outbox', () => {
     })
   })
 })
+
+describe('Prisma manual Job assignment replacement', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  function assignmentTransaction(overrides: Record<string, unknown> = {}) {
+    const jobAssignment = {
+      deleteMany: vi.fn(async () => ({ count: 1 })),
+      createMany: vi.fn(async () => ({ count: 2 })),
+    }
+    return {
+      tx: transaction({
+        workspaceMember: {
+          findMany: vi.fn(async () => [
+            {
+              id: 'member-a',
+              user: { fullName: 'Alex Rivera', email: 'alex@example.com' },
+            },
+          ]),
+        },
+        workspaceTeam: {
+          findMany: vi.fn(async () => [{ id: 'team-a', name: 'Crew One' }]),
+        },
+        jobAssignment,
+        ...overrides,
+      }),
+      jobAssignment,
+    }
+  }
+
+  it('revalidates and atomically replaces mixed MEMBER/TEAM assignments after locking the Job', async () => {
+    const { tx, jobAssignment } = assignmentTransaction()
+    mocks.transaction.mockImplementation(async (callback) => callback(tx))
+
+    const result = await prismaJobsStore.updateJob({
+      workspaceId: 'workspace-a',
+      jobId: 'job-a',
+      data: { title: 'Updated title', assigneeMemberId: null },
+      assignments: [
+        { assignmentType: 'MEMBER', workspaceMemberId: 'member-a' },
+        { assignmentType: 'TEAM', teamId: 'team-a' },
+      ],
+    })
+
+    expect(result?.job.id).toBe('job-a')
+    expect(tx.job.updateMany).toHaveBeenCalledOnce()
+    expect(jobAssignment.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'workspace-a', jobId: 'job-a' },
+    })
+    expect(jobAssignment.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          workspaceId: 'workspace-a',
+          jobId: 'job-a',
+          assignmentType: 'MEMBER',
+          workspaceMemberId: 'member-a',
+          teamId: null,
+          roleLabel: null,
+          displaySnapshot: 'Alex Rivera',
+        },
+        {
+          workspaceId: 'workspace-a',
+          jobId: 'job-a',
+          assignmentType: 'TEAM',
+          workspaceMemberId: null,
+          teamId: 'team-a',
+          roleLabel: null,
+          displaySnapshot: 'Crew One',
+        },
+      ],
+    })
+  })
+
+  it('fails closed before mutation when a target disappears during transactional revalidation', async () => {
+    const { tx, jobAssignment } = assignmentTransaction({
+      workspaceMember: { findMany: vi.fn(async () => []) },
+    })
+    mocks.transaction.mockImplementation(async (callback) => callback(tx))
+
+    await expect(
+      prismaJobsStore.updateJob({
+        workspaceId: 'workspace-a',
+        jobId: 'job-a',
+        data: { title: 'Unsafe update' },
+        assignments: [
+          { assignmentType: 'MEMBER', workspaceMemberId: 'member-a' },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 })
+    expect(tx.job.updateMany).not.toHaveBeenCalled()
+    expect(jobAssignment.deleteMany).not.toHaveBeenCalled()
+  })
+})

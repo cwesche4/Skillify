@@ -11,10 +11,127 @@ import {
 import { OperationsServiceError, type JobsStore } from '@/lib/jobs/service'
 import { JobStatus, WorkspaceBusinessModel } from '@/lib/prisma/enums'
 import {
+  customerOperationalSnapshots,
+  type CustomerOperationalContext,
+} from '@/lib/jobs/operationalContext'
+import type {
+  JobAssignmentTarget,
+  ResolvedJobAssignment,
+} from '@/lib/jobs/types'
+import {
   canWorkspaceMemberExecuteJob,
   jobExecutionEligibilityWhere,
   lockAndValidateRecurringJobExecution,
 } from '@/lib/jobs/jobExecutionAuthorization'
+
+const customerOperationalContextSelect = {
+  id: true,
+  displayName: true,
+  contactName: true,
+  email: true,
+  phone: true,
+  serviceAddressLine1: true,
+  serviceAddressLine2: true,
+  serviceAddressCity: true,
+  serviceAddressRegion: true,
+  serviceAddressPostalCode: true,
+  serviceAddressCountry: true,
+} as const
+
+async function resolveAssignments(
+  db: Prisma.TransactionClient | typeof prisma,
+  workspaceId: string,
+  assignments: JobAssignmentTarget[],
+): Promise<ResolvedJobAssignment[] | null> {
+  const memberIds = assignments.flatMap((assignment) =>
+    assignment.assignmentType === 'MEMBER'
+      ? [assignment.workspaceMemberId]
+      : [],
+  )
+  const teamIds = assignments.flatMap((assignment) =>
+    assignment.assignmentType === 'TEAM' ? [assignment.teamId] : [],
+  )
+  const [members, teams] = await Promise.all([
+    db.workspaceMember.findMany({
+      where: { workspaceId, id: { in: memberIds } },
+      select: {
+        id: true,
+        user: { select: { fullName: true, email: true } },
+      },
+    }),
+    db.workspaceTeam.findMany({
+      where: {
+        workspaceId,
+        id: { in: teamIds },
+        isActive: true,
+        archivedAt: null,
+      },
+      select: { id: true, name: true },
+    }),
+  ])
+  if (members.length !== memberIds.length || teams.length !== teamIds.length) {
+    return null
+  }
+  const memberNames = new Map(
+    members.map((member) => [
+      member.id,
+      member.user.fullName || member.user.email || 'Workspace member',
+    ]),
+  )
+  const teamNames = new Map(teams.map((team) => [team.id, team.name]))
+  return assignments.map((assignment) => ({
+    ...assignment,
+    displaySnapshot:
+      assignment.assignmentType === 'MEMBER'
+        ? (memberNames.get(assignment.workspaceMemberId) ?? null)
+        : (teamNames.get(assignment.teamId) ?? null),
+  }))
+}
+
+async function lockAndResolveAssignments(
+  tx: Prisma.TransactionClient,
+  workspaceId: string,
+  assignments: JobAssignmentTarget[],
+) {
+  const memberIds = assignments.flatMap((assignment) =>
+    assignment.assignmentType === 'MEMBER'
+      ? [assignment.workspaceMemberId]
+      : [],
+  )
+  const teamIds = assignments.flatMap((assignment) =>
+    assignment.assignmentType === 'TEAM' ? [assignment.teamId] : [],
+  )
+  if (memberIds.length) {
+    const lockedMembers = await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT "id" FROM "WorkspaceMember" WHERE "workspaceId" = ${workspaceId} AND "id" IN (${Prisma.join(memberIds)}) FOR SHARE`,
+    )
+    if (lockedMembers.length !== memberIds.length) return null
+  }
+  if (teamIds.length) {
+    const lockedTeams = await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT "id" FROM "WorkspaceTeam" WHERE "workspaceId" = ${workspaceId} AND "id" IN (${Prisma.join(teamIds)}) AND "isActive" = TRUE AND "archivedAt" IS NULL FOR SHARE`,
+    )
+    if (lockedTeams.length !== teamIds.length) return null
+  }
+  return resolveAssignments(tx, workspaceId, assignments)
+}
+
+function assignmentCreateData(
+  workspaceId: string,
+  assignments: ResolvedJobAssignment[],
+) {
+  return assignments.map((assignment) => ({
+    workspaceId,
+    assignmentType: assignment.assignmentType,
+    workspaceMemberId:
+      assignment.assignmentType === 'MEMBER'
+        ? assignment.workspaceMemberId
+        : null,
+    teamId: assignment.assignmentType === 'TEAM' ? assignment.teamId : null,
+    roleLabel: assignment.roleLabel ?? null,
+    displaySnapshot: assignment.displaySnapshot,
+  }))
+}
 
 export const prismaJobsStore: JobsStore = {
   async getWorkspaceBusinessModel(workspaceId) {
@@ -51,37 +168,68 @@ export const prismaJobsStore: JobsStore = {
           businessModel: WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
         },
       },
-      select: { id: true, displayName: true },
+      select: customerOperationalContextSelect,
     })
   },
 
-  createJob(data) {
-    if (!data.customerId) return prisma.job.create({ data })
+  resolveJobAssignments({ workspaceId, assignments }) {
+    return resolveAssignments(prisma, workspaceId, assignments)
+  },
+
+  createJob(data, assignments) {
     return prisma.$transaction(async (tx) => {
-      const customers = await tx.$queryRaw<
-        Array<{ id: string; displayName: string }>
-      >`
-        SELECT customer."id", customer."displayName"
-        FROM "Customer" AS customer
-        INNER JOIN "Workspace" AS workspace
-          ON workspace."id" = customer."workspaceId"
-        WHERE customer."id" = ${data.customerId}
-          AND customer."workspaceId" = ${data.workspaceId}
-          AND customer."archivedAt" IS NULL
-          AND workspace."businessModel" = 'SIMPLE_SERVICE_BUSINESS'
-        FOR UPDATE
-      `
-      const customer = customers[0]
-      if (!customer) {
+      let customer: CustomerOperationalContext | null = null
+      if (data.customerId) {
+        const customers = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT customer."id"
+          FROM "Customer" AS customer
+          INNER JOIN "Workspace" AS workspace
+            ON workspace."id" = customer."workspaceId"
+          WHERE customer."id" = ${data.customerId}
+            AND customer."workspaceId" = ${data.workspaceId}
+            AND customer."archivedAt" IS NULL
+            AND workspace."businessModel" = 'SIMPLE_SERVICE_BUSINESS'
+          FOR UPDATE
+        `
+        if (customers.length !== 1) {
+          throw new OperationsServiceError(
+            'Choose an active Customer from this workspace.',
+            400,
+            'VALIDATION_ERROR',
+            { customerId: ['Choose an active Customer from this workspace.'] },
+          )
+        }
+        customer = await tx.customer.findFirst({
+          where: { id: data.customerId, workspaceId: data.workspaceId },
+          select: customerOperationalContextSelect,
+        })
+      }
+      const resolvedAssignments = await lockAndResolveAssignments(
+        tx,
+        data.workspaceId,
+        assignments,
+      )
+      if (!resolvedAssignments) {
         throw new OperationsServiceError(
-          'Choose an active Customer from this workspace.',
+          'Choose active members or teams from this workspace.',
           400,
           'VALIDATION_ERROR',
-          { customerId: ['Choose an active Customer from this workspace.'] },
+          {
+            assignments: [
+              'Choose active members or teams from this workspace.',
+            ],
+          },
         )
       }
       return tx.job.create({
-        data: { ...data, customerDisplayName: customer.displayName },
+        data: {
+          ...data,
+          ...(customer ? customerOperationalSnapshots(customer) : {}),
+          assignments: {
+            create: assignmentCreateData(data.workspaceId, resolvedAssignments),
+          },
+        },
+        include: { assignments: { orderBy: { createdAt: 'asc' } } },
       })
     })
   },
@@ -108,6 +256,7 @@ export const prismaJobsStore: JobsStore = {
     executionMemberId,
     expectedStatus,
     data,
+    assignments,
   }) {
     return prisma.$transaction(async (tx) => {
       if (
@@ -152,10 +301,8 @@ export const prismaJobsStore: JobsStore = {
 
       let safeData = data
       if (data.customerId) {
-        const customers = await tx.$queryRaw<
-          Array<{ id: string; displayName: string }>
-        >`
-          SELECT customer."id", customer."displayName"
+        const customers = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT customer."id"
           FROM "Customer" AS customer
           INNER JOIN "Workspace" AS workspace
             ON workspace."id" = customer."workspaceId"
@@ -165,8 +312,7 @@ export const prismaJobsStore: JobsStore = {
             AND workspace."businessModel" = 'SIMPLE_SERVICE_BUSINESS'
           FOR UPDATE
         `
-        const customer = customers[0]
-        if (!customer) {
+        if (customers.length !== 1) {
           throw new OperationsServiceError(
             'Choose an active Customer from this workspace.',
             400,
@@ -174,7 +320,27 @@ export const prismaJobsStore: JobsStore = {
             { customerId: ['Choose an active Customer from this workspace.'] },
           )
         }
-        safeData = { ...data, customerDisplayName: customer.displayName }
+        const customer = await tx.customer.findFirst({
+          where: { id: data.customerId, workspaceId },
+          select: customerOperationalContextSelect,
+        })
+        if (!customer) return null
+        safeData = { ...data, ...customerOperationalSnapshots(customer) }
+      }
+      const resolvedAssignments = assignments
+        ? await lockAndResolveAssignments(tx, workspaceId, assignments)
+        : undefined
+      if (assignments && !resolvedAssignments) {
+        throw new OperationsServiceError(
+          'Choose active members or teams from this workspace.',
+          400,
+          'VALIDATION_ERROR',
+          {
+            assignments: [
+              'Choose active members or teams from this workspace.',
+            ],
+          },
+        )
       }
       const result = await tx.job.updateMany({
         where: {
@@ -190,6 +356,16 @@ export const prismaJobsStore: JobsStore = {
         data: safeData,
       })
       if (result.count !== 1) return null
+      if (resolvedAssignments) {
+        await tx.jobAssignment.deleteMany({ where: { workspaceId, jobId } })
+        if (resolvedAssignments.length) {
+          await tx.jobAssignment.createMany({
+            data: assignmentCreateData(workspaceId, resolvedAssignments).map(
+              (assignment) => ({ ...assignment, jobId }),
+            ),
+          })
+        }
+      }
       const job = await tx.job.findFirst({
         where: { id: jobId, workspaceId },
         include: { assignments: { orderBy: { createdAt: 'asc' } } },

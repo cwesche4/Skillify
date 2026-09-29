@@ -381,7 +381,15 @@ export const prismaRecurringJobLifecycleStore: RecurringJobLifecycleStore = {
       const scheduleChanged =
         job.scheduledStartAt?.getTime() !== event.startsAtUtc.getTime() ||
         job.scheduledEndAt?.getTime() !== event.endsAtUtc.getTime()
-      if (!scheduleChanged && !assignmentsChanged) return 'unchanged' as const
+      const nextServiceLocationSnapshot =
+        event.locationAddress ??
+        event.locationLabel ??
+        job.serviceLocationSnapshot
+      const locationChanged =
+        job.serviceLocationSnapshot !== nextServiceLocationSnapshot
+      if (!scheduleChanged && !assignmentsChanged && !locationChanged) {
+        return 'unchanged' as const
+      }
       if (assignmentsChanged) {
         await tx.jobAssignment.deleteMany({
           where: { workspaceId, jobId: job.id },
@@ -413,6 +421,9 @@ export const prismaRecurringJobLifecycleStore: RecurringJobLifecycleStore = {
             : {}),
           ...(assignmentsChanged
             ? { assigneeMemberId: mirroredAssigneeMemberId }
+            : {}),
+          ...(locationChanged
+            ? { serviceLocationSnapshot: nextServiceLocationSnapshot }
             : {}),
           ...(job.status === 'UNABLE_TO_COMPLETE'
             ? scheduleChanged

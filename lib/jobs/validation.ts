@@ -27,6 +27,44 @@ const nullableIdentifier = z
   .nullable()
   .optional()
 
+const jobAssignmentSchema = z.discriminatedUnion('assignmentType', [
+  z
+    .object({
+      assignmentType: z.literal('MEMBER'),
+      workspaceMemberId: z.string().trim().min(1).max(191),
+      roleLabel: optionalText(120),
+    })
+    .strict(),
+  z
+    .object({
+      assignmentType: z.literal('TEAM'),
+      teamId: z.string().trim().min(1).max(191),
+      roleLabel: optionalText(120),
+    })
+    .strict(),
+])
+
+const jobAssignments = z
+  .array(jobAssignmentSchema)
+  .max(50)
+  .superRefine((assignments, context) => {
+    const targets = new Set<string>()
+    assignments.forEach((assignment, index) => {
+      const target =
+        assignment.assignmentType === 'MEMBER'
+          ? `MEMBER:${assignment.workspaceMemberId}`
+          : `TEAM:${assignment.teamId}`
+      if (targets.has(target)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index],
+          message: 'Each member or team can be assigned only once.',
+        })
+      }
+      targets.add(target)
+    })
+  })
+
 export const createJobSchema = z
   .object({
     title: z.string().trim().min(1).max(200),
@@ -53,6 +91,7 @@ export const createJobSchema = z
     scheduledStartAt: optionalDate,
     scheduledEndAt: optionalDate,
     assigneeMemberId: nullableIdentifier,
+    assignments: jobAssignments.optional(),
   })
   .strict()
 

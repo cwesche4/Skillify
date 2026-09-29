@@ -12,12 +12,18 @@ import {
 import type {
   CreateJobData,
   CreateWorkItemData,
+  JobAssignmentTarget,
   JobRecord,
+  ResolvedJobAssignment,
   UpdateJobData,
   UpdateJobResult,
   UpdateWorkItemData,
   WorkItemRecord,
 } from '@/lib/jobs/types'
+import {
+  customerOperationalSnapshots,
+  type CustomerOperationalContext,
+} from '@/lib/jobs/operationalContext'
 import {
   createJobSchema,
   createJobStepSchema,
@@ -56,8 +62,15 @@ export type JobsStore = {
   findActiveCustomer(input: {
     workspaceId: string
     customerId: string
-  }): Promise<{ id: string; displayName: string } | null>
-  createJob(data: CreateJobData): Promise<JobRecord>
+  }): Promise<CustomerOperationalContext | null>
+  resolveJobAssignments(input: {
+    workspaceId: string
+    assignments: JobAssignmentTarget[]
+  }): Promise<ResolvedJobAssignment[] | null>
+  createJob(
+    data: CreateJobData,
+    assignments: JobAssignmentTarget[],
+  ): Promise<JobRecord>
   findJob(input: {
     workspaceId: string
     jobId: string
@@ -73,6 +86,7 @@ export type JobsStore = {
     executionMemberId?: string
     expectedStatus?: JobStatusValue
     data: UpdateJobData
+    assignments?: JobAssignmentTarget[]
   }): Promise<UpdateJobResult | null>
   archiveJobWithWorkItems(input: {
     workspaceId: string
@@ -267,6 +281,68 @@ async function assertAssignee(
   )
 }
 
+function assignmentValidationError() {
+  return new OperationsServiceError(
+    'Choose active members or teams from this workspace.',
+    400,
+    'VALIDATION_ERROR',
+    { assignments: ['Choose active members or teams from this workspace.'] },
+  )
+}
+
+function requestedAssignments(input: {
+  assigneeMemberId?: string | null
+  assignments?: JobAssignmentTarget[]
+}) {
+  if (input.assignments === undefined) {
+    if (input.assigneeMemberId === undefined) return undefined
+    return input.assigneeMemberId
+      ? ([
+          {
+            assignmentType: 'MEMBER',
+            workspaceMemberId: input.assigneeMemberId,
+          },
+        ] satisfies JobAssignmentTarget[])
+      : []
+  }
+  const compatibilityAssignee =
+    input.assignments.length === 1 &&
+    input.assignments[0].assignmentType === 'MEMBER'
+      ? input.assignments[0].workspaceMemberId
+      : null
+  if (
+    input.assigneeMemberId !== undefined &&
+    input.assigneeMemberId !== compatibilityAssignee
+  ) {
+    throw new OperationsServiceError(
+      'The compatibility assignee must match the normalized assignments.',
+      400,
+      'VALIDATION_ERROR',
+      { assignments: ['Choose one consistent assignment set.'] },
+    )
+  }
+  return input.assignments
+}
+
+async function validateAssignments(
+  store: JobsStore,
+  workspaceId: string,
+  assignments: JobAssignmentTarget[],
+) {
+  const resolved = await store.resolveJobAssignments({
+    workspaceId,
+    assignments,
+  })
+  if (!resolved) throw assignmentValidationError()
+  return resolved
+}
+
+function compatibilityAssignee(assignments: JobAssignmentTarget[]) {
+  return assignments.length === 1 && assignments[0].assignmentType === 'MEMBER'
+    ? assignments[0].workspaceMemberId
+    : null
+}
+
 async function resolveActiveCustomer(
   store: JobsStore,
   workspaceId: string,
@@ -313,7 +389,8 @@ export function createOperationsService(
       const durableCustomersEnabled =
         (await store.getWorkspaceBusinessModel(actor.workspaceId)) ===
         WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS
-      await assertAssignee(store, actor.workspaceId, input.assigneeMemberId)
+      const assignments = requestedAssignments(input) ?? []
+      await validateAssignments(store, actor.workspaceId, assignments)
       const customer = input.customerId
         ? await resolveActiveCustomer(
             store,
@@ -333,31 +410,40 @@ export function createOperationsService(
           'VALIDATION_ERROR',
         )
       }
-      return store.createJob({
-        workspaceId: actor.workspaceId,
-        title: input.title,
-        description: input.description ?? null,
-        notes: input.notes ?? null,
-        status,
-        priority: input.priority ?? OperationsPriority.NORMAL,
-        customerReferenceId: input.customerReferenceId ?? null,
-        customerId: customer?.id ?? null,
-        customerDisplayName:
-          customer?.displayName ??
-          (durableCustomersEnabled
-            ? null
-            : (input.customerDisplayName ?? null)),
-        valueCents: input.valueCents ?? null,
-        currency: input.currency ?? 'USD',
-        scheduledStartAt: input.scheduledStartAt ?? null,
-        scheduledEndAt: input.scheduledEndAt ?? null,
-        recurringServiceId: null,
-        schedulingEventId: null,
-        serviceInstructionsSnapshot: null,
-        completedAt: status === JobStatus.COMPLETED ? now() : null,
-        assigneeMemberId: input.assigneeMemberId ?? null,
-        createdByUserId: actor.userProfileId,
-      })
+      return store.createJob(
+        {
+          workspaceId: actor.workspaceId,
+          title: input.title,
+          description: input.description ?? null,
+          notes: input.notes ?? null,
+          status,
+          priority: input.priority ?? OperationsPriority.NORMAL,
+          customerReferenceId: input.customerReferenceId ?? null,
+          customerId: customer?.id ?? null,
+          customerDisplayName:
+            customer?.displayName ??
+            (durableCustomersEnabled
+              ? null
+              : (input.customerDisplayName ?? null)),
+          serviceLocationSnapshot: customer
+            ? customerOperationalSnapshots(customer).serviceLocationSnapshot
+            : null,
+          customerContactNameSnapshot: customer?.contactName ?? null,
+          customerPhoneSnapshot: customer?.phone ?? null,
+          customerEmailSnapshot: customer?.email ?? null,
+          valueCents: input.valueCents ?? null,
+          currency: input.currency ?? 'USD',
+          scheduledStartAt: input.scheduledStartAt ?? null,
+          scheduledEndAt: input.scheduledEndAt ?? null,
+          recurringServiceId: null,
+          schedulingEventId: null,
+          serviceInstructionsSnapshot: null,
+          completedAt: status === JobStatus.COMPLETED ? now() : null,
+          assigneeMemberId: compatibilityAssignee(assignments),
+          createdByUserId: actor.userProfileId,
+        },
+        assignments,
+      )
     },
 
     getJob(workspaceId: string, jobId: string) {
@@ -405,6 +491,13 @@ export function createOperationsService(
             'CONFLICT',
           )
         }
+        if (Object.prototype.hasOwnProperty.call(input, 'assignments')) {
+          throw new OperationsServiceError(
+            'Change recurring Job assignments through the linked Scheduling occurrence.',
+            409,
+            'CONFLICT',
+          )
+        }
         if (Object.prototype.hasOwnProperty.call(input, 'customerId')) {
           throw new OperationsServiceError(
             'A recurring Job keeps the Customer from its Recurring Service snapshot.',
@@ -444,7 +537,10 @@ export function createOperationsService(
       const durableCustomersEnabled =
         (await store.getWorkspaceBusinessModel(actor.workspaceId)) ===
         WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS
-      await assertAssignee(store, actor.workspaceId, input.assigneeMemberId)
+      const assignments = requestedAssignments(input)
+      if (assignments) {
+        await validateAssignments(store, actor.workspaceId, assignments)
+      }
 
       const customerChangeRequested = Object.prototype.hasOwnProperty.call(
         input,
@@ -480,11 +576,17 @@ export function createOperationsService(
         now,
       )
 
-      const data: UpdateJobData = { ...input }
+      const { assignments: _assignments, ...jobInput } = input
+      void _assignments
+      const data: UpdateJobData = { ...jobInput }
+      if (assignments) {
+        data.assigneeMemberId = compatibilityAssignee(assignments)
+      }
       if (customerChanged) {
         // Reassignment captures a fresh authoritative snapshot. Unlinking
         // intentionally preserves the existing historical snapshot.
-        if (customer) data.customerDisplayName = customer.displayName
+        if (customer)
+          Object.assign(data, customerOperationalSnapshots(customer))
         else delete data.customerDisplayName
       } else if (existing.customerId || durableCustomersEnabled) {
         // A linked Job's snapshot cannot be rewritten through the generic
@@ -504,6 +606,7 @@ export function createOperationsService(
           ...data,
           ...(completedAt === undefined ? {} : { completedAt }),
         },
+        assignments,
       })
       if (!updated) {
         if (input.status) throw staleStatusConflict('Job')

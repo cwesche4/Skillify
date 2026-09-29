@@ -7,6 +7,9 @@ import {
   readOperationsJson,
 } from '@/lib/jobs/api'
 import { operationsService } from '@/lib/jobs/defaultService'
+import { canWorkspaceMemberExecuteJob } from '@/lib/jobs/jobExecutionAuthorization'
+import { presentJobOperationalContext } from '@/lib/jobs/operationalContext'
+import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
 type RouteContext = {
   params: { workspaceId: string; jobId: string }
@@ -29,7 +32,24 @@ export async function GET(_request: Request, { params }: RouteContext) {
         { status: 404 },
       )
     }
-    return NextResponse.json({ ok: true, job })
+    const canManage = canManageOperations(authorization.role)
+    const canExecute =
+      canManage ||
+      Boolean(
+        authorization.workspaceMemberId &&
+        (await canWorkspaceMemberExecuteJob({
+          workspaceId: params.workspaceId,
+          jobId: params.jobId,
+          workspaceMemberId: authorization.workspaceMemberId,
+        })),
+      )
+    return NextResponse.json({
+      ok: true,
+      job: {
+        ...presentJobOperationalContext(job, canExecute),
+        canCurrentMemberExecute: canExecute,
+      },
+    })
   } catch (error) {
     return operationsApiError(error)
   }

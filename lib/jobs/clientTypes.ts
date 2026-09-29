@@ -16,6 +16,10 @@ export type JobClientRecord = {
   customerReferenceId: string | null
   customerId: string | null
   customerDisplayName: string | null
+  serviceLocationSnapshot?: string | null
+  customerContactNameSnapshot?: string | null
+  customerPhoneSnapshot?: string | null
+  customerEmailSnapshot?: string | null
   valueCents: number | null
   currency: string
   scheduledStartAt: string | null
@@ -78,6 +82,15 @@ export type WorkspaceMemberOption = {
   role: string
 }
 
+export type WorkspaceTeamOption = {
+  id: string
+  name: string
+}
+
+export type JobAssignmentMutation =
+  | { assignmentType: 'MEMBER'; workspaceMemberId: string }
+  | { assignmentType: 'TEAM'; teamId: string }
+
 export type JobMutationInput = {
   title?: string
   description?: string | null
@@ -92,6 +105,7 @@ export type JobMutationInput = {
   scheduledStartAt?: string | null
   scheduledEndAt?: string | null
   assigneeMemberId?: string | null
+  assignments?: JobAssignmentMutation[]
 }
 
 export type JobStepMutationInput = {

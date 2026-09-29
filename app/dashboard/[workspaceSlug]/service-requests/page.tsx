@@ -39,6 +39,11 @@ export default async function ServiceRequestsPage({ params }: PageProps) {
           },
         },
       },
+      workspaceTeams: {
+        where: { isActive: true, archivedAt: null },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      },
     },
   })
 
@@ -62,6 +67,7 @@ export default async function ServiceRequestsPage({ params }: PageProps) {
     <DashboardShell className="max-w-7xl">
       <JobsClient
         workspaceId={workspace.id}
+        workspaceSlug={workspace.slug}
         currentMemberId={membership.id}
         canManage={canManageOperations(membership.role)}
         durableCustomersEnabled={
@@ -73,6 +79,7 @@ export default async function ServiceRequestsPage({ params }: PageProps) {
           role: member.role,
           name: member.user.fullName || member.user.email || 'Workspace member',
         }))}
+        teams={workspace.workspaceTeams}
       />
     </DashboardShell>
   )
