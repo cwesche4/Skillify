@@ -33,12 +33,13 @@ export const durableLeadSavedViews: Array<{
 ]
 
 const viewIds = new Set(durableLeadSavedViews.map((view) => view.id))
-const activeStages = new Set<LeadStage>([
+export const activeLeadFollowUpStages = [
   LeadStage.NEW,
   LeadStage.CONTACTED,
   LeadStage.ESTIMATE_VISIT,
   LeadStage.FOLLOW_UP,
-])
+] as const
+const activeStages = new Set<LeadStage>(activeLeadFollowUpStages)
 const stageByView: Partial<Record<DurableLeadSavedView, LeadStage>> = {
   new: LeadStage.NEW,
   contacted: LeadStage.CONTACTED,

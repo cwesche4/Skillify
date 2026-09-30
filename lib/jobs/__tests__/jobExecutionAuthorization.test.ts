@@ -17,6 +17,7 @@ import {
   jobExecutionEligibilityWhere,
   listWorkspaceMemberExecutableJobIds,
   lockAndValidateRecurringJobExecution,
+  workspaceMemberExecutableJobsWhere,
 } from '@/lib/jobs/jobExecutionAuthorization'
 
 describe('central Job execution authorization', () => {
@@ -143,6 +144,23 @@ describe('central Job execution authorization', () => {
       where: jobExecutionEligibilityWhere(input),
       select: { id: true },
     })
+  })
+
+  it('builds list authorization from current active Team membership rather than compatibility assignment alone', () => {
+    const where = workspaceMemberExecutableJobsWhere({
+      workspaceId: 'workspace-a',
+      workspaceMemberId: 'member-a',
+    })
+
+    expect(where).toEqual(
+      expect.objectContaining({
+        workspaceId: 'workspace-a',
+        archivedAt: null,
+      }),
+    )
+    expect(JSON.stringify(where)).toContain('"isActive":true')
+    expect(JSON.stringify(where)).toContain('"archivedAt":null')
+    expect(JSON.stringify(where)).toContain('"workspaceMemberId":"member-a"')
   })
 
   it('fails closed for a cross-workspace or unrelated member when no scoped Job matches', async () => {

@@ -226,13 +226,21 @@ export function jobExecutionEligibilityWhere(input: {
   const { workspaceId, jobId, workspaceMemberId } = input
   return {
     id: jobId,
+    ...workspaceMemberExecutableJobsWhere({ workspaceId, workspaceMemberId }),
+  }
+}
+
+export function workspaceMemberExecutableJobsWhere(input: {
+  workspaceId: string
+  workspaceMemberId: string
+}): Prisma.JobWhereInput {
+  const { workspaceId, workspaceMemberId } = input
+  return {
     workspaceId,
     archivedAt: null,
     OR: [
       manualExecutionWhere(workspaceId, workspaceMemberId),
-      {
-        ...recurringExecutionWhere(workspaceId, workspaceMemberId),
-      },
+      recurringExecutionWhere(workspaceId, workspaceMemberId),
     ],
   }
 }
@@ -263,18 +271,8 @@ export async function listWorkspaceMemberExecutableJobIds(
   if (!input.jobIds.length) return new Set<string>()
   const jobs = await db.job.findMany({
     where: {
-      workspaceId: input.workspaceId,
       id: { in: input.jobIds },
-      archivedAt: null,
-      OR: [
-        manualExecutionWhere(input.workspaceId, input.workspaceMemberId),
-        {
-          ...recurringExecutionWhere(
-            input.workspaceId,
-            input.workspaceMemberId,
-          ),
-        },
-      ],
+      ...workspaceMemberExecutableJobsWhere(input),
     },
     select: { id: true },
   })

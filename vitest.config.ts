@@ -20,6 +20,7 @@ export default defineConfig({
       'lib/customers/**/__tests__/**/*.test.ts',
       'lib/customers/**/__tests__/**/*.test.tsx',
       'lib/dashboard/**/__tests__/**/*.test.ts',
+      'lib/dashboard/**/__tests__/**/*.test.tsx',
       'lib/decisions/**/__tests__/**/*.test.ts',
       'lib/domain-events/**/__tests__/**/*.test.ts',
       'lib/intelligence/**/__tests__/**/*.test.ts',

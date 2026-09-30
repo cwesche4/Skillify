@@ -2,6 +2,10 @@ import type {
   ChartPoint,
   WorkspaceCommandCenterData,
 } from '@/components/dashboard/command-center/WorkspaceCommandCenter'
+import {
+  getAutomationExecutionHref,
+  getFailedAutomationRunsHref,
+} from '@/lib/automations/executionNavigation'
 import type { WorkspaceCapabilities } from '@/lib/workspaces/getWorkspaceCapabilities'
 import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
 import { getWorkspaceRecordTerminology } from '@/lib/workspaces/workspacePresentation'
@@ -55,31 +59,6 @@ export type WorkspaceCommandSource = {
     managedBySimple?: boolean
     runs: WorkspaceAutomationRunView[]
   }>
-}
-
-export function getAutomationExecutionHref(
-  workspaceSlug: string,
-  run: Pick<WorkspaceAutomationRunView, 'id' | 'status' | 'managedBySimple'>,
-) {
-  if (run.managedBySimple) {
-    return `/dashboard/${workspaceSlug}/automations/simple/executions`
-  }
-  return `/dashboard/${workspaceSlug}/automations/advanced/executions?view=${
-    run.status === 'FAILED' ? 'failed' : 'all'
-  }&executionId=${run.id}#execution-history`
-}
-
-export function getFailedAutomationRunsHref(
-  workspaceSlug: string,
-  failedRuns: Array<Pick<WorkspaceAutomationRunView, 'managedBySimple'>>,
-) {
-  const hasSimple = failedRuns.some((run) => run.managedBySimple)
-  const hasAdvanced = failedRuns.some((run) => !run.managedBySimple)
-  if (hasSimple && hasAdvanced) return `/dashboard/${workspaceSlug}/automations`
-  if (hasSimple) {
-    return `/dashboard/${workspaceSlug}/automations/simple/executions`
-  }
-  return `/dashboard/${workspaceSlug}/automations/advanced/executions?view=failed#execution-history`
 }
 
 function formatCurrency(value: number) {
