@@ -1,6 +1,9 @@
 import type { LeadClientRecord } from '@/lib/leads/clientTypes'
 import { LeadStage } from '@/lib/prisma/enums'
-import { getWorkspaceDateKey } from '@/lib/scheduling/schedulingDateTime'
+import {
+  getWorkspaceDateKey,
+  parseSchedulingDateKey,
+} from '@/lib/scheduling/schedulingDateTime'
 
 export type DurableLeadSavedView =
   | 'all'
@@ -39,6 +42,33 @@ export const activeLeadFollowUpStages = [
   LeadStage.ESTIMATE_VISIT,
   LeadStage.FOLLOW_UP,
 ] as const
+
+export const leadStageLabels: Record<LeadStage, string> = {
+  NEW: 'New',
+  CONTACTED: 'Contacted',
+  ESTIMATE_VISIT: 'Estimate / Visit',
+  FOLLOW_UP: 'Follow-Up',
+  WON: 'Won',
+  LOST: 'Lost',
+}
+
+function calendarDayOrdinal(dateKey: string) {
+  const { year, month, day } = parseSchedulingDateKey(dateKey)
+  return Date.UTC(year, month - 1, day) / 86_400_000
+}
+
+export function getLeadOverdueCalendarDays(input: {
+  followUpAt: Date | string
+  now: Date
+  timezone: string
+}) {
+  const followUpDateKey = getWorkspaceDateKey(input.followUpAt, input.timezone)
+  const currentDateKey = getWorkspaceDateKey(input.now, input.timezone)
+  return Math.max(
+    0,
+    calendarDayOrdinal(currentDateKey) - calendarDayOrdinal(followUpDateKey),
+  )
+}
 const activeStages = new Set<LeadStage>(activeLeadFollowUpStages)
 const stageByView: Partial<Record<DurableLeadSavedView, LeadStage>> = {
   new: LeadStage.NEW,

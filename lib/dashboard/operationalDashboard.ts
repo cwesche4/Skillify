@@ -3,7 +3,11 @@ import { Prisma, type PrismaClient } from '@prisma/client'
 import { getFailedAutomationRunsHref } from '@/lib/automations/executionNavigation'
 import { prisma } from '@/lib/db'
 import { workspaceMemberExecutableJobsWhere } from '@/lib/jobs/jobExecutionAuthorization'
-import { activeLeadFollowUpStages } from '@/lib/leads/presentation'
+import { getJobAssignmentPresentation } from '@/lib/jobs/presentation'
+import {
+  activeLeadFollowUpStages,
+  getLeadOverdueCalendarDays,
+} from '@/lib/leads/presentation'
 import {
   addDateKeys,
   getStartOfWorkspaceDay,
@@ -32,8 +36,39 @@ const operationalJobSelect = {
   scheduledEndAt: true,
   status: true,
   priority: true,
+  serviceLocationSnapshot: true,
+  recurringServiceId: true,
   unableToCompleteReason: true,
   unableToCompleteAt: true,
+  unableToCompleteReportedBy: {
+    select: {
+      workspaceId: true,
+      user: { select: { fullName: true, email: true } },
+    },
+  },
+  assigneeMemberId: true,
+  assignee: {
+    select: {
+      workspaceId: true,
+      user: { select: { fullName: true, email: true } },
+    },
+  },
+  assignments: {
+    select: {
+      id: true,
+      workspaceId: true,
+      assignmentType: true,
+      displaySnapshot: true,
+      createdAt: true,
+      workspaceMember: {
+        select: { user: { select: { fullName: true, email: true } } },
+      },
+      team: { select: { name: true } },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    take: 4,
+  },
+  _count: { select: { assignments: true } },
 } satisfies Prisma.JobSelect
 
 const operationalLeadSelect = {
@@ -41,8 +76,15 @@ const operationalLeadSelect = {
   workspaceId: true,
   displayName: true,
   companyName: true,
+  stage: true,
   followUpAt: true,
   nextStep: true,
+  assignee: {
+    select: {
+      workspaceId: true,
+      user: { select: { fullName: true, email: true } },
+    },
+  },
 } satisfies Prisma.LeadSelect
 
 const failedRunSelect = {
@@ -77,16 +119,26 @@ export type OperationalDashboardJob = {
   scheduledEndAt: string | null
   status: string
   priority: string
+  serviceLocationSnapshot: string | null
+  recurringVisit: boolean
+  assignmentLabel: string | null
+  isUnassigned: boolean
   unableToCompleteReason: string | null
   unableToCompleteAt: string | null
+  unableToCompleteReporter: string | null
+  previouslyUnable: boolean
+  startTimePassed: boolean
 }
 
 export type OperationalDashboardLead = {
   id: string
   displayName: string
   companyName: string | null
+  stage: string
+  assigneeDisplayName: string | null
   followUpAt: string
   nextStep: string | null
+  overdueCalendarDays: number | null
 }
 
 export type OperationalDashboardFailure = {
@@ -124,6 +176,7 @@ export type OperationalDashboardData =
         failedAutomationsHref: string
         failureWindowDays: number
       }
+      waitingOnClientCount: number
       today: TodayWork & {
         leadsCount: number
         leads: OperationalDashboardLead[]
@@ -136,7 +189,38 @@ type OperationalDashboardDb = Pick<
   'job' | 'lead' | 'automationRun'
 >
 
-function mapJob(record: OperationalJobRecord): OperationalDashboardJob {
+function memberDisplayName(
+  member:
+    | {
+        workspaceId: string
+        user: { fullName: string | null; email: string | null }
+      }
+    | null
+    | undefined,
+  workspaceId: string,
+) {
+  if (!member || member.workspaceId !== workspaceId) return null
+  return member.user.fullName || member.user.email || 'Workspace member'
+}
+
+function mapJob(
+  record: OperationalJobRecord,
+  options: {
+    now: Date
+    isToday?: boolean
+    includeUnableContext?: boolean
+  },
+): OperationalDashboardJob {
+  const scopedAssignments = (record.assignments ?? []).filter(
+    (assignment) => assignment.workspaceId === record.workspaceId,
+  )
+  const assignment = getJobAssignmentPresentation({
+    assignments: scopedAssignments,
+    assignmentCount: record._count?.assignments ?? scopedAssignments.length,
+    legacyAssigneeLabel:
+      memberDisplayName(record.assignee, record.workspaceId) ??
+      (record.assigneeMemberId ? 'Assigned member' : null),
+  })
   return {
     id: record.id,
     title: record.title,
@@ -145,18 +229,50 @@ function mapJob(record: OperationalJobRecord): OperationalDashboardJob {
     scheduledEndAt: record.scheduledEndAt?.toISOString() ?? null,
     status: record.status,
     priority: record.priority,
-    unableToCompleteReason: record.unableToCompleteReason,
-    unableToCompleteAt: record.unableToCompleteAt?.toISOString() ?? null,
+    serviceLocationSnapshot: record.serviceLocationSnapshot ?? null,
+    recurringVisit: Boolean(record.recurringServiceId),
+    assignmentLabel: assignment.label,
+    isUnassigned: assignment.isUnassigned,
+    unableToCompleteReason: options.includeUnableContext
+      ? record.unableToCompleteReason
+      : null,
+    unableToCompleteAt: options.includeUnableContext
+      ? (record.unableToCompleteAt?.toISOString() ?? null)
+      : null,
+    unableToCompleteReporter: options.includeUnableContext
+      ? memberDisplayName(record.unableToCompleteReportedBy, record.workspaceId)
+      : null,
+    previouslyUnable:
+      record.status !== 'UNABLE_TO_COMPLETE' &&
+      record.unableToCompleteAt != null,
+    startTimePassed: Boolean(
+      options.isToday &&
+      (record.status === 'OPEN' || record.status === 'SCHEDULED') &&
+      record.scheduledStartAt &&
+      record.scheduledStartAt.getTime() < options.now.getTime(),
+    ),
   }
 }
 
-function mapLead(record: OperationalLeadRecord): OperationalDashboardLead {
+function mapLead(
+  record: OperationalLeadRecord,
+  options: { now: Date; timezone: string; overdue?: boolean },
+): OperationalDashboardLead {
   return {
     id: record.id,
     displayName: record.displayName,
     companyName: record.companyName,
+    stage: record.stage,
+    assigneeDisplayName: memberDisplayName(record.assignee, record.workspaceId),
     followUpAt: record.followUpAt!.toISOString(),
     nextStep: record.nextStep,
+    overdueCalendarDays: options.overdue
+      ? getLeadOverdueCalendarDays({
+          followUpAt: record.followUpAt!,
+          now: options.now,
+          timezone: options.timezone,
+        })
+      : null,
   }
 }
 
@@ -264,11 +380,11 @@ export async function loadOperationalDashboard(
         jobsCount,
         jobs: jobs
           .filter((job) => job.workspaceId === input.workspaceId)
-          .map(mapJob),
+          .map((job) => mapJob(job, { now, isToday: true })),
       },
       upcomingJobs: upcomingJobs
         .filter((job) => job.workspaceId === input.workspaceId)
-        .map(mapJob),
+        .map((job) => mapJob(job, { now })),
     }
   }
 
@@ -305,6 +421,11 @@ export async function loadOperationalDashboard(
     startedAt: { gte: failureSince, lte: now },
     automation: { is: { workspaceId: input.workspaceId } },
   }
+  const waitingOnClientWhere: Prisma.JobWhereInput = {
+    ...workspaceWhere,
+    archivedAt: null,
+    status: 'WAITING_ON_CLIENT',
+  }
 
   const [
     unableJobsCount,
@@ -318,6 +439,7 @@ export async function loadOperationalDashboard(
     todayLeadsCount,
     todayLeads,
     upcomingJobs,
+    waitingOnClientCount,
   ] = await Promise.all([
     db.job.count({ where: unableWhere }),
     db.job.findMany({
@@ -360,6 +482,7 @@ export async function loadOperationalDashboard(
       orderBy: [{ scheduledStartAt: 'asc' }, { id: 'asc' }],
       take: UPCOMING_PREVIEW_LIMIT,
     }),
+    db.job.count({ where: waitingOnClientWhere }),
   ])
 
   const scopedFailures = failedAutomations.filter(
@@ -373,11 +496,13 @@ export async function loadOperationalDashboard(
       unableJobsCount,
       unableJobs: unableJobs
         .filter((job) => job.workspaceId === input.workspaceId)
-        .map(mapJob),
+        .map((job) => mapJob(job, { now, includeUnableContext: true })),
       overdueLeadsCount,
       overdueLeads: overdueLeads
         .filter((lead) => lead.workspaceId === input.workspaceId)
-        .map(mapLead),
+        .map((lead) =>
+          mapLead(lead, { now, timezone: input.timezone, overdue: true }),
+        ),
       failedAutomationsCount,
       failedAutomations: failedAutomationViews,
       failedAutomationsHref: getFailedAutomationRunsHref(
@@ -386,18 +511,19 @@ export async function loadOperationalDashboard(
       ),
       failureWindowDays: AUTOMATION_FAILURE_WINDOW_DAYS,
     },
+    waitingOnClientCount,
     today: {
       jobsCount: todayJobsCount,
       jobs: todayJobs
         .filter((job) => job.workspaceId === input.workspaceId)
-        .map(mapJob),
+        .map((job) => mapJob(job, { now, isToday: true })),
       leadsCount: todayLeadsCount,
       leads: todayLeads
         .filter((lead) => lead.workspaceId === input.workspaceId)
-        .map(mapLead),
+        .map((lead) => mapLead(lead, { now, timezone: input.timezone })),
     },
     upcomingJobs: upcomingJobs
       .filter((job) => job.workspaceId === input.workspaceId)
-      .map(mapJob),
+      .map((job) => mapJob(job, { now })),
   }
 }

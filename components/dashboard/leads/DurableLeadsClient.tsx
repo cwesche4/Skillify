@@ -40,20 +40,12 @@ import { leadSources } from '@/lib/leads/validation'
 import {
   durableLeadSavedViews,
   filterDurableLeads,
+  leadStageLabels,
   matchesDurableLeadSavedView,
   normalizeDurableLeadSavedView,
   type DurableLeadSavedView,
 } from '@/lib/leads/presentation'
 import { LeadStage, type LeadStage as LeadStageValue } from '@/lib/prisma/enums'
-
-const stageLabels: Record<LeadStageValue, string> = {
-  NEW: 'New',
-  CONTACTED: 'Contacted',
-  ESTIMATE_VISIT: 'Estimate / Visit',
-  FOLLOW_UP: 'Follow-Up',
-  WON: 'Won',
-  LOST: 'Lost',
-}
 
 const stageVariants: Record<LeadStageValue, BadgeVariant> = {
   NEW: 'blue',
@@ -297,7 +289,7 @@ function LeadForm({
             >
               {Object.values(LeadStage).map((value) => (
                 <option key={value} value={value}>
-                  {stageLabels[value]}
+                  {leadStageLabels[value]}
                 </option>
               ))}
             </Select>
@@ -503,7 +495,7 @@ export function DurableLeadsClient({
     setActionError(null)
     try {
       replace(await updateLead(workspaceId, selected.id, { stage }))
-      setNotice(`${selected.displayName} moved to ${stageLabels[stage]}.`)
+      setNotice(`${selected.displayName} moved to ${leadStageLabels[stage]}.`)
     } catch (stageError) {
       setActionError(apiMessage(stageError))
     }
@@ -648,7 +640,7 @@ export function DurableLeadsClient({
                   </div>
                 </div>
                 <Badge variant={stageVariants[lead.stage]}>
-                  {stageLabels[lead.stage]}
+                  {leadStageLabels[lead.stage]}
                 </Badge>
               </div>
               <div className="text-neutral-text-secondary mt-4 grid gap-2 text-xs sm:grid-cols-2">
@@ -724,7 +716,7 @@ export function DurableLeadsClient({
                 >
                   {Object.values(LeadStage).map((value) => (
                     <option key={value} value={value}>
-                      {stageLabels[value]}
+                      {leadStageLabels[value]}
                     </option>
                   ))}
                 </Select>

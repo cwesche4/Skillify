@@ -29,8 +29,15 @@ const baseJob = {
   scheduledEndAt: new Date('2026-03-08T15:00:00.000Z'),
   status: 'SCHEDULED',
   priority: 'NORMAL',
+  serviceLocationSnapshot: '12 Main St',
+  recurringServiceId: null,
   unableToCompleteReason: null,
   unableToCompleteAt: null,
+  unableToCompleteReportedBy: null,
+  assigneeMemberId: null,
+  assignee: null,
+  assignments: [],
+  _count: { assignments: 0 },
 }
 
 const baseLead = {
@@ -38,8 +45,10 @@ const baseLead = {
   workspaceId: 'workspace-a',
   displayName: 'Taylor Lead',
   companyName: null,
+  stage: 'FOLLOW_UP',
   followUpAt: new Date('2026-03-08T16:00:00.000Z'),
   nextStep: 'Call back',
+  assignee: null,
 }
 
 const baseInput = {
@@ -120,7 +129,10 @@ describe('operational dashboard data', () => {
   })
 
   it('builds the management overview from bounded workspace-scoped queries', async () => {
-    jobCount.mockResolvedValueOnce(1).mockResolvedValueOnce(1)
+    jobCount
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2)
     jobFindMany
       .mockResolvedValueOnce([
         {
@@ -201,10 +213,15 @@ describe('operational dashboard data', () => {
     )
     expect(result.today.jobsCount).toBe(1)
     expect(result.today.leadsCount).toBe(1)
+    expect(result.waitingOnClientCount).toBe(2)
     expect(result.upcomingJobs).toHaveLength(1)
 
+    expect(jobCount).toHaveBeenCalledTimes(3)
     expect(jobFindMany).toHaveBeenCalledTimes(3)
+    expect(leadCount).toHaveBeenCalledTimes(2)
     expect(leadFindMany).toHaveBeenCalledTimes(2)
+    expect(runCount).toHaveBeenCalledTimes(1)
+    expect(runFindMany).toHaveBeenCalledTimes(1)
     expect(runFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -242,6 +259,30 @@ describe('operational dashboard data', () => {
         orderBy: [{ unableToCompleteAt: 'desc' }, { id: 'asc' }],
         take: 3,
       }),
+    )
+    expect(jobFindMany.mock.calls[0][0].select).toEqual(
+      expect.objectContaining({
+        serviceLocationSnapshot: true,
+        recurringServiceId: true,
+        assignments: expect.objectContaining({
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take: 4,
+        }),
+        _count: { select: { assignments: true } },
+      }),
+    )
+    expect(jobFindMany.mock.calls[0][0].select).not.toHaveProperty('notes')
+    expect(jobFindMany.mock.calls[0][0].select).not.toHaveProperty(
+      'unableToCompleteNote',
+    )
+    expect(leadFindMany.mock.calls[0][0].select).toEqual(
+      expect.objectContaining({ stage: true, assignee: expect.any(Object) }),
+    )
+    expect(leadFindMany.mock.calls[0][0].select).not.toHaveProperty('email')
+    expect(leadFindMany.mock.calls[0][0].select).not.toHaveProperty('phone')
+    expect(leadFindMany.mock.calls[0][0].select).not.toHaveProperty('notes')
+    expect(leadFindMany.mock.calls[0][0].select).not.toHaveProperty(
+      'estimatedValueCents',
     )
     expect(leadFindMany.mock.calls[0][0]).toEqual(
       expect.objectContaining({
@@ -293,10 +334,20 @@ describe('operational dashboard data', () => {
         take: 7,
       }),
     )
+    expect(jobCount.mock.calls[2][0]).toEqual({
+      where: {
+        workspaceId: 'workspace-a',
+        archivedAt: null,
+        status: 'WAITING_ON_CLIENT',
+      },
+    })
   })
 
   it('keeps exact counts separate from deterministic bounded previews of the same populations', async () => {
-    jobCount.mockResolvedValueOnce(5).mockResolvedValueOnce(6)
+    jobCount
+      .mockResolvedValueOnce(5)
+      .mockResolvedValueOnce(6)
+      .mockResolvedValueOnce(4)
     jobFindMany
       .mockResolvedValueOnce(
         Array.from({ length: 3 }, (_, index) => ({
@@ -366,6 +417,7 @@ describe('operational dashboard data', () => {
     expect(result.today.jobsCount).toBe(6)
     expect(result.today.jobs).toHaveLength(5)
     expect(result.today.leadsCount).toBe(6)
+    expect(result.waitingOnClientCount).toBe(4)
     expect(result.today.leads).toHaveLength(5)
     expect(result.upcomingJobs).toHaveLength(7)
     expect(jobCount.mock.calls.every(([query]) => !('take' in query))).toBe(
@@ -394,6 +446,152 @@ describe('operational dashboard data', () => {
     )
   })
 
+  it('derives enriched Job and Lead context from one captured now', async () => {
+    jobCount.mockResolvedValue(0)
+    jobFindMany
+      .mockResolvedValueOnce([
+        {
+          ...baseJob,
+          id: 'unable-job',
+          status: 'UNABLE_TO_COMPLETE',
+          unableToCompleteReason: 'ACCESS_ISSUE',
+          unableToCompleteAt: new Date('2026-03-07T15:00:00.000Z'),
+          unableToCompleteReportedBy: {
+            workspaceId: 'workspace-a',
+            user: { fullName: 'Morgan Reporter', email: null },
+          },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          ...baseJob,
+          recurringServiceId: 'recurring-a',
+          unableToCompleteAt: new Date('2026-03-01T15:00:00.000Z'),
+          assignments: [
+            {
+              id: 'assignment-a',
+              workspaceId: 'workspace-a',
+              assignmentType: 'TEAM',
+              displaySnapshot: 'Crew A',
+              createdAt: new Date('2026-03-01T12:00:00.000Z'),
+              workspaceMember: null,
+              team: { name: 'Crew A' },
+            },
+          ],
+          _count: { assignments: 1 },
+        },
+      ])
+      .mockResolvedValueOnce([])
+    leadCount.mockResolvedValueOnce(1).mockResolvedValueOnce(0)
+    leadFindMany
+      .mockResolvedValueOnce([
+        {
+          ...baseLead,
+          companyName: 'Taylor Co',
+          followUpAt: new Date('2026-03-06T16:00:00.000Z'),
+          assignee: {
+            workspaceId: 'workspace-a',
+            user: { fullName: 'Alex Owner', email: null },
+          },
+        },
+      ])
+      .mockResolvedValueOnce([])
+    runCount.mockResolvedValue(0)
+    runFindMany.mockResolvedValue([])
+
+    const result = await loadOperationalDashboard(
+      { ...baseInput, role: 'MANAGER' },
+      db,
+    )
+
+    if (result.mode !== 'management') throw new Error('Expected management')
+    expect(result.attention.unableJobs[0]).toEqual(
+      expect.objectContaining({
+        unableToCompleteReporter: 'Morgan Reporter',
+        previouslyUnable: false,
+      }),
+    )
+    expect(result.today.jobs[0]).toEqual(
+      expect.objectContaining({
+        assignmentLabel: 'Crew A',
+        isUnassigned: false,
+        recurringVisit: true,
+        previouslyUnable: true,
+        startTimePassed: true,
+        serviceLocationSnapshot: '12 Main St',
+      }),
+    )
+    expect(result.attention.overdueLeads[0]).toEqual(
+      expect.objectContaining({
+        companyName: 'Taylor Co',
+        stage: 'FOLLOW_UP',
+        assigneeDisplayName: 'Alex Owner',
+        nextStep: 'Call back',
+        overdueCalendarDays: 2,
+      }),
+    )
+  })
+
+  it('labels only OPEN or SCHEDULED Today Jobs strictly before captured now', async () => {
+    jobCount.mockResolvedValue(0)
+    jobFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          ...baseJob,
+          id: 'open-past',
+          status: 'OPEN',
+          scheduledStartAt: new Date('2026-03-08T15:59:59.999Z'),
+        },
+        {
+          ...baseJob,
+          id: 'scheduled-now',
+          status: 'SCHEDULED',
+          scheduledStartAt: baseInput.now,
+        },
+        {
+          ...baseJob,
+          id: 'scheduled-future',
+          scheduledStartAt: new Date('2026-03-08T16:00:00.001Z'),
+        },
+        {
+          ...baseJob,
+          id: 'in-progress-past',
+          status: 'IN_PROGRESS',
+          scheduledStartAt: new Date('2026-03-08T15:00:00.000Z'),
+        },
+        {
+          ...baseJob,
+          id: 'waiting-past',
+          status: 'WAITING_ON_CLIENT',
+          scheduledStartAt: new Date('2026-03-08T15:00:00.000Z'),
+        },
+      ])
+      .mockResolvedValueOnce([])
+    leadCount.mockResolvedValue(0)
+    leadFindMany.mockResolvedValue([])
+    runCount.mockResolvedValue(0)
+    runFindMany.mockResolvedValue([])
+
+    const result = await loadOperationalDashboard(
+      { ...baseInput, role: 'ADMIN' },
+      db,
+    )
+
+    if (result.mode !== 'management') throw new Error('Expected management')
+    expect(
+      Object.fromEntries(
+        result.today.jobs.map((job) => [job.id, job.startTimePassed]),
+      ),
+    ).toEqual({
+      'open-past': true,
+      'scheduled-now': false,
+      'scheduled-future': false,
+      'in-progress-past': false,
+      'waiting-past': false,
+    })
+  })
+
   it.each(['OWNER', 'ADMIN', 'MANAGER'])(
     'serves the management population to %s',
     async (role) => {
@@ -412,13 +610,25 @@ describe('operational dashboard data', () => {
 
   it('limits Members to currently executable assigned Jobs and omits management data', async () => {
     jobCount.mockResolvedValue(1)
-    jobFindMany.mockResolvedValueOnce([baseJob]).mockResolvedValueOnce([
-      {
-        ...baseJob,
-        id: 'job-upcoming',
-        scheduledStartAt: new Date('2026-03-09T14:00:00.000Z'),
-      },
-    ])
+    jobFindMany
+      .mockResolvedValueOnce([
+        {
+          ...baseJob,
+          unableToCompleteReason: 'ACCESS_ISSUE',
+          unableToCompleteAt: new Date('2026-03-01T15:00:00.000Z'),
+          unableToCompleteReportedBy: {
+            workspaceId: 'workspace-a',
+            user: { fullName: 'Management Reporter', email: null },
+          },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          ...baseJob,
+          id: 'job-upcoming',
+          scheduledStartAt: new Date('2026-03-09T14:00:00.000Z'),
+        },
+      ])
 
     const result = await loadOperationalDashboard(
       { ...baseInput, role: 'MEMBER' },
@@ -428,6 +638,16 @@ describe('operational dashboard data', () => {
     expect(result.mode).toBe('member')
     expect(result.today.jobs).toHaveLength(1)
     expect(result.upcomingJobs).toHaveLength(1)
+    expect(result.today.jobs[0]).toEqual(
+      expect.objectContaining({
+        previouslyUnable: true,
+        unableToCompleteReason: null,
+        unableToCompleteAt: null,
+        unableToCompleteReporter: null,
+      }),
+    )
+    expect(jobCount).toHaveBeenCalledTimes(1)
+    expect(jobFindMany).toHaveBeenCalledTimes(2)
     expect(leadCount).not.toHaveBeenCalled()
     expect(runCount).not.toHaveBeenCalled()
 

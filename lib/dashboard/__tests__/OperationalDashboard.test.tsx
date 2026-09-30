@@ -3,7 +3,11 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { OperationalDashboard } from '@/components/dashboard/operations/OperationalDashboard'
-import type { OperationalDashboardData } from '@/lib/dashboard/operationalDashboard'
+import type {
+  OperationalDashboardData,
+  OperationalDashboardJob,
+  OperationalDashboardLead,
+} from '@/lib/dashboard/operationalDashboard'
 
 const base = {
   workspaceId: 'workspace-a',
@@ -17,6 +21,46 @@ const base = {
   },
   upcomingJobs: [],
 } satisfies Omit<OperationalDashboardData, 'mode'>
+
+function dashboardJob(
+  overrides: Partial<OperationalDashboardJob> = {},
+): OperationalDashboardJob {
+  return {
+    id: 'job-a',
+    title: 'Spring cleanup',
+    customerDisplayName: 'Jamie Customer',
+    scheduledStartAt: '2026-09-29T13:00:00.000Z',
+    scheduledEndAt: '2026-09-29T14:00:00.000Z',
+    status: 'SCHEDULED',
+    priority: 'NORMAL',
+    serviceLocationSnapshot: '12 Main St',
+    recurringVisit: false,
+    assignmentLabel: 'Crew One',
+    isUnassigned: false,
+    unableToCompleteReason: null,
+    unableToCompleteAt: null,
+    unableToCompleteReporter: null,
+    previouslyUnable: false,
+    startTimePassed: false,
+    ...overrides,
+  }
+}
+
+function dashboardLead(
+  overrides: Partial<OperationalDashboardLead> = {},
+): OperationalDashboardLead {
+  return {
+    id: 'lead-a',
+    displayName: 'Morgan Lead',
+    companyName: null,
+    stage: 'FOLLOW_UP',
+    assigneeDisplayName: null,
+    followUpAt: '2026-09-28T14:00:00.000Z',
+    nextStep: 'Call',
+    overdueCalendarDays: 1,
+    ...overrides,
+  }
+}
 
 describe('OperationalDashboard', () => {
   it('renders a management-first overview without financial or vanity metrics', () => {
@@ -33,6 +77,7 @@ describe('OperationalDashboard', () => {
         failedAutomationsHref: '/dashboard/acme/automations',
         failureWindowDays: 7,
       },
+      waitingOnClientCount: 0,
       today: {
         ...base.today,
         leadsCount: 0,
@@ -46,7 +91,8 @@ describe('OperationalDashboard', () => {
       screen.getByRole('heading', { name: 'Operations overview' }),
     ).toBeTruthy()
     expect(screen.getByText('Needs your attention')).toBeTruthy()
-    expect(screen.getByText('Nothing needs attention')).toBeTruthy()
+    expect(screen.getByText('No current attention items found')).toBeTruthy()
+    expect(screen.queryByText('Keep work moving')).toBeNull()
     expect(screen.queryByText(/revenue/i)).toBeNull()
     expect(screen.queryByText(/conversion/i)).toBeNull()
   })
@@ -70,27 +116,23 @@ describe('OperationalDashboard', () => {
       attention: {
         unableJobsCount: 1,
         unableJobs: [
-          {
+          dashboardJob({
             id: 'job-unable',
             title: 'Blocked visit',
-            customerDisplayName: 'Jamie Customer',
             scheduledStartAt: null,
             scheduledEndAt: null,
             status: 'UNABLE_TO_COMPLETE',
             priority: 'HIGH',
             unableToCompleteReason: 'ACCESS_ISSUE',
             unableToCompleteAt: '2026-09-29T13:00:00.000Z',
-          },
+            unableToCompleteReporter: 'Alex Reporter',
+          }),
         ],
         overdueLeadsCount: 1,
         overdueLeads: [
-          {
+          dashboardLead({
             id: 'lead-overdue',
-            displayName: 'Morgan Lead',
-            companyName: null,
-            followUpAt: '2026-09-28T14:00:00.000Z',
-            nextStep: 'Call',
-          },
+          }),
         ],
         failedAutomationsCount: 2,
         failedAutomations: [
@@ -110,6 +152,7 @@ describe('OperationalDashboard', () => {
         failedAutomationsHref: '/dashboard/acme/automations',
         failureWindowDays: 7,
       },
+      waitingOnClientCount: 1,
       today: {
         ...base.today,
         leadsCount: 0,
@@ -139,5 +182,73 @@ describe('OperationalDashboard', () => {
     expect(
       screen.getByRole('link', { name: /Review Automations/ }),
     ).toHaveAttribute('href', '/dashboard/acme/automations')
+    expect(
+      screen.getByRole('link', { name: '1 Job waiting on client' }),
+    ).toHaveAttribute(
+      'href',
+      '/dashboard/acme/service-requests?view=waiting#request-queue',
+    )
+  })
+
+  it('shows enriched factual Job and Lead context without sensitive notes', () => {
+    const data: OperationalDashboardData = {
+      ...base,
+      mode: 'management',
+      attention: {
+        unableJobsCount: 1,
+        unableJobs: [
+          dashboardJob({
+            id: 'unable-a',
+            title: 'Blocked visit',
+            status: 'UNABLE_TO_COMPLETE',
+            priority: 'URGENT',
+            recurringVisit: true,
+            unableToCompleteReason: 'ACCESS_ISSUE',
+            unableToCompleteAt: '2026-09-29T13:00:00.000Z',
+            unableToCompleteReporter: 'Alex Reporter',
+          }),
+        ],
+        overdueLeadsCount: 1,
+        overdueLeads: [
+          dashboardLead({
+            companyName: 'Morgan Co',
+            assigneeDisplayName: 'Taylor Manager',
+            nextStep: 'Confirm site visit',
+            overdueCalendarDays: 3,
+          }),
+        ],
+        failedAutomationsCount: 0,
+        failedAutomations: [],
+        failedAutomationsHref: '/dashboard/acme/automations',
+        failureWindowDays: 7,
+      },
+      waitingOnClientCount: 0,
+      today: {
+        jobsCount: 1,
+        jobs: [
+          dashboardJob({
+            startTimePassed: true,
+            previouslyUnable: true,
+            isUnassigned: true,
+            assignmentLabel: null,
+          }),
+        ],
+        leadsCount: 0,
+        leads: [],
+      },
+    }
+
+    render(<OperationalDashboard data={data} />)
+
+    expect(screen.getByText('Recurring visit')).toBeTruthy()
+    expect(screen.getByText('Start time passed')).toBeTruthy()
+    expect(screen.getByText('Previously unable')).toBeTruthy()
+    expect(screen.getByText('Unassigned')).toBeTruthy()
+    expect(screen.getByText(/Alex Reporter/)).toBeTruthy()
+    expect(screen.getByText('Follow-Up')).toBeTruthy()
+    expect(screen.getByText(/Morgan Co · Taylor Manager/)).toBeTruthy()
+    expect(screen.getByText(/Next: Confirm site visit/)).toBeTruthy()
+    expect(screen.getByText(/3 days overdue/)).toBeTruthy()
+    expect(screen.queryByText(/private note/i)).toBeNull()
   })
 })

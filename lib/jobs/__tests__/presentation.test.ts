@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import type { JobClientRecord } from '@/lib/jobs/clientTypes'
-import { filterJobs, matchesJobSavedView } from '@/lib/jobs/presentation'
+import {
+  filterJobs,
+  getJobAssignmentPresentation,
+  matchesJobSavedView,
+  type JobAssignmentPresentationInput,
+} from '@/lib/jobs/presentation'
 
 function job(
   overrides: Partial<JobClientRecord> & Pick<JobClientRecord, 'id' | 'title'>,
@@ -209,5 +214,97 @@ describe('durable Jobs presentation filters', () => {
         now,
       ),
     ).toEqual([])
+  })
+})
+
+describe('dashboard Job assignment presentation', () => {
+  function assignment(
+    overrides: Partial<JobAssignmentPresentationInput> &
+      Pick<JobAssignmentPresentationInput, 'id'>,
+  ): JobAssignmentPresentationInput {
+    const { id, ...rest } = overrides
+    return {
+      id,
+      assignmentType: 'MEMBER',
+      displaySnapshot: null,
+      createdAt: '2026-09-20T12:00:00.000Z',
+      workspaceMember: {
+        user: { fullName: 'Alex Member', email: 'alex@example.com' },
+      },
+      team: null,
+      ...rest,
+    }
+  }
+
+  it('presents direct Member and Team assignments from normalized authority', () => {
+    expect(
+      getJobAssignmentPresentation({
+        assignments: [assignment({ id: 'member-a' })],
+        assignmentCount: 1,
+      }),
+    ).toEqual({ label: 'Alex Member', isUnassigned: false })
+    expect(
+      getJobAssignmentPresentation({
+        assignments: [
+          assignment({
+            id: 'team-a',
+            assignmentType: 'TEAM',
+            displaySnapshot: 'Crew One',
+            workspaceMember: null,
+            team: { name: 'Crew One' },
+          }),
+        ],
+        assignmentCount: 1,
+      }),
+    ).toEqual({ label: 'Crew One', isUnassigned: false })
+  })
+
+  it('orders deterministically, deduplicates labels, and reports an exact remainder', () => {
+    const result = getJobAssignmentPresentation({
+      assignments: [
+        assignment({
+          id: 'fourth',
+          displaySnapshot: 'Crew C',
+          createdAt: '2026-09-20T15:00:00.000Z',
+        }),
+        assignment({
+          id: 'second',
+          displaySnapshot: 'Jordan',
+          createdAt: '2026-09-20T13:00:00.000Z',
+        }),
+        assignment({
+          id: 'first',
+          displaySnapshot: 'Crew A',
+          createdAt: '2026-09-20T12:00:00.000Z',
+        }),
+        assignment({
+          id: 'third',
+          displaySnapshot: 'Jordan',
+          createdAt: '2026-09-20T14:00:00.000Z',
+        }),
+      ],
+      assignmentCount: 5,
+    })
+
+    expect(result).toEqual({
+      label: 'Crew A · Jordan · Crew C · +2',
+      isUnassigned: false,
+    })
+  })
+
+  it('uses legacy fallback only when normalized assignments are absent', () => {
+    expect(
+      getJobAssignmentPresentation({
+        assignments: [],
+        assignmentCount: 0,
+        legacyAssigneeLabel: 'Legacy Member',
+      }),
+    ).toEqual({ label: 'Legacy Member', isUnassigned: false })
+    expect(
+      getJobAssignmentPresentation({
+        assignments: [],
+        assignmentCount: 0,
+      }),
+    ).toEqual({ label: null, isUnassigned: true })
   })
 })

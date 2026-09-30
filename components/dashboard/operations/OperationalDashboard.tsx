@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 
 import { PageHeader } from '@/components/dashboard/PageHeader'
-import { Badge } from '@/components/ui/Badge'
+import { Badge, type BadgeVariant } from '@/components/ui/Badge'
 import {
   Card,
   CardContent,
@@ -25,6 +25,13 @@ import type {
   OperationalDashboardJob,
   OperationalDashboardLead,
 } from '@/lib/dashboard/operationalDashboard'
+import { jobStatusLabels, priorityLabels } from '@/lib/jobs/presentation'
+import { leadStageLabels } from '@/lib/leads/presentation'
+import type {
+  JobStatus,
+  LeadStage,
+  OperationsPriority,
+} from '@/lib/prisma/enums'
 import { formatInWorkspaceTimezone } from '@/lib/scheduling/schedulingDateTime'
 import { cn } from '@/lib/utils'
 
@@ -58,6 +65,29 @@ function humanize(value: string | null) {
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
+}
+
+function jobStatusVariant(status: string): BadgeVariant {
+  if (status === 'UNABLE_TO_COMPLETE') return 'red'
+  if (status === 'WAITING_ON_CLIENT') return 'yellow'
+  if (status === 'IN_PROGRESS') return 'blue'
+  return 'slate'
+}
+
+function jobStatusLabel(status: string) {
+  return jobStatusLabels[status as JobStatus] ?? humanize(status)
+}
+
+function priorityLabel(priority: string) {
+  return priorityLabels[priority as OperationsPriority] ?? humanize(priority)
+}
+
+function leadStageLabel(stage: string) {
+  return leadStageLabels[stage as LeadStage] ?? humanize(stage)
+}
+
+function countLabel(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`
 }
 
 function EmptyState({ children }: { children: string }) {
@@ -97,30 +127,75 @@ function JobRow({
   timezone: string
   showUnableReason?: boolean
 }) {
+  const schedule = formatSchedule(job.scheduledStartAt, timezone)
+  const assignment = job.assignmentLabel ?? 'Unassigned'
+  const unableDetails = [
+    humanize(job.unableToCompleteReason),
+    job.unableToCompleteAt
+      ? `Reported ${formatSchedule(job.unableToCompleteAt, timezone)}`
+      : null,
+    job.unableToCompleteReporter ? `by ${job.unableToCompleteReporter}` : null,
+  ].filter(Boolean)
+
   return (
     <RowLink
       href={`/dashboard/${workspaceSlug}/service-requests?jobId=${encodeURIComponent(job.id)}#request-queue`}
     >
-      <div className="flex min-w-0 items-start justify-between gap-2">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
         <p className="text-app-primary truncate text-sm font-medium">
           {job.title}
         </p>
-        {job.priority === 'URGENT' || job.priority === 'HIGH' ? (
+        <div className="flex flex-wrap justify-end gap-1">
+          <Badge variant={jobStatusVariant(job.status)} size="xs">
+            {jobStatusLabel(job.status)}
+          </Badge>
           <Badge
-            variant={job.priority === 'URGENT' ? 'red' : 'orange'}
+            variant={
+              job.priority === 'URGENT'
+                ? 'red'
+                : job.priority === 'HIGH'
+                  ? 'orange'
+                  : 'slate'
+            }
             size="xs"
           >
-            {humanize(job.priority)}
+            {priorityLabel(job.priority)}
           </Badge>
-        ) : null}
+          {job.recurringVisit ? (
+            <Badge variant="purple" size="xs">
+              Recurring visit
+            </Badge>
+          ) : null}
+          {job.startTimePassed ? (
+            <Badge variant="orange" size="xs">
+              Start time passed
+            </Badge>
+          ) : null}
+          {job.previouslyUnable ? (
+            <Badge variant="yellow" size="xs">
+              Previously unable
+            </Badge>
+          ) : null}
+          {job.isUnassigned ? (
+            <Badge variant="orange" size="xs">
+              Unassigned
+            </Badge>
+          ) : null}
+        </div>
       </div>
       <p className="text-app-secondary mt-1 truncate text-xs">
-        {job.customerDisplayName ?? 'Customer not linked'}
+        {[schedule, job.customerDisplayName ?? 'Customer not linked'].join(
+          ' · ',
+        )}
       </p>
-      <p className="text-app-tertiary mt-1 text-xs">
+      <p className="text-app-tertiary mt-1 truncate text-xs">
         {showUnableReason
-          ? humanize(job.unableToCompleteReason)
-          : formatSchedule(job.scheduledStartAt, timezone)}
+          ? [job.serviceLocationSnapshot, assignment, ...unableDetails]
+              .filter(Boolean)
+              .join(' · ')
+          : [assignment, job.serviceLocationSnapshot]
+              .filter(Boolean)
+              .join(' · ')}
       </p>
     </RowLink>
   )
@@ -137,23 +212,41 @@ function LeadRow({
   timezone: string
   view: 'overdue' | 'due-today'
 }) {
+  const followUpLabel = formatInWorkspaceTimezone(lead.followUpAt, timezone, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+  const overdueLabel = lead.overdueCalendarDays
+    ? countLabel(lead.overdueCalendarDays, 'day overdue', 'days overdue')
+    : null
+
   return (
     <RowLink
       href={`/dashboard/${workspaceSlug}/leads?view=${view}&leadId=${encodeURIComponent(lead.id)}#leads-workspace`}
     >
-      <p className="text-app-primary truncate text-sm font-medium">
-        {lead.displayName}
-      </p>
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <p className="text-app-primary truncate text-sm font-medium">
+          {lead.displayName}
+        </p>
+        <Badge variant="blue" size="xs">
+          {leadStageLabel(lead.stage)}
+        </Badge>
+      </div>
       <p className="text-app-secondary mt-1 truncate text-xs">
-        {lead.companyName ?? lead.nextStep ?? 'Follow-up needed'}
+        {[lead.companyName, lead.assigneeDisplayName ?? 'Unassigned']
+          .filter(Boolean)
+          .join(' · ')}
       </p>
-      <p className="text-app-tertiary mt-1 text-xs">
-        {formatInWorkspaceTimezone(lead.followUpAt, timezone, {
-          month: 'short',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-        })}
+      <p className="text-app-tertiary mt-1 truncate text-xs">
+        {[
+          lead.nextStep ? `Next: ${lead.nextStep}` : 'Follow-up needed',
+          followUpLabel,
+          overdueLabel,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
       </p>
     </RowLink>
   )
@@ -201,6 +294,7 @@ export function OperationalDashboard({
   const jobsHref = `/dashboard/${data.workspaceSlug}/service-requests`
   const schedulingHref = `/dashboard/${data.workspaceSlug}/scheduling`
   const leadsHref = `/dashboard/${data.workspaceSlug}/leads`
+  const waitingJobsHref = `${jobsHref}?view=waiting#request-queue`
   const isManagement = data.mode === 'management'
   const attentionCount = isManagement
     ? data.attention.unableJobsCount +
@@ -230,6 +324,79 @@ export function OperationalDashboard({
         }
       />
 
+      <nav
+        aria-label={isManagement ? 'Operational summary' : 'Work summary'}
+        className="border-app bg-app-surface-muted rounded-xl border px-4 py-3"
+      >
+        {data.mode === 'management' ? (
+          <ul className="text-app-secondary flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <li className="text-app-primary font-medium">
+              {countLabel(attentionCount, 'item needs', 'items need')} attention
+            </li>
+            <li aria-hidden="true">·</li>
+            <li>
+              {data.waitingOnClientCount > 0 ? (
+                <Link
+                  href={waitingJobsHref}
+                  className="font-medium text-brand-primary hover:underline"
+                >
+                  {countLabel(
+                    data.waitingOnClientCount,
+                    'Job waiting on client',
+                    'Jobs waiting on client',
+                  )}
+                </Link>
+              ) : (
+                '0 Jobs waiting on client'
+              )}
+            </li>
+            <li aria-hidden="true">·</li>
+            <li>
+              {data.today.jobsCount > 0 ? (
+                <Link
+                  href={schedulingHref}
+                  className="font-medium text-brand-primary hover:underline"
+                >
+                  {countLabel(data.today.jobsCount, 'Job today', 'Jobs today')}
+                </Link>
+              ) : (
+                '0 Jobs today'
+              )}
+            </li>
+            <li aria-hidden="true">·</li>
+            <li>
+              {data.today.leadsCount > 0 ? (
+                <Link
+                  href={`${leadsHref}?view=due-today#leads-workspace`}
+                  className="font-medium text-brand-primary hover:underline"
+                >
+                  {countLabel(
+                    data.today.leadsCount,
+                    'follow-up due today',
+                    'follow-ups due today',
+                  )}
+                </Link>
+              ) : (
+                '0 follow-ups due today'
+              )}
+            </li>
+          </ul>
+        ) : (
+          <p className="text-app-secondary text-sm">
+            <span className="text-app-primary font-medium">
+              {countLabel(
+                data.today.jobsCount,
+                'assigned Job today',
+                'assigned Jobs today',
+              )}
+            </span>
+            {data.upcomingJobs.length
+              ? ` · Next ${data.upcomingJobs.length} upcoming shown`
+              : ' · No upcoming assigned Jobs'}
+          </p>
+        )}
+      </nav>
+
       {isManagement ? (
         <section className="space-y-4" aria-labelledby="attention-heading">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -239,133 +406,152 @@ export function OperationalDashboard({
                 description="Operational exceptions that may need a decision or follow-up."
               />
             </div>
-            {attentionCount === 0 ? (
-              <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                <CheckCircle2 className="h-4 w-4" /> Nothing needs attention
-              </div>
-            ) : null}
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-3">
+          {attentionCount === 0 ? (
             <Card>
-              <CardHeader>
-                <CountTitle
-                  label="Unable to complete"
-                  count={data.attention.unableJobsCount}
-                  attention
-                />
-                <CardDescription>
-                  Jobs reported from the field that need review.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {data.attention.unableJobs.length ? (
-                  data.attention.unableJobs.map((job) => (
-                    <JobRow
-                      key={job.id}
-                      job={job}
-                      workspaceSlug={data.workspaceSlug}
-                      timezone={data.timezone}
-                      showUnableReason
-                    />
-                  ))
-                ) : (
-                  <EmptyState>No unable Jobs.</EmptyState>
-                )}
-                <Link
-                  href={`${jobsHref}?view=needs-attention#request-queue`}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
-                >
-                  Review Jobs <ArrowRight className="h-3 w-3" />
+              <CardContent className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-300" />
+                  <div>
+                    <p className="text-app-primary text-sm font-medium">
+                      No current attention items found
+                    </p>
+                    <p className="text-app-secondary mt-1 text-sm">
+                      No Unable Jobs, overdue Lead follow-ups, or recent
+                      Automation failures were found.
+                    </p>
+                  </div>
+                </div>
+                <Link href={schedulingHref} className={actionLinkClass}>
+                  Open Scheduling <ArrowRight className="h-4 w-4" />
                 </Link>
               </CardContent>
             </Card>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CountTitle
+                    label="Unable to complete"
+                    count={data.attention.unableJobsCount}
+                    attention
+                  />
+                  <CardDescription>
+                    Jobs reported from the field that need review.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {data.attention.unableJobs.length ? (
+                    data.attention.unableJobs.map((job) => (
+                      <JobRow
+                        key={job.id}
+                        job={job}
+                        workspaceSlug={data.workspaceSlug}
+                        timezone={data.timezone}
+                        showUnableReason
+                      />
+                    ))
+                  ) : (
+                    <EmptyState>No unable Jobs.</EmptyState>
+                  )}
+                  <Link
+                    href={`${jobsHref}?view=needs-attention#request-queue`}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+                  >
+                    Review Jobs <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CountTitle
-                  label="Overdue lead follow-ups"
-                  count={data.attention.overdueLeadsCount}
-                  attention
-                />
-                <CardDescription>
-                  Active Leads with a follow-up date before today.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {data.attention.overdueLeads.length ? (
-                  data.attention.overdueLeads.map((lead) => (
-                    <LeadRow
-                      key={lead.id}
-                      lead={lead}
-                      workspaceSlug={data.workspaceSlug}
-                      timezone={data.timezone}
-                      view="overdue"
-                    />
-                  ))
-                ) : (
-                  <EmptyState>No overdue follow-ups.</EmptyState>
-                )}
-                <Link
-                  href={`${leadsHref}?view=overdue#leads-workspace`}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
-                >
-                  Review Leads <ArrowRight className="h-3 w-3" />
-                </Link>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader>
+                  <CountTitle
+                    label="Overdue lead follow-ups"
+                    count={data.attention.overdueLeadsCount}
+                    attention
+                  />
+                  <CardDescription>
+                    Active Leads with a follow-up date before today.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {data.attention.overdueLeads.length ? (
+                    data.attention.overdueLeads.map((lead) => (
+                      <LeadRow
+                        key={lead.id}
+                        lead={lead}
+                        workspaceSlug={data.workspaceSlug}
+                        timezone={data.timezone}
+                        view="overdue"
+                      />
+                    ))
+                  ) : (
+                    <EmptyState>No overdue follow-ups.</EmptyState>
+                  )}
+                  <Link
+                    href={`${leadsHref}?view=overdue#leads-workspace`}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+                  >
+                    Review Leads <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CountTitle
-                  label="Automation failures"
-                  count={data.attention.failedAutomationsCount}
-                  attention
-                />
-                <CardDescription>
-                  Failed executions from the last{' '}
-                  {data.attention.failureWindowDays} days.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {data.attention.failedAutomations.length ? (
-                  data.attention.failedAutomations.map((failure) => (
-                    <RowLink
-                      key={failure.id}
-                      href={getAutomationExecutionHref(data.workspaceSlug, {
-                        id: failure.id,
-                        status: 'FAILED',
-                        managedBySimple: failure.managedBySimple,
-                      })}
-                    >
-                      <div className="flex items-center gap-2">
-                        <p className="text-app-primary truncate text-sm font-medium">
-                          {failure.automationName}
+              <Card>
+                <CardHeader>
+                  <CountTitle
+                    label="Automation failures"
+                    count={data.attention.failedAutomationsCount}
+                    attention
+                  />
+                  <CardDescription>
+                    Failed executions from the last{' '}
+                    {data.attention.failureWindowDays} days.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {data.attention.failedAutomations.length ? (
+                    data.attention.failedAutomations.map((failure) => (
+                      <RowLink
+                        key={failure.id}
+                        href={getAutomationExecutionHref(data.workspaceSlug, {
+                          id: failure.id,
+                          status: 'FAILED',
+                          managedBySimple: failure.managedBySimple,
+                        })}
+                      >
+                        <div className="flex items-center gap-2">
+                          <p className="text-app-primary truncate text-sm font-medium">
+                            {failure.automationName}
+                          </p>
+                          <Badge
+                            variant={
+                              failure.managedBySimple ? 'brand' : 'purple'
+                            }
+                            size="xs"
+                          >
+                            {failure.managedBySimple ? 'Simple' : 'Advanced'}
+                          </Badge>
+                        </div>
+                        <p className="text-app-tertiary mt-1 text-xs">
+                          {formatSchedule(failure.startedAt, data.timezone)}
                         </p>
-                        <Badge
-                          variant={failure.managedBySimple ? 'brand' : 'purple'}
-                          size="xs"
-                        >
-                          {failure.managedBySimple ? 'Simple' : 'Advanced'}
-                        </Badge>
-                      </div>
-                      <p className="text-app-tertiary mt-1 text-xs">
-                        {formatSchedule(failure.startedAt, data.timezone)}
-                      </p>
-                    </RowLink>
-                  ))
-                ) : (
-                  <EmptyState>No recent failures.</EmptyState>
-                )}
-                <Link
-                  href={data.attention.failedAutomationsHref}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
-                >
-                  Review Automations <ArrowRight className="h-3 w-3" />
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
+                      </RowLink>
+                    ))
+                  ) : (
+                    <EmptyState>No recent failures.</EmptyState>
+                  )}
+                  <Link
+                    href={data.attention.failedAutomationsHref}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+                  >
+                    Review Automations <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </section>
       ) : null}
 
@@ -407,10 +593,11 @@ export function OperationalDashboard({
                 <EmptyState>No scheduled Jobs today.</EmptyState>
               )}
               <Link
-                href={jobsHref}
+                href={data.today.jobs.length ? jobsHref : schedulingHref}
                 className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
               >
-                View Jobs <ArrowRight className="h-3 w-3" />
+                {data.today.jobs.length ? 'View Jobs' : 'Open Scheduling'}{' '}
+                <ArrowRight className="h-3 w-3" />
               </Link>
             </CardContent>
           </Card>
@@ -483,53 +670,17 @@ export function OperationalDashboard({
             ) : (
               <div className="md:col-span-2 xl:col-span-3">
                 <EmptyState>No upcoming scheduled Jobs.</EmptyState>
+                <Link
+                  href={schedulingHref}
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+                >
+                  Open Scheduling <ArrowRight className="h-3 w-3" />
+                </Link>
               </div>
             )}
           </CardContent>
         </Card>
       </section>
-
-      {isManagement ? (
-        <section className="space-y-4" aria-labelledby="quick-links-heading">
-          <div id="quick-links-heading">
-            <SectionHeading
-              title="Keep work moving"
-              description="Go directly to the records that drive daily operations."
-            />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              {
-                href: leadsHref,
-                label: 'Manage Leads',
-                icon: Users,
-              },
-              {
-                href: jobsHref,
-                label: 'Manage Jobs',
-                icon: BriefcaseBusiness,
-              },
-              {
-                href: schedulingHref,
-                label: 'Open Scheduling',
-                icon: CalendarDays,
-              },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="border-app bg-app-surface-raised hover:bg-app-surface-hover focus-visible:ring-brand-primary/70 flex items-center justify-between rounded-2xl border p-4 transition-colors focus:outline-none focus-visible:ring-2"
-              >
-                <span className="text-app-primary flex items-center gap-3 text-sm font-medium">
-                  <item.icon className="h-5 w-5 text-brand-primary" />
-                  {item.label}
-                </span>
-                <ArrowRight className="text-app-tertiary h-4 w-4" />
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {isManagement && attentionCount > 0 ? (
         <div className="sr-only" role="status">

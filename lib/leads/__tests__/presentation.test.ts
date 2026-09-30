@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import type { LeadClientRecord } from '@/lib/leads/clientTypes'
 import {
+  getLeadOverdueCalendarDays,
+  leadStageLabels,
   matchesDurableLeadSavedView,
   normalizeDurableLeadSavedView,
 } from '@/lib/leads/presentation'
@@ -39,6 +41,17 @@ const options = {
 }
 
 describe('durable Lead attention presentation', () => {
+  it('uses the shared authoritative stage labels', () => {
+    expect(leadStageLabels).toEqual({
+      NEW: 'New',
+      CONTACTED: 'Contacted',
+      ESTIMATE_VISIT: 'Estimate / Visit',
+      FOLLOW_UP: 'Follow-Up',
+      WON: 'Won',
+      LOST: 'Lost',
+    })
+  })
+
   it('uses workspace-local calendar dates at midnight boundaries', () => {
     expect(
       matchesDurableLeadSavedView(
@@ -136,6 +149,48 @@ describe('durable Lead attention presentation', () => {
     expect(normalizeDurableLeadSavedView('new')).toBe('new')
     expect(normalizeDurableLeadSavedView('unsupported')).toBe('all')
   })
+
+  it.each([
+    {
+      label: 'same workspace-local day',
+      followUpAt: '2026-03-08T05:00:00.000Z',
+      now: '2026-03-09T03:59:59.999Z',
+      timezone: 'America/New_York',
+      expected: 0,
+    },
+    {
+      label: 'spring DST calendar boundary',
+      followUpAt: '2026-03-08T04:59:59.999Z',
+      now: '2026-03-08T05:00:00.000Z',
+      timezone: 'America/New_York',
+      expected: 1,
+    },
+    {
+      label: 'fall DST calendar boundary',
+      followUpAt: '2026-11-01T03:59:59.999Z',
+      now: '2026-11-01T04:00:00.000Z',
+      timezone: 'America/New_York',
+      expected: 1,
+    },
+    {
+      label: 'multiple Tokyo calendar days',
+      followUpAt: '2026-09-26T14:59:59.999Z',
+      now: '2026-09-29T15:00:00.000Z',
+      timezone: 'Asia/Tokyo',
+      expected: 4,
+    },
+  ])(
+    'counts $label without elapsed-24-hour arithmetic',
+    ({ followUpAt, now, timezone, expected }) => {
+      expect(
+        getLeadOverdueCalendarDays({
+          followUpAt,
+          now: new Date(now),
+          timezone,
+        }),
+      ).toBe(expected)
+    },
+  )
 
   it('does not match a Lead from another workspace record set accidentally', () => {
     const workspaceA = [

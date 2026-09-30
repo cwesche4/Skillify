@@ -57,6 +57,63 @@ export const priorityLabels: Record<OperationsPriorityValue, string> = {
   URGENT: 'Urgent',
 }
 
+export type JobAssignmentPresentationInput = {
+  id: string
+  assignmentType: 'MEMBER' | 'TEAM'
+  displaySnapshot: string | null
+  createdAt: Date | string
+  workspaceMember?: {
+    user: { fullName: string | null; email: string | null }
+  } | null
+  team?: { name: string } | null
+}
+
+export function getJobAssignmentPresentation(input: {
+  assignments: JobAssignmentPresentationInput[]
+  assignmentCount: number
+  legacyAssigneeLabel?: string | null
+}) {
+  const ordered = [...input.assignments].sort((first, second) => {
+    const createdAt =
+      new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime()
+    return createdAt || first.id.localeCompare(second.id)
+  })
+  const labels: string[] = []
+  const seen = new Set<string>()
+
+  for (const assignment of ordered) {
+    const fallback =
+      assignment.assignmentType === 'MEMBER'
+        ? assignment.workspaceMember?.user.fullName ||
+          assignment.workspaceMember?.user.email ||
+          'Workspace member'
+        : assignment.team?.name || 'Assigned team'
+    const label = assignment.displaySnapshot?.trim() || fallback
+    if (seen.has(label)) continue
+    seen.add(label)
+    labels.push(label)
+    if (labels.length === 3) break
+  }
+
+  if (input.assignmentCount === 0) {
+    const legacyLabel = input.legacyAssigneeLabel?.trim() || null
+    return {
+      label: legacyLabel,
+      isUnassigned: legacyLabel === null,
+    }
+  }
+
+  const visibleLabels = labels.slice(0, 3)
+  const hiddenCount = Math.max(0, input.assignmentCount - visibleLabels.length)
+  return {
+    label: [
+      ...visibleLabels,
+      ...(hiddenCount > 0 ? [`+${hiddenCount}`] : []),
+    ].join(' · '),
+    isUnassigned: false,
+  }
+}
+
 export function isOpenJob(job: JobClientRecord) {
   return job.status !== JobStatus.COMPLETED && job.status !== JobStatus.CANCELED
 }
