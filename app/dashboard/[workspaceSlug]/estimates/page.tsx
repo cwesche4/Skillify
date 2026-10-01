@@ -1,0 +1,65 @@
+import React from 'react'
+import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
+
+import { DashboardShell } from '@/components/dashboard/DashboardShell'
+import { EstimatesClient } from '@/components/dashboard/estimates/EstimatesClient'
+import { prisma } from '@/lib/db'
+import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
+import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
+
+type PageProps = {
+  params: { workspaceSlug: string }
+  searchParams?: {
+    estimateId?: string
+    leadId?: string
+    customerId?: string
+    create?: string
+  }
+}
+
+export default async function EstimatesPage({
+  params,
+  searchParams,
+}: PageProps) {
+  const { userId } = auth()
+  if (!userId) redirect('/sign-in')
+  const profile = await prisma.userProfile.findUnique({
+    where: { clerkId: userId },
+    select: { id: true },
+  })
+  if (!profile) redirect('/onboarding/create-workspace')
+  const workspace = await prisma.workspace.findUnique({
+    where: { slug: params.workspaceSlug },
+    select: {
+      id: true,
+      slug: true,
+      businessModel: true,
+      members: {
+        where: { userId: profile.id },
+        select: { role: true },
+        take: 1,
+      },
+    },
+  })
+  if (
+    !workspace ||
+    workspace.businessModel !==
+      WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS ||
+    !canManageOperations(workspace.members[0]?.role)
+  ) {
+    redirect(workspace ? `/dashboard/${workspace.slug}` : '/dashboard')
+  }
+  return (
+    <DashboardShell className="max-w-7xl">
+      <EstimatesClient
+        workspaceId={workspace.id}
+        workspaceSlug={workspace.slug}
+        initialEstimateId={searchParams?.estimateId}
+        initialLeadId={searchParams?.leadId}
+        initialCustomerId={searchParams?.customerId}
+        initialCreate={searchParams?.create === '1'}
+      />
+    </DashboardShell>
+  )
+}

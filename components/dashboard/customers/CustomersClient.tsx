@@ -930,6 +930,12 @@ export function CustomersClient({
         ) : selected ? (
           <div className="space-y-6 p-5 sm:p-6">
             <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/dashboard/${encodeURIComponent(workspaceSlug)}/estimates?create=1&customerId=${encodeURIComponent(selected.id)}`}
+                className="hover:bg-brand-primary/90 focus-visible:ring-brand-primary/70 border-brand-primary/80 inline-flex h-9 items-center justify-center rounded-xl border bg-brand-primary px-3.5 text-sm font-medium text-white focus:outline-none focus-visible:ring-2"
+              >
+                Create Estimate
+              </Link>
               <Button
                 variant="outline"
                 onClick={() => setEditing(true)}

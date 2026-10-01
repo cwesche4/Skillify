@@ -69,6 +69,7 @@ describe('workspace navigation', () => {
     expect(customers?.items.map((item) => item.label)).toEqual([
       'Leads',
       'Customers',
+      'Estimates',
     ])
     expect(operations?.items.map((item) => item.label)).toEqual([
       'Jobs',
@@ -95,6 +96,7 @@ describe('workspace navigation', () => {
       }).flatMap((group) => group.items.map((item) => item.label))
       expect(labels).toContain('Leads')
       expect(labels).toContain('Customers')
+      expect(labels).toContain('Estimates')
     }
 
     const memberLabels = buildWorkspaceNavigation({
@@ -108,6 +110,7 @@ describe('workspace navigation', () => {
     }).flatMap((group) => group.items.map((item) => item.label))
     expect(memberLabels).not.toContain('Customers')
     expect(memberLabels).not.toContain('Leads')
+    expect(memberLabels).not.toContain('Estimates')
     expect(memberLabels).toContain('Jobs')
     expect(memberLabels).toContain('My To-Dos')
   })

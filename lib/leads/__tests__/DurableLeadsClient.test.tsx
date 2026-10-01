@@ -209,6 +209,11 @@ describe('DurableLeadsClient', () => {
     await user.click(screen.getByRole('button', { name: /All Leads/ }))
     await user.click(screen.getByRole('button', { name: /Smith Residence/ }))
     const detail = screen.getByRole('dialog', { name: 'Smith Residence' })
+    expect(
+      within(detail)
+        .getByRole('link', { name: 'Create Estimate' })
+        .getAttribute('href'),
+    ).toBe('/dashboard/acme/estimates?create=1&leadId=lead-a')
     await user.click(within(detail).getByRole('button', { name: 'Edit Lead' }))
     const edit = screen.getByRole('dialog', { name: 'Edit Lead' })
     const nextStep = within(edit).getByLabelText('Next step')

@@ -798,13 +798,21 @@ export function DurableLeadsClient({
               >
                 Archive
               </Button>
-              <Button
-                type="button"
-                leftIcon={<Pencil className="h-4 w-4" />}
-                onClick={() => setEditing(true)}
-              >
-                Edit Lead
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/dashboard/${encodeURIComponent(workspaceSlug)}/estimates?create=1&leadId=${encodeURIComponent(selected.id)}${selected.convertedCustomerId ? `&customerId=${encodeURIComponent(selected.convertedCustomerId)}` : ''}`}
+                  className="bg-app-surface-raised text-app-primary border-app hover:bg-app-surface-hover focus-visible:ring-brand-primary/70 inline-flex h-9 items-center justify-center rounded-xl border px-3.5 text-sm font-medium focus:outline-none focus-visible:ring-2"
+                >
+                  Create Estimate
+                </Link>
+                <Button
+                  type="button"
+                  leftIcon={<Pencil className="h-4 w-4" />}
+                  onClick={() => setEditing(true)}
+                >
+                  Edit Lead
+                </Button>
+              </div>
             </div>
           </div>
         </Modal>

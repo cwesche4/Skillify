@@ -23,6 +23,8 @@ export default defineConfig({
       'lib/dashboard/**/__tests__/**/*.test.tsx',
       'lib/decisions/**/__tests__/**/*.test.ts',
       'lib/domain-events/**/__tests__/**/*.test.ts',
+      'lib/estimates/**/__tests__/**/*.test.ts',
+      'lib/estimates/**/__tests__/**/*.test.tsx',
       'lib/intelligence/**/__tests__/**/*.test.ts',
       'lib/jobs/**/__tests__/**/*.test.ts',
       'lib/jobs/**/__tests__/**/*.test.tsx',

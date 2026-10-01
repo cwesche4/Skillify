@@ -143,6 +143,26 @@ export const LeadStage = {
 
 export type LeadStage = (typeof LeadStage)[keyof typeof LeadStage]
 
+export const EstimateStatus = {
+  DRAFT: 'DRAFT',
+  PRESENTED: 'PRESENTED',
+  ACCEPTED: 'ACCEPTED',
+  DECLINED: 'DECLINED',
+  SUPERSEDED: 'SUPERSEDED',
+  VOIDED: 'VOIDED',
+} as const
+
+export type EstimateStatus =
+  (typeof EstimateStatus)[keyof typeof EstimateStatus]
+
+export const EstimateBillingBasis = {
+  ONE_TIME: 'ONE_TIME',
+  PER_VISIT: 'PER_VISIT',
+} as const
+
+export type EstimateBillingBasis =
+  (typeof EstimateBillingBasis)[keyof typeof EstimateBillingBasis]
+
 export const WorkspaceTeamType = {
   GENERAL: 'GENERAL',
   OFFICE: 'OFFICE',

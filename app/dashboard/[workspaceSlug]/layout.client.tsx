@@ -40,6 +40,7 @@ import {
   PackageOpen,
   ShoppingCart,
   CalendarDays,
+  FileText,
 } from 'lucide-react'
 import type { WorkspaceCapabilities } from '@/lib/workspaces/getWorkspaceCapabilities'
 import {
@@ -85,6 +86,7 @@ const NAV_ICONS = {
   reports: FileBarChart,
   clients: BriefcaseBusiness,
   customers: BriefcaseBusiness,
+  estimates: FileText,
   products: Box,
   orders: ShoppingCart,
   fulfillment: PackageCheck,

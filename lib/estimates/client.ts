@@ -1,0 +1,132 @@
+import type {
+  EstimateClientListRecord,
+  EstimateClientRecord,
+  EstimateClientRevision,
+  EstimateCreateInput,
+  EstimateUpdateInput,
+} from '@/lib/estimates/clientTypes'
+import type { EstimateListView } from '@/lib/estimates/types'
+
+type ErrorBody = {
+  message?: string
+  fieldErrors?: Record<string, string[] | undefined>
+}
+
+export class EstimatesApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly fieldErrors?: Record<string, string[] | undefined>,
+  ) {
+    super(message)
+    this.name = 'EstimatesApiError'
+  }
+}
+
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    cache: 'no-store',
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+  })
+  const body = (await response.json().catch(() => null)) as ErrorBody | null
+  if (!response.ok) {
+    throw new EstimatesApiError(
+      body?.message || 'The Estimate request could not be completed.',
+      response.status,
+      body?.fieldErrors,
+    )
+  }
+  return body as T
+}
+
+function path(workspaceId: string, estimateId?: string, action?: string) {
+  const base = `/api/workspaces/${encodeURIComponent(workspaceId)}/estimates`
+  if (!estimateId) return base
+  const detail = `${base}/${encodeURIComponent(estimateId)}`
+  return action ? `${detail}/${action}` : detail
+}
+
+export async function listEstimates(
+  workspaceId: string,
+  input: {
+    view?: EstimateListView
+    cursor?: string
+    pageSize?: number
+    leadId?: string
+    customerId?: string
+  } = {},
+) {
+  const query = new URLSearchParams()
+  if (input.view) query.set('view', input.view)
+  if (input.cursor) query.set('cursor', input.cursor)
+  if (input.pageSize) query.set('pageSize', String(input.pageSize))
+  if (input.leadId) query.set('leadId', input.leadId)
+  if (input.customerId) query.set('customerId', input.customerId)
+  return requestJson<{
+    estimates: EstimateClientListRecord[]
+    nextCursor: string | null
+    workspaceDateKey: string
+  }>(`${path(workspaceId)}?${query.toString()}`)
+}
+
+export async function getEstimate(workspaceId: string, estimateId: string) {
+  return requestJson<{
+    estimate: EstimateClientRecord
+    revisions: EstimateClientRevision[]
+    revisionHistoryTruncated: boolean
+    workspaceDateKey: string
+  }>(path(workspaceId, estimateId))
+}
+
+export async function createEstimate(
+  workspaceId: string,
+  input: EstimateCreateInput,
+) {
+  const body = await requestJson<{ estimate: EstimateClientRecord }>(
+    path(workspaceId),
+    { method: 'POST', body: JSON.stringify(input) },
+  )
+  return body.estimate
+}
+
+export async function updateEstimate(
+  workspaceId: string,
+  estimateId: string,
+  expectedVersion: number,
+  input: EstimateUpdateInput,
+) {
+  const body = await requestJson<{ estimate: EstimateClientRecord }>(
+    path(workspaceId, estimateId),
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ expectedVersion, ...input }),
+    },
+  )
+  return body.estimate
+}
+
+export async function estimateAction(
+  workspaceId: string,
+  estimateId: string,
+  action: 'present' | 'accept' | 'decline' | 'void' | 'revise',
+  expectedVersion: number,
+) {
+  const body = await requestJson<{ estimate: EstimateClientRecord }>(
+    path(workspaceId, estimateId, action),
+    { method: 'POST', body: JSON.stringify({ expectedVersion }) },
+  )
+  return body.estimate
+}
+
+export async function archiveEstimate(
+  workspaceId: string,
+  estimateId: string,
+  expectedVersion: number,
+) {
+  const body = await requestJson<{ estimate: EstimateClientRecord }>(
+    path(workspaceId, estimateId),
+    { method: 'DELETE', body: JSON.stringify({ expectedVersion }) },
+  )
+  return body.estimate
+}

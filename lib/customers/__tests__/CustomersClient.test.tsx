@@ -366,9 +366,12 @@ describe('durable Simple Service Customers UI', () => {
         'No Jobs are linked to this Customer yet.',
       ),
     ).toBeTruthy()
+    expect(within(dialog).queryByText(/Revenue|CLV|Invoice/)).toBeNull()
     expect(
-      within(dialog).queryByText(/Revenue|CLV|Estimate|Invoice/),
-    ).toBeNull()
+      within(dialog)
+        .getByRole('link', { name: 'Create Estimate' })
+        .getAttribute('href'),
+    ).toBe('/dashboard/acme/estimates?create=1&customerId=customer-1')
 
     await user.click(
       within(dialog).getByRole('button', { name: 'Edit Customer' }),

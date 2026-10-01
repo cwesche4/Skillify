@@ -21,6 +21,7 @@ export type WorkspaceNavigationIcon =
   | 'reports'
   | 'clients'
   | 'customers'
+  | 'estimates'
   | 'products'
   | 'orders'
   | 'fulfillment'
@@ -144,6 +145,16 @@ export function buildWorkspaceNavigation({
                       },
                     ]
                   : []),
+                {
+                  label: 'Estimates',
+                  href: `/dashboard/${workspaceSlug}/estimates`,
+                  icon: 'estimates',
+                  roles: [
+                    'owner',
+                    'admin',
+                    'manager',
+                  ] as WorkspaceNavigationRole[],
+                },
               ],
             },
             {

@@ -122,6 +122,20 @@ enum LeadStage {
   LOST
 }
 
+enum EstimateStatus {
+  DRAFT
+  PRESENTED
+  ACCEPTED
+  DECLINED
+  SUPERSEDED
+  VOIDED
+}
+
+enum EstimateBillingBasis {
+  ONE_TIME
+  PER_VISIT
+}
+
 enum WorkspaceTeamType {
   GENERAL
   OFFICE
@@ -804,6 +818,11 @@ model UserProfile {
   customersCreated                        Customer[]                     @relation("CustomerCreatedBy")
   leadsCreated                            Lead[]                         @relation("LeadCreatedBy")
   recurringServicesCreated                RecurringService[]             @relation("RecurringServiceCreatedBy")
+  estimatesCreated                        Estimate[]                     @relation("EstimateCreatedBy")
+  estimatesPresented                      Estimate[]                     @relation("EstimatePresentedBy")
+  estimatesAccepted                       Estimate[]                     @relation("EstimateAcceptedBy")
+  estimatesDeclined                       Estimate[]                     @relation("EstimateDeclinedBy")
+  estimatesVoided                         Estimate[]                     @relation("EstimateVoidedBy")
 
   @@index([clerkId])
 }
@@ -947,6 +966,7 @@ model Workspace {
   leads                             Lead[]
   recurringServices                 RecurringService[]
   jobAssignments                    JobAssignment[]
+  estimates                         Estimate[]
 
   @@index([ownerId])
   @@index([slug])
@@ -1136,6 +1156,7 @@ model Customer {
   jobs              Job[]              @relation("JobCustomer")
   recurringServices RecurringService[] @relation("RecurringServiceCustomer")
   convertedLead     Lead?              @relation("LeadConvertedCustomer")
+  estimates         Estimate[]         @relation("EstimateCustomer")
   assignee          WorkspaceMember?   @relation("CustomerAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   createdBy         UserProfile        @relation("CustomerCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
@@ -1225,6 +1246,7 @@ model Lead {
   assignee          WorkspaceMember? @relation("LeadAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   convertedCustomer Customer?        @relation("LeadConvertedCustomer", fields: [convertedCustomerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   createdBy         UserProfile      @relation("LeadCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  estimates         Estimate[]       @relation("EstimateLead")
 
   @@unique([id, workspaceId])
   @@unique([convertedCustomerId, workspaceId])
@@ -1236,6 +1258,101 @@ model Lead {
   @@index([workspaceId, phone])
   @@index([workspaceId, convertedAt])
   @@index([createdByUserId])
+}
+
+model Estimate {
+  id                 String  @id @default(cuid())
+  workspaceId        String
+  referenceNumber    String
+  revisionNumber     Int     @default(1)
+  previousRevisionId String?
+
+  leadId     String?
+  customerId String?
+
+  title            String
+  scopeDescription String?
+
+  contactNameSnapshot  String?
+  contactEmailSnapshot String?
+  contactPhoneSnapshot String?
+
+  serviceAddressLine1Snapshot      String?
+  serviceAddressLine2Snapshot      String?
+  serviceAddressCitySnapshot       String?
+  serviceAddressRegionSnapshot     String?
+  serviceAddressPostalCodeSnapshot String?
+  serviceAddressCountrySnapshot    String?
+
+  currency                       String @default("USD")
+  oneTimeSubtotalCents           Int    @default(0)
+  recurringPerVisitSubtotalCents Int    @default(0)
+
+  status    EstimateStatus @default(DRAFT)
+  expiresOn String?
+  version   Int            @default(1)
+
+  createdByUserId   String
+  presentedByUserId String?
+  acceptedByUserId  String?
+  declinedByUserId  String?
+  voidedByUserId    String?
+
+  presentedAt DateTime?
+  acceptedAt  DateTime?
+  declinedAt  DateTime?
+  voidedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  archivedAt  DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  lead      Lead?     @relation("EstimateLead", fields: [leadId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  customer  Customer? @relation("EstimateCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+
+  previousRevision Estimate? @relation("EstimateRevisionLineage", fields: [previousRevisionId, workspaceId, referenceNumber], references: [id, workspaceId, referenceNumber], onDelete: Restrict)
+  nextRevision     Estimate? @relation("EstimateRevisionLineage")
+
+  createdBy   UserProfile  @relation("EstimateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  presentedBy UserProfile? @relation("EstimatePresentedBy", fields: [presentedByUserId], references: [id], onDelete: Restrict)
+  acceptedBy  UserProfile? @relation("EstimateAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
+  declinedBy  UserProfile? @relation("EstimateDeclinedBy", fields: [declinedByUserId], references: [id], onDelete: Restrict)
+  voidedBy    UserProfile? @relation("EstimateVoidedBy", fields: [voidedByUserId], references: [id], onDelete: Restrict)
+
+  lineItems EstimateLineItem[]
+
+  @@unique([id, workspaceId])
+  @@unique([id, workspaceId, referenceNumber])
+  @@unique([workspaceId, referenceNumber, revisionNumber])
+  @@unique([previousRevisionId, workspaceId, referenceNumber])
+  @@index([workspaceId, status, updatedAt])
+  @@index([workspaceId, status, expiresOn])
+  @@index([workspaceId, leadId, archivedAt])
+  @@index([workspaceId, customerId, archivedAt])
+  @@index([createdByUserId])
+  @@index([presentedByUserId])
+  @@index([acceptedByUserId])
+  @@index([declinedByUserId])
+  @@index([voidedByUserId])
+}
+
+model EstimateLineItem {
+  id           String               @id @default(cuid())
+  workspaceId  String
+  estimateId   String
+  title        String
+  description  String?
+  billingBasis EstimateBillingBasis
+  amountCents  Int
+  sortOrder    Int
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  estimate Estimate @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+
+  @@unique([id, workspaceId])
+  @@unique([estimateId, sortOrder])
+  @@index([workspaceId, estimateId, sortOrder])
 }
 
 model WorkspaceTeam {
