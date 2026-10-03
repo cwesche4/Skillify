@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   archiveWorkItem: vi.fn(),
   listWorkspaceMemberExecutableJobIds: vi.fn(),
   canWorkspaceMemberExecuteJob: vi.fn(),
+  sourceFindMany: vi.fn(),
 }))
 
 vi.mock('@/lib/automations/authorization', () => ({
@@ -43,6 +44,12 @@ vi.mock('@/lib/jobs/jobExecutionAuthorization', () => ({
   listWorkspaceMemberExecutableJobIds:
     mocks.listWorkspaceMemberExecutableJobIds,
   canWorkspaceMemberExecuteJob: mocks.canWorkspaceMemberExecuteJob,
+}))
+
+vi.mock('@/lib/db', () => ({
+  prisma: {
+    estimateOperationalizationItem: { findMany: mocks.sourceFindMany },
+  },
 }))
 
 import {
@@ -90,6 +97,7 @@ describe('Jobs and Work Items API routes', () => {
     mocks.authorizeWorkspaceAccess.mockResolvedValue(managerAuthorization)
     mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(new Set())
     mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(false)
+    mocks.sourceFindMany.mockResolvedValue([])
   })
 
   it('creates a Job with server-authoritative workspace and actor context', async () => {
@@ -167,6 +175,7 @@ describe('Jobs and Work Items API routes', () => {
       serviceLocationSnapshot: '10 Main Street',
       customerPhoneSnapshot: '555-0110',
       canCurrentMemberExecute: true,
+      sourceEstimate: null,
     })
     expect(body.jobs[1]).toMatchObject({
       id: 'job-unrelated',
@@ -181,7 +190,9 @@ describe('Jobs and Work Items API routes', () => {
       unableToCompleteAt: null,
       unableToCompleteReportedByMemberId: null,
       canCurrentMemberExecute: false,
+      sourceEstimate: null,
     })
+    expect(mocks.sourceFindMany).not.toHaveBeenCalled()
 
     mocks.getJob.mockResolvedValue({
       id: 'job-unrelated',

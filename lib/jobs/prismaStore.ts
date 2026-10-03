@@ -15,6 +15,7 @@ import {
   type CustomerOperationalContext,
 } from '@/lib/jobs/operationalContext'
 import type {
+  CreateJobData,
   JobAssignmentTarget,
   ResolvedJobAssignment,
 } from '@/lib/jobs/types'
@@ -133,6 +134,99 @@ function assignmentCreateData(
   }))
 }
 
+export type TransactionalJobStepInput = {
+  title: string
+  description: string | null
+  sortOrder: number
+}
+
+export async function createJobInTransaction({
+  tx,
+  data,
+  assignments,
+  steps = [],
+}: {
+  tx: Prisma.TransactionClient
+  data: CreateJobData
+  assignments: JobAssignmentTarget[]
+  steps?: TransactionalJobStepInput[]
+}) {
+  let customer: CustomerOperationalContext | null = null
+  if (data.customerId) {
+    const customers = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT customer."id"
+      FROM "Customer" AS customer
+      INNER JOIN "Workspace" AS workspace
+        ON workspace."id" = customer."workspaceId"
+      WHERE customer."id" = ${data.customerId}
+        AND customer."workspaceId" = ${data.workspaceId}
+        AND customer."archivedAt" IS NULL
+        AND workspace."businessModel" = 'SIMPLE_SERVICE_BUSINESS'
+      FOR UPDATE
+    `
+    if (customers.length !== 1) {
+      throw new OperationsServiceError(
+        'Choose an active Customer from this workspace.',
+        400,
+        'VALIDATION_ERROR',
+        { customerId: ['Choose an active Customer from this workspace.'] },
+      )
+    }
+    customer = await tx.customer.findFirst({
+      where: { id: data.customerId, workspaceId: data.workspaceId },
+      select: customerOperationalContextSelect,
+    })
+  }
+  const resolvedAssignments = await lockAndResolveAssignments(
+    tx,
+    data.workspaceId,
+    assignments,
+  )
+  if (!resolvedAssignments) {
+    throw new OperationsServiceError(
+      'Choose active members or teams from this workspace.',
+      400,
+      'VALIDATION_ERROR',
+      {
+        assignments: ['Choose active members or teams from this workspace.'],
+      },
+    )
+  }
+  return tx.job.create({
+    data: {
+      ...data,
+      ...(customer ? customerOperationalSnapshots(customer) : {}),
+      assignments: {
+        create: assignmentCreateData(data.workspaceId, resolvedAssignments),
+      },
+      ...(steps.length
+        ? {
+            workItems: {
+              create: steps.map((step) => ({
+                workspaceId: data.workspaceId,
+                kind: 'JOB_STEP' as const,
+                title: step.title,
+                description: step.description,
+                notes: null,
+                status: 'OPEN' as const,
+                priority: data.priority,
+                dueAt: null,
+                completedAt: null,
+                sortOrder: step.sortOrder,
+                assigneeMemberId: null,
+                createdByUserId: data.createdByUserId,
+              })),
+            },
+          }
+        : {}),
+    },
+    include: {
+      assignments: { orderBy: { createdAt: 'asc' } },
+      workItems: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+    },
+  })
+}
+
 export const prismaJobsStore: JobsStore = {
   async getWorkspaceBusinessModel(workspaceId) {
     const workspace = await prisma.workspace.findUnique({
@@ -176,62 +270,11 @@ export const prismaJobsStore: JobsStore = {
     return resolveAssignments(prisma, workspaceId, assignments)
   },
 
-  createJob(data, assignments) {
-    return prisma.$transaction(async (tx) => {
-      let customer: CustomerOperationalContext | null = null
-      if (data.customerId) {
-        const customers = await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT customer."id"
-          FROM "Customer" AS customer
-          INNER JOIN "Workspace" AS workspace
-            ON workspace."id" = customer."workspaceId"
-          WHERE customer."id" = ${data.customerId}
-            AND customer."workspaceId" = ${data.workspaceId}
-            AND customer."archivedAt" IS NULL
-            AND workspace."businessModel" = 'SIMPLE_SERVICE_BUSINESS'
-          FOR UPDATE
-        `
-        if (customers.length !== 1) {
-          throw new OperationsServiceError(
-            'Choose an active Customer from this workspace.',
-            400,
-            'VALIDATION_ERROR',
-            { customerId: ['Choose an active Customer from this workspace.'] },
-          )
-        }
-        customer = await tx.customer.findFirst({
-          where: { id: data.customerId, workspaceId: data.workspaceId },
-          select: customerOperationalContextSelect,
-        })
-      }
-      const resolvedAssignments = await lockAndResolveAssignments(
-        tx,
-        data.workspaceId,
-        assignments,
-      )
-      if (!resolvedAssignments) {
-        throw new OperationsServiceError(
-          'Choose active members or teams from this workspace.',
-          400,
-          'VALIDATION_ERROR',
-          {
-            assignments: [
-              'Choose active members or teams from this workspace.',
-            ],
-          },
-        )
-      }
-      return tx.job.create({
-        data: {
-          ...data,
-          ...(customer ? customerOperationalSnapshots(customer) : {}),
-          assignments: {
-            create: assignmentCreateData(data.workspaceId, resolvedAssignments),
-          },
-        },
-        include: { assignments: { orderBy: { createdAt: 'asc' } } },
-      })
-    })
+  async createJob(data, assignments) {
+    const { workItems: _workItems, ...job } = await prisma.$transaction((tx) =>
+      createJobInTransaction({ tx, data, assignments }),
+    )
+    return job
   },
 
   findJob({ workspaceId, jobId }) {

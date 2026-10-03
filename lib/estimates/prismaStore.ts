@@ -403,16 +403,82 @@ export const prismaEstimateStore: EstimateStore = {
       include: estimateInclude,
     })
     if (!estimate) return null
-    const revisions = await prisma.estimate.findMany({
-      where: { workspaceId, referenceNumber: estimate.referenceNumber },
-      select: revisionSelect,
-      orderBy: [{ revisionNumber: 'asc' }, { id: 'asc' }],
-      take: REVISION_HISTORY_LIMIT + 1,
-    })
+    const [revisions, operationalization, convertedLead] = await Promise.all([
+      prisma.estimate.findMany({
+        where: { workspaceId, referenceNumber: estimate.referenceNumber },
+        select: revisionSelect,
+        orderBy: [{ revisionNumber: 'asc' }, { id: 'asc' }],
+        take: REVISION_HISTORY_LIMIT + 1,
+      }),
+      prisma.estimateOperationalization.findFirst({
+        where: { workspaceId, referenceNumber: estimate.referenceNumber },
+        include: {
+          items: {
+            orderBy: { createdAt: 'asc' },
+            select: {
+              estimateLineItemId: true,
+              targetKind: true,
+              jobId: true,
+              jobStepId: true,
+              recurringServiceId: true,
+            },
+          },
+        },
+      }),
+      estimate.leadId
+        ? prisma.lead.findFirst({
+            where: { id: estimate.leadId, workspaceId },
+            select: { convertedCustomerId: true },
+          })
+        : null,
+    ])
+    const operationalCustomerId =
+      estimate.customerId ?? convertedLead?.convertedCustomerId ?? null
+    const operationalCustomer = operationalCustomerId
+      ? await prisma.customer.findFirst({
+          where: {
+            id: operationalCustomerId,
+            workspaceId,
+            archivedAt: null,
+          },
+          select: {
+            id: true,
+            displayName: true,
+            contactName: true,
+            email: true,
+            phone: true,
+            serviceAddressLine1: true,
+            serviceAddressLine2: true,
+            serviceAddressCity: true,
+            serviceAddressRegion: true,
+            serviceAddressPostalCode: true,
+            serviceAddressCountry: true,
+          },
+        })
+      : null
     return {
       estimate,
       revisions: revisions.slice(0, REVISION_HISTORY_LIMIT),
       revisionHistoryTruncated: revisions.length > REVISION_HISTORY_LIMIT,
+      operationalization: operationalization
+        ? {
+            id: operationalization.id,
+            customerId: operationalization.customerId,
+            operationalizedAt: operationalization.operationalizedAt,
+            jobId:
+              operationalization.items.find((item) => item.targetKind === 'JOB')
+                ?.jobId ?? null,
+            recurringServiceIds: [
+              ...new Set(
+                operationalization.items.flatMap((item) =>
+                  item.recurringServiceId ? [item.recurringServiceId] : [],
+                ),
+              ),
+            ],
+            mappings: operationalization.items,
+          }
+        : null,
+      operationalCustomer,
     }
   },
 

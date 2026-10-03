@@ -306,7 +306,6 @@ export const prismaRecurringJobMaterializationStore: RecurringJobMaterialization
             teams.map((team) => [team.id, team.name]),
           )
           const jobAssignments = event.assignments.map((assignment) => ({
-            workspaceId,
             assignmentType: assignment.assignmentType,
             workspaceMemberId: assignment.workspaceMemberId,
             teamId: assignment.teamId,
@@ -359,7 +358,6 @@ export const prismaRecurringJobMaterializationStore: RecurringJobMaterialization
               assignments: { create: jobAssignments },
               workItems: {
                 create: service.stepTemplates.map((template) => ({
-                  workspaceId,
                   kind: 'JOB_STEP',
                   title: template.title,
                   description: template.description,

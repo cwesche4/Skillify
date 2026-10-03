@@ -100,6 +100,35 @@ export type EstimateClientListRecord = Pick<
   | 'customer'
 >
 
+export type EstimateClientOperationalization = {
+  id: string
+  customerId: string
+  operationalizedAt: string
+  jobId: string | null
+  recurringServiceIds: string[]
+  mappings: Array<{
+    estimateLineItemId: string
+    targetKind: 'JOB' | 'RECURRING_SERVICE'
+    jobId: string | null
+    jobStepId: string | null
+    recurringServiceId: string | null
+  }>
+}
+
+export type EstimateClientOperationalCustomer = {
+  id: string
+  displayName: string
+  contactName: string | null
+  email: string | null
+  phone: string | null
+  serviceAddressLine1: string | null
+  serviceAddressLine2: string | null
+  serviceAddressCity: string | null
+  serviceAddressRegion: string | null
+  serviceAddressPostalCode: string | null
+  serviceAddressCountry: string | null
+}
+
 export type EstimateDraftInput = {
   leadId?: string | null
   customerId?: string | null

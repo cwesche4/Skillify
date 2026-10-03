@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   createRecurringService: vi.fn(),
   updateRecurringService: vi.fn(),
   changeLifecycle: vi.fn(),
+  sourceFindMany: vi.fn(),
 }))
 
 vi.mock('@/lib/automations/authorization', () => ({
@@ -20,6 +21,12 @@ vi.mock('@/lib/recurring-services/defaultService', () => ({
     createRecurringService: mocks.createRecurringService,
     updateRecurringService: mocks.updateRecurringService,
     changeLifecycle: mocks.changeLifecycle,
+  },
+}))
+
+vi.mock('@/lib/db', () => ({
+  prisma: {
+    estimateOperationalizationItem: { findMany: mocks.sourceFindMany },
   },
 }))
 
@@ -42,10 +49,17 @@ const managerAuthorization = {
   workspaceMemberId: 'member-manager',
 }
 
+const memberAuthorization = {
+  ...managerAuthorization,
+  role: 'MEMBER',
+  workspaceMemberId: 'member-ordinary',
+}
+
 describe('Recurring Service API routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.authorizeWorkspaceAccess.mockResolvedValue(managerAuthorization)
+    mocks.sourceFindMany.mockResolvedValue([])
   })
 
   it('uses view authorization for reads and management authorization for mutations', async () => {
@@ -127,6 +141,22 @@ describe('Recurring Service API routes', () => {
       recurringServiceId: 'service-1',
       action: 'pause',
     })
+  })
+
+  it('does not query or expose Estimate provenance to an ordinary Member', async () => {
+    mocks.authorizeWorkspaceAccess.mockResolvedValue(memberAuthorization)
+    mocks.listRecurringServices.mockResolvedValue([{ id: 'service-1' }])
+
+    const response = await listRecurringServicesRoute(
+      new Request('http://localhost/api/workspaces/ws-a/recurring-services'),
+      { params: { workspaceId: 'ws-a' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      recurringServices: [{ id: 'service-1', sourceEstimate: null }],
+    })
+    expect(mocks.sourceFindMany).not.toHaveBeenCalled()
   })
 
   it('denies Members before any Recurring Service operation runs', async () => {

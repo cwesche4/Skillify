@@ -136,6 +136,11 @@ enum EstimateBillingBasis {
   PER_VISIT
 }
 
+enum EstimateOperationalizationTargetKind {
+  JOB
+  RECURRING_SERVICE
+}
+
 enum WorkspaceTeamType {
   GENERAL
   OFFICE
@@ -823,6 +828,7 @@ model UserProfile {
   estimatesAccepted                       Estimate[]                     @relation("EstimateAcceptedBy")
   estimatesDeclined                       Estimate[]                     @relation("EstimateDeclinedBy")
   estimatesVoided                         Estimate[]                     @relation("EstimateVoidedBy")
+  estimateOperationalizations             EstimateOperationalization[]   @relation("EstimateOperationalizedBy")
 
   @@index([clerkId])
 }
@@ -967,6 +973,8 @@ model Workspace {
   recurringServices                 RecurringService[]
   jobAssignments                    JobAssignment[]
   estimates                         Estimate[]
+  estimateOperationalizations       EstimateOperationalization[]
+  estimateOperationalizationItems   EstimateOperationalizationItem[]
 
   @@index([ownerId])
   @@index([slug])
@@ -1048,15 +1056,16 @@ model Job {
   updatedAt                          DateTime                   @updatedAt
   archivedAt                         DateTime?
 
-  workspace                  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  customer                   Customer?         @relation("JobCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  assignee                   WorkspaceMember?  @relation("JobAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  unableToCompleteReportedBy WorkspaceMember?  @relation("JobUnableReporter", fields: [unableToCompleteReportedByMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  createdBy                  UserProfile       @relation("JobCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  workItems                  WorkItem[]
-  assignments                JobAssignment[]
-  recurringService           RecurringService? @relation(fields: [recurringServiceId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  schedulingEvent            SchedulingEvent?  @relation(fields: [schedulingEventId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  workspace                       Workspace                        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  customer                        Customer?                        @relation("JobCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  assignee                        WorkspaceMember?                 @relation("JobAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  unableToCompleteReportedBy      WorkspaceMember?                 @relation("JobUnableReporter", fields: [unableToCompleteReportedByMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy                       UserProfile                      @relation("JobCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  workItems                       WorkItem[]
+  assignments                     JobAssignment[]
+  estimateOperationalizationItems EstimateOperationalizationItem[] @relation("EstimateOperationalizationJob")
+  recurringService                RecurringService?                @relation(fields: [recurringServiceId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  schedulingEvent                 SchedulingEvent?                 @relation(fields: [schedulingEventId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
 
   @@unique([id, workspaceId])
   @@unique([schedulingEventId, workspaceId])
@@ -1114,11 +1123,14 @@ model WorkItem {
   updatedAt        DateTime  @updatedAt
   archivedAt       DateTime?
 
-  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  job       Job?             @relation(fields: [jobId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  assignee  WorkspaceMember? @relation("WorkItemAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  createdBy UserProfile      @relation("WorkItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  workspace                       Workspace                        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  job                             Job?                             @relation(fields: [jobId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  assignee                        WorkspaceMember?                 @relation("WorkItemAssignee", fields: [assigneeMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy                       UserProfile                      @relation("WorkItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  estimateOperationalizationItems EstimateOperationalizationItem[] @relation("EstimateOperationalizationJobStep")
 
+  @@unique([id, workspaceId], map: "WorkItem_id_workspace_key")
+  @@unique([id, jobId, workspaceId], map: "WorkItem_id_job_workspace_key")
   @@unique([jobId, sortOrder])
   @@index([workspaceId, archivedAt, kind, status])
   @@index([workspaceId, jobId, archivedAt])
@@ -1152,13 +1164,14 @@ model Customer {
   updatedAt        DateTime  @updatedAt
   archivedAt       DateTime?
 
-  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  jobs              Job[]              @relation("JobCustomer")
-  recurringServices RecurringService[] @relation("RecurringServiceCustomer")
-  convertedLead     Lead?              @relation("LeadConvertedCustomer")
-  estimates         Estimate[]         @relation("EstimateCustomer")
-  assignee          WorkspaceMember?   @relation("CustomerAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  createdBy         UserProfile        @relation("CustomerCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  workspace                   Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  jobs                        Job[]                        @relation("JobCustomer")
+  recurringServices           RecurringService[]           @relation("RecurringServiceCustomer")
+  convertedLead               Lead?                        @relation("LeadConvertedCustomer")
+  estimates                   Estimate[]                   @relation("EstimateCustomer")
+  estimateOperationalizations EstimateOperationalization[]
+  assignee                    WorkspaceMember?             @relation("CustomerAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy                   UserProfile                  @relation("CustomerCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@unique([id, workspaceId])
   @@index([workspaceId, archivedAt, displayName])
@@ -1187,12 +1200,13 @@ model RecurringService {
   updatedAt       DateTime  @updatedAt
   endedAt         DateTime?
 
-  workspace        Workspace                      @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  customer         Customer                       @relation("RecurringServiceCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  recurrenceSeries SchedulingRecurrenceSeries     @relation(fields: [recurrenceSeriesId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  createdBy        UserProfile                    @relation("RecurringServiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  stepTemplates    RecurringServiceStepTemplate[]
-  jobs             Job[]
+  workspace                       Workspace                        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  customer                        Customer                         @relation("RecurringServiceCustomer", fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  recurrenceSeries                SchedulingRecurrenceSeries       @relation(fields: [recurrenceSeriesId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy                       UserProfile                      @relation("RecurringServiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  stepTemplates                   RecurringServiceStepTemplate[]
+  jobs                            Job[]
+  estimateOperationalizationItems EstimateOperationalizationItem[] @relation("EstimateOperationalizationRecurringService")
 
   @@unique([id, workspaceId])
   @@unique([recurrenceSeriesId, workspaceId])
@@ -1319,7 +1333,9 @@ model Estimate {
   declinedBy  UserProfile? @relation("EstimateDeclinedBy", fields: [declinedByUserId], references: [id], onDelete: Restrict)
   voidedBy    UserProfile? @relation("EstimateVoidedBy", fields: [voidedByUserId], references: [id], onDelete: Restrict)
 
-  lineItems EstimateLineItem[]
+  lineItems               EstimateLineItem[]
+  operationalization      EstimateOperationalization?
+  operationalizationItems EstimateOperationalizationItem[]
 
   @@unique([id, workspaceId])
   @@unique([id, workspaceId, referenceNumber])
@@ -1348,11 +1364,69 @@ model EstimateLineItem {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 
-  estimate Estimate @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  estimate               Estimate                        @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  operationalizationItem EstimateOperationalizationItem?
 
   @@unique([id, workspaceId])
+  @@unique([id, workspaceId, estimateId], map: "EstimateLineItem_id_workspace_estimate_key")
   @@unique([estimateId, sortOrder])
   @@index([workspaceId, estimateId, sortOrder])
+}
+
+model EstimateOperationalization {
+  id                      String   @id @default(cuid())
+  workspaceId             String
+  estimateId              String
+  referenceNumber         String
+  acceptedEstimateVersion Int
+  customerId              String
+  idempotencyKey          String
+  requestHash             String
+  operationalizedByUserId String
+  operationalizedAt       DateTime @default(now())
+  createdAt               DateTime @default(now())
+
+  workspace         Workspace                        @relation(fields: [workspaceId], references: [id], onDelete: Restrict, map: "EstimateOperationalization_workspace_fkey")
+  estimate          Estimate                         @relation(fields: [estimateId, workspaceId, referenceNumber], references: [id, workspaceId, referenceNumber], onDelete: Restrict, map: "EstimateOperationalization_estimate_fkey")
+  customer          Customer                         @relation(fields: [customerId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateOperationalization_customer_fkey")
+  operationalizedBy UserProfile                      @relation("EstimateOperationalizedBy", fields: [operationalizedByUserId], references: [id], onDelete: Restrict, map: "EstimateOperationalization_actor_fkey")
+  items             EstimateOperationalizationItem[]
+
+  @@unique([id, workspaceId, estimateId], map: "EstimateOperationalization_id_workspace_estimate_key")
+  @@unique([estimateId, workspaceId, referenceNumber], map: "EstimateOperationalization_estimate_workspace_reference_key")
+  @@unique([workspaceId, estimateId], map: "EstimateOperationalization_workspace_estimate_key")
+  @@unique([workspaceId, referenceNumber], map: "EstimateOperationalization_workspace_reference_key")
+  @@unique([workspaceId, idempotencyKey], map: "EstimateOperationalization_workspace_idempotency_key")
+  @@index([workspaceId, customerId, operationalizedAt], map: "EstimateOperationalization_workspace_customer_time_idx")
+  @@index([operationalizedByUserId], map: "EstimateOperationalization_actor_idx")
+}
+
+model EstimateOperationalizationItem {
+  id                   String                               @id @default(cuid())
+  workspaceId          String
+  operationalizationId String
+  estimateId           String
+  estimateLineItemId   String
+  targetKind           EstimateOperationalizationTargetKind
+  jobId                String?
+  jobStepId            String?
+  recurringServiceId   String?
+  createdAt            DateTime                             @default(now())
+
+  workspace          Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Restrict, map: "EstimateOperationalizationItem_workspace_fkey")
+  operationalization EstimateOperationalization @relation(fields: [operationalizationId, workspaceId, estimateId], references: [id, workspaceId, estimateId], onDelete: Restrict, map: "EstimateOperationalizationItem_parent_fkey")
+  estimate           Estimate                   @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateOperationalizationItem_estimate_fkey")
+  estimateLineItem   EstimateLineItem           @relation(fields: [estimateLineItemId, workspaceId, estimateId], references: [id, workspaceId, estimateId], onDelete: Restrict, map: "EstimateOperationalizationItem_line_fkey")
+  job                Job?                       @relation("EstimateOperationalizationJob", fields: [jobId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateOperationalizationItem_job_fkey")
+  jobStep            WorkItem?                  @relation("EstimateOperationalizationJobStep", fields: [jobStepId, jobId, workspaceId], references: [id, jobId, workspaceId], onDelete: Restrict, map: "EstimateOperationalizationItem_step_fkey")
+  recurringService   RecurringService?          @relation("EstimateOperationalizationRecurringService", fields: [recurringServiceId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateOperationalizationItem_service_fkey")
+
+  @@unique([workspaceId, estimateLineItemId], map: "EstimateOperationalizationItem_workspace_line_key")
+  @@unique([estimateLineItemId, workspaceId, estimateId], map: "EstimateOperationalizationItem_line_workspace_estimate_key")
+  @@index([workspaceId, operationalizationId], map: "EstimateOperationalizationItem_workspace_parent_idx")
+  @@index([workspaceId, jobId], map: "EstimateOperationalizationItem_workspace_job_idx")
+  @@index([workspaceId, jobStepId], map: "EstimateOperationalizationItem_workspace_step_idx")
+  @@index([workspaceId, recurringServiceId], map: "EstimateOperationalizationItem_workspace_service_idx")
 }
 
 model WorkspaceTeam {

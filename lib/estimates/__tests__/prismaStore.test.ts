@@ -4,6 +4,9 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   estimateFindMany: vi.fn(),
   estimateFindFirst: vi.fn(),
+  operationalizationFindFirst: vi.fn(),
+  leadFindFirst: vi.fn(),
+  customerFindFirst: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
@@ -13,6 +16,11 @@ vi.mock('@/lib/db', () => ({
       findMany: mocks.estimateFindMany,
       findFirst: mocks.estimateFindFirst,
     },
+    estimateOperationalization: {
+      findFirst: mocks.operationalizationFindFirst,
+    },
+    lead: { findFirst: mocks.leadFindFirst },
+    customer: { findFirst: mocks.customerFindFirst },
   },
 }))
 
@@ -67,7 +75,12 @@ function installTransaction(tx: Record<string, unknown>) {
 }
 
 describe('Estimate Prisma store lifecycle and concurrency', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.operationalizationFindFirst.mockResolvedValue(null)
+    mocks.leadFindFirst.mockResolvedValue(null)
+    mocks.customerFindFirst.mockResolvedValue(null)
+  })
 
   it('rejects a Lead and Customer pair unless the Lead converted to that Customer', async () => {
     const tx = {

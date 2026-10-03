@@ -135,6 +135,37 @@ export type EstimateDetailResult = {
   revisions: EstimateRevisionSummary[]
   revisionHistoryTruncated: boolean
   workspaceDateKey: string
+  operationalization?: EstimateOperationalizationSummary | null
+  operationalCustomer?: EstimateOperationalCustomer | null
+}
+
+export type EstimateOperationalizationSummary = {
+  id: string
+  customerId: string
+  operationalizedAt: Date
+  jobId: string | null
+  recurringServiceIds: string[]
+  mappings: Array<{
+    estimateLineItemId: string
+    targetKind: 'JOB' | 'RECURRING_SERVICE'
+    jobId: string | null
+    jobStepId: string | null
+    recurringServiceId: string | null
+  }>
+}
+
+export type EstimateOperationalCustomer = {
+  id: string
+  displayName: string
+  contactName: string | null
+  email: string | null
+  phone: string | null
+  serviceAddressLine1: string | null
+  serviceAddressLine2: string | null
+  serviceAddressCity: string | null
+  serviceAddressRegion: string | null
+  serviceAddressPostalCode: string | null
+  serviceAddressCountry: string | null
 }
 
 export type EstimateActor = {

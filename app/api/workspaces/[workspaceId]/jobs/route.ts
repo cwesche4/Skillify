@@ -10,6 +10,7 @@ import { operationsService } from '@/lib/jobs/defaultService'
 import { listWorkspaceMemberExecutableJobIds } from '@/lib/jobs/jobExecutionAuthorization'
 import { presentJobOperationalContext } from '@/lib/jobs/operationalContext'
 import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
+import { prisma } from '@/lib/db'
 
 type RouteContext = { params: { workspaceId: string } }
 
@@ -29,6 +30,26 @@ export async function GET(request: Request, { params }: RouteContext) {
       customerId,
     })
     const canManage = canManageOperations(authorization.role)
+    const sources = canManage
+      ? await prisma.estimateOperationalizationItem.findMany({
+          where: {
+            workspaceId: params.workspaceId,
+            jobId: { in: jobs.map((job) => job.id) },
+          },
+          select: {
+            jobId: true,
+            estimate: {
+              select: { id: true, referenceNumber: true, title: true },
+            },
+          },
+          distinct: ['jobId'],
+        })
+      : []
+    const sourceByJobId = new Map(
+      sources.flatMap((source) =>
+        source.jobId ? [[source.jobId, source.estimate] as const] : [],
+      ),
+    )
     const executableJobIds =
       canManage || !authorization.workspaceMemberId
         ? new Set<string>()
@@ -48,6 +69,7 @@ export async function GET(request: Request, { params }: RouteContext) {
               authorization.workspaceMemberId,
         ),
         canCurrentMemberExecute: canExecute,
+        sourceEstimate: canManage ? (sourceByJobId.get(job.id) ?? null) : null,
       }
     })
     return NextResponse.json({ ok: true, jobs: presentedJobs })

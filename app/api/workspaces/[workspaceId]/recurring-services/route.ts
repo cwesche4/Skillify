@@ -7,6 +7,8 @@ import {
   recurringServiceAuthorizationError,
 } from '@/lib/recurring-services/api'
 import { recurringServiceService } from '@/lib/recurring-services/defaultService'
+import { prisma } from '@/lib/db'
+import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
 type RouteContext = { params: { workspaceId: string } }
 
@@ -36,7 +38,39 @@ export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const recurringServices =
       await recurringServiceService.listRecurringServices(params.workspaceId)
-    return NextResponse.json({ ok: true, recurringServices })
+    const canManage = canManageOperations(authorization.role)
+    const sources = canManage
+      ? await prisma.estimateOperationalizationItem.findMany({
+          where: {
+            workspaceId: params.workspaceId,
+            recurringServiceId: {
+              in: recurringServices.map((service) => service.id),
+            },
+          },
+          select: {
+            recurringServiceId: true,
+            estimate: {
+              select: { id: true, referenceNumber: true, title: true },
+            },
+          },
+        })
+      : []
+    const sourceByServiceId = new Map(
+      sources.flatMap((source) =>
+        source.recurringServiceId
+          ? [[source.recurringServiceId, source.estimate] as const]
+          : [],
+      ),
+    )
+    return NextResponse.json({
+      ok: true,
+      recurringServices: recurringServices.map((service) => ({
+        ...service,
+        sourceEstimate: canManage
+          ? (sourceByServiceId.get(service.id) ?? null)
+          : null,
+      })),
+    })
   } catch (error) {
     return recurringServiceApiError(error)
   }

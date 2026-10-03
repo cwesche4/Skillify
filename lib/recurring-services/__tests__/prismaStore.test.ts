@@ -82,6 +82,38 @@ describe('Recurring Service link-time reconciliation outbox', () => {
     })
   })
 
+  it('lets the parent relation supply composite keys for nested step templates', async () => {
+    const tx = transaction()
+    mocks.transaction.mockImplementation(async (callback) => callback(tx))
+
+    await prismaRecurringServiceStore.createRecurringService({
+      ...createData,
+      stepTemplates: [
+        {
+          title: 'Complete service checklist',
+          description: 'Record the result.',
+          sortOrder: 0,
+        },
+      ],
+    })
+
+    expect(tx.recurringService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          stepTemplates: {
+            create: [
+              {
+                title: 'Complete service checklist',
+                description: 'Record the result.',
+                sortOrder: 0,
+              },
+            ],
+          },
+        }),
+      }),
+    )
+  })
+
   it('does not allow service creation to succeed without its recovery signal', async () => {
     const tx = transaction(new Error('outbox unavailable'))
     mocks.transaction.mockImplementation(async (callback) => callback(tx))

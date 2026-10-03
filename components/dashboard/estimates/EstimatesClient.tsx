@@ -5,6 +5,7 @@ import React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Archive, FilePlus2, Plus, Trash2 } from 'lucide-react'
 
+import { EstimateOperationalizationModal } from '@/components/dashboard/estimates/EstimateOperationalizationModal'
 import { Alert } from '@/components/ui/Alert'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -25,6 +26,8 @@ import {
 } from '@/lib/estimates/client'
 import type {
   EstimateClientListRecord,
+  EstimateClientOperationalCustomer,
+  EstimateClientOperationalization,
   EstimateClientRecord,
   EstimateClientRevision,
 } from '@/lib/estimates/clientTypes'
@@ -40,6 +43,9 @@ type Props = {
   initialLeadId?: string
   initialCustomerId?: string
   initialCreate?: boolean
+  timezone?: string
+  members?: Array<{ id: string; name: string }>
+  teams?: Array<{ id: string; name: string }>
 }
 
 type DraftLine = {
@@ -208,6 +214,9 @@ export function EstimatesClient({
   initialLeadId,
   initialCustomerId,
   initialCreate,
+  timezone = 'UTC',
+  members = [],
+  teams = [],
 }: Props) {
   const [view, setView] = useState<EstimateListView>('ALL')
   const [estimates, setEstimates] = useState<EstimateClientListRecord[]>([])
@@ -217,6 +226,11 @@ export function EstimatesClient({
   const [revisions, setRevisions] = useState<EstimateClientRevision[]>([])
   const [revisionHistoryTruncated, setRevisionHistoryTruncated] =
     useState(false)
+  const [operationalization, setOperationalization] =
+    useState<EstimateClientOperationalization | null>(null)
+  const [operationalCustomer, setOperationalCustomer] =
+    useState<EstimateClientOperationalCustomer | null>(null)
+  const [handoffOpen, setHandoffOpen] = useState(false)
   const [leads, setLeads] = useState<LeadClientRecord[]>([])
   const [customers, setCustomers] = useState<CustomerClientRecord[]>([])
   const [draft, setDraft] = useState<DraftState>(() =>
@@ -267,6 +281,8 @@ export function EstimatesClient({
         setSelected(result.estimate)
         setRevisions(result.revisions)
         setRevisionHistoryTruncated(result.revisionHistoryTruncated)
+        setOperationalization(result.operationalization)
+        setOperationalCustomer(result.operationalCustomer)
         setWorkspaceDateKey(result.workspaceDateKey)
       } catch (loadError) {
         setError(
@@ -708,6 +724,73 @@ export function EstimatesClient({
                 ) : null}
               </section>
             ) : null}
+            {selected.status === EstimateStatus.ACCEPTED &&
+            operationalization ? (
+              <Alert variant="success">
+                <strong>Work Created</strong>
+                <span className="mt-1 block text-xs">
+                  Operational work was created on{' '}
+                  {dateTime(operationalization.operationalizedAt)}.
+                </span>
+                <span className="mt-2 flex flex-wrap gap-3">
+                  {operationalization.jobId ? (
+                    <Link
+                      className="text-xs font-medium underline"
+                      href={`/dashboard/${encodeURIComponent(workspaceSlug)}/service-requests?jobId=${encodeURIComponent(operationalization.jobId)}`}
+                    >
+                      Open Job
+                    </Link>
+                  ) : null}
+                  {operationalization.recurringServiceIds.map(
+                    (serviceId, index) => (
+                      <Link
+                        key={serviceId}
+                        className="text-xs font-medium underline"
+                        href={`/dashboard/${encodeURIComponent(workspaceSlug)}/scheduling/recurring-services?recurringServiceId=${encodeURIComponent(serviceId)}`}
+                      >
+                        Open Recurring Service {index + 1}
+                      </Link>
+                    ),
+                  )}
+                </span>
+              </Alert>
+            ) : null}
+            {selected.status === EstimateStatus.ACCEPTED &&
+            !operationalization &&
+            !selected.archivedAt ? (
+              operationalCustomer ? (
+                <Alert variant="info">
+                  <strong>Ready to create work</strong>
+                  <span className="mt-1 block text-xs">
+                    Acceptance is recorded. Management must review and confirm
+                    the operational setup before work is created.
+                  </span>
+                  <Button
+                    className="mt-3"
+                    size="sm"
+                    onClick={() => setHandoffOpen(true)}
+                  >
+                    Create Work
+                  </Button>
+                </Alert>
+              ) : (
+                <Alert variant="warning">
+                  <strong>Convert Lead to Customer first</strong>
+                  <span className="mt-1 block text-xs">
+                    Operational work requires an active Customer. No Customer
+                    will be created automatically.
+                  </span>
+                  {selected.leadId ? (
+                    <Link
+                      className="mt-2 inline-block text-xs font-medium underline"
+                      href={`/dashboard/${encodeURIComponent(workspaceSlug)}/leads?leadId=${encodeURIComponent(selected.leadId)}`}
+                    >
+                      Open Lead
+                    </Link>
+                  ) : null}
+                </Alert>
+              )
+            ) : null}
             {selected.archivedAt ? (
               <Alert variant="info">
                 This Estimate is archived and remains available as read-only
@@ -778,6 +861,24 @@ export function EstimatesClient({
           </div>
         ) : null}
       </Modal>
+
+      {selected && operationalCustomer ? (
+        <EstimateOperationalizationModal
+          key={`${selected.id}:${selected.version}`}
+          isOpen={handoffOpen}
+          estimate={selected}
+          customer={operationalCustomer}
+          workspaceId={workspaceId}
+          timezone={timezone}
+          members={members}
+          teams={teams}
+          onClose={() => setHandoffOpen(false)}
+          onCreated={async () => {
+            setHandoffOpen(false)
+            await Promise.all([openEstimate(selected.id), loadList()])
+          }}
+        />
+      ) : null}
 
       <Modal
         isOpen={editorOpen}

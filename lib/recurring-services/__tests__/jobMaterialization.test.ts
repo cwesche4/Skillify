@@ -195,7 +195,6 @@ describe('Recurring Service occurrence Job materialization', () => {
         assignments: {
           create: [
             {
-              workspaceId: 'workspace-1',
               assignmentType: 'MEMBER',
               workspaceMemberId: 'member-1',
               teamId: null,
@@ -232,6 +231,11 @@ describe('Recurring Service occurrence Job materialization', () => {
         (item: { kind: string }) => item.kind === 'JOB_STEP',
       ),
     ).toBe(true)
+    expect(jobInput.data.workItems.create).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ workspaceId: expect.anything() }),
+      ]),
+    )
     expect(tx.revenueTransaction.create).not.toHaveBeenCalled()
     expect(tx.domainOutboxEvent.create).not.toHaveBeenCalled()
   })
@@ -267,7 +271,6 @@ describe('Recurring Service occurrence Job materialization', () => {
           assignments: {
             create: [
               {
-                workspaceId: 'workspace-1',
                 assignmentType: 'TEAM',
                 workspaceMemberId: null,
                 teamId: 'team-1',

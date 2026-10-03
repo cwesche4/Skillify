@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { RecurringServiceServiceError } from '@/lib/recurring-services/service'
 import type { RecurringServiceStore } from '@/lib/recurring-services/service'
+import type { CreateRecurringServiceData } from '@/lib/recurring-services/types'
 
 const recurringServiceInclude = {
   stepTemplates: {
@@ -83,6 +84,104 @@ function seriesConflict() {
   )
 }
 
+export async function createRecurringServiceInTransaction({
+  tx,
+  data,
+}: {
+  tx: Prisma.TransactionClient
+  data: CreateRecurringServiceData
+}) {
+  const customers = await tx.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`SELECT "id" FROM "Customer" WHERE "id" = ${data.customerId} AND "workspaceId" = ${data.workspaceId} AND "archivedAt" IS NULL FOR UPDATE`,
+  )
+  if (customers.length !== 1) {
+    throw new RecurringServiceServiceError(
+      'Choose an active Customer from this workspace.',
+      400,
+      'VALIDATION_ERROR',
+      {
+        customerId: ['Choose an active Customer from this workspace.'],
+      },
+    )
+  }
+  const series = await tx.$queryRaw<
+    Array<{ id: string; status: string; eventTypeKey: string }>
+  >(
+    Prisma.sql`
+      SELECT series."id", series."status"::text, master."eventTypeKey"
+      FROM "SchedulingRecurrenceSeries" AS series
+      INNER JOIN "SchedulingEvent" AS master
+        ON master."id" = series."masterEventId"
+      WHERE series."id" = ${data.recurrenceSeriesId}
+        AND series."workspaceId" = ${data.workspaceId}
+      FOR UPDATE OF series
+    `,
+  )
+  const linkedSeries = series[0]
+  if (!linkedSeries || linkedSeries.eventTypeKey !== 'recurringServiceVisit') {
+    throw new RecurringServiceServiceError(
+      'Choose a recurring service schedule from this workspace.',
+      400,
+      'VALIDATION_ERROR',
+      {
+        recurrenceSeriesId: [
+          'Choose a recurring service schedule from this workspace.',
+        ],
+      },
+    )
+  }
+  if (linkedSeries.status !== 'ACTIVE' && linkedSeries.status !== 'PAUSED') {
+    throw new RecurringServiceServiceError(
+      'An ended Scheduling series cannot back a new Recurring Service.',
+      409,
+      'CONFLICT',
+    )
+  }
+  const existing = await tx.recurringService.findFirst({
+    where: {
+      workspaceId: data.workspaceId,
+      recurrenceSeriesId: data.recurrenceSeriesId,
+    },
+    select: { id: true },
+  })
+  if (existing) throw seriesConflict()
+
+  const recurringService = await tx.recurringService.create({
+    data: {
+      workspaceId: data.workspaceId,
+      customerId: data.customerId,
+      recurrenceSeriesId: data.recurrenceSeriesId,
+      name: data.name,
+      description: data.description,
+      serviceInstructions: data.serviceInstructions,
+      pricePerVisitCents: data.pricePerVisitCents,
+      currency: data.currency,
+      defaultJobPriority: data.defaultJobPriority,
+      status: linkedSeries.status,
+      createdByUserId: data.createdByUserId,
+      stepTemplates: {
+        create: data.stepTemplates,
+      },
+    },
+    include: recurringServiceInclude,
+  })
+  await tx.domainOutboxEvent.create({
+    data: {
+      workspaceId: data.workspaceId,
+      topic: 'scheduling.recurrence.materialized',
+      aggregateType: 'SchedulingRecurrenceSeries',
+      aggregateId: data.recurrenceSeriesId,
+      deduplicationKey: `recurring-service:reconcile:${recurringService.id}`,
+      payload: {
+        seriesId: data.recurrenceSeriesId,
+        recurringServiceId: recurringService.id,
+        recurringServiceReconciliation: true,
+      },
+    },
+  })
+  return recurringService
+}
+
 export const prismaRecurringServiceStore: RecurringServiceStore = {
   async getWorkspaceBusinessModel(workspaceId) {
     const workspace = await prisma.workspace.findUnique({
@@ -126,106 +225,9 @@ export const prismaRecurringServiceStore: RecurringServiceStore = {
 
   async createRecurringService(data) {
     try {
-      return await prisma.$transaction(async (tx) => {
-        const customers = await tx.$queryRaw<Array<{ id: string }>>(
-          Prisma.sql`SELECT "id" FROM "Customer" WHERE "id" = ${data.customerId} AND "workspaceId" = ${data.workspaceId} AND "archivedAt" IS NULL FOR UPDATE`,
-        )
-        if (customers.length !== 1) {
-          throw new RecurringServiceServiceError(
-            'Choose an active Customer from this workspace.',
-            400,
-            'VALIDATION_ERROR',
-            {
-              customerId: ['Choose an active Customer from this workspace.'],
-            },
-          )
-        }
-        const series = await tx.$queryRaw<
-          Array<{ id: string; status: string; eventTypeKey: string }>
-        >(
-          Prisma.sql`
-            SELECT series."id", series."status"::text, master."eventTypeKey"
-            FROM "SchedulingRecurrenceSeries" AS series
-            INNER JOIN "SchedulingEvent" AS master
-              ON master."id" = series."masterEventId"
-            WHERE series."id" = ${data.recurrenceSeriesId}
-              AND series."workspaceId" = ${data.workspaceId}
-            FOR UPDATE OF series
-          `,
-        )
-        const linkedSeries = series[0]
-        if (
-          !linkedSeries ||
-          linkedSeries.eventTypeKey !== 'recurringServiceVisit'
-        ) {
-          throw new RecurringServiceServiceError(
-            'Choose a recurring service schedule from this workspace.',
-            400,
-            'VALIDATION_ERROR',
-            {
-              recurrenceSeriesId: [
-                'Choose a recurring service schedule from this workspace.',
-              ],
-            },
-          )
-        }
-        if (
-          linkedSeries.status !== 'ACTIVE' &&
-          linkedSeries.status !== 'PAUSED'
-        ) {
-          throw new RecurringServiceServiceError(
-            'An ended Scheduling series cannot back a new Recurring Service.',
-            409,
-            'CONFLICT',
-          )
-        }
-        const existing = await tx.recurringService.findFirst({
-          where: {
-            workspaceId: data.workspaceId,
-            recurrenceSeriesId: data.recurrenceSeriesId,
-          },
-          select: { id: true },
-        })
-        if (existing) throw seriesConflict()
-
-        const recurringService = await tx.recurringService.create({
-          data: {
-            workspaceId: data.workspaceId,
-            customerId: data.customerId,
-            recurrenceSeriesId: data.recurrenceSeriesId,
-            name: data.name,
-            description: data.description,
-            serviceInstructions: data.serviceInstructions,
-            pricePerVisitCents: data.pricePerVisitCents,
-            currency: data.currency,
-            defaultJobPriority: data.defaultJobPriority,
-            status: linkedSeries.status,
-            createdByUserId: data.createdByUserId,
-            stepTemplates: {
-              create: data.stepTemplates.map((step) => ({
-                workspaceId: data.workspaceId,
-                ...step,
-              })),
-            },
-          },
-          include: recurringServiceInclude,
-        })
-        await tx.domainOutboxEvent.create({
-          data: {
-            workspaceId: data.workspaceId,
-            topic: 'scheduling.recurrence.materialized',
-            aggregateType: 'SchedulingRecurrenceSeries',
-            aggregateId: data.recurrenceSeriesId,
-            deduplicationKey: `recurring-service:reconcile:${recurringService.id}`,
-            payload: {
-              seriesId: data.recurrenceSeriesId,
-              recurringServiceId: recurringService.id,
-              recurringServiceReconciliation: true,
-            },
-          },
-        })
-        return recurringService
-      })
+      return await prisma.$transaction((tx) =>
+        createRecurringServiceInTransaction({ tx, data }),
+      )
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

@@ -6,6 +6,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { EstimatesClient } from '@/components/dashboard/estimates/EstimatesClient'
 import { prisma } from '@/lib/db'
 import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
+import { getPersistedSchedulingSettings } from '@/lib/scheduling/services/schedulingService'
 import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
 type PageProps = {
@@ -50,6 +51,29 @@ export default async function EstimatesPage({
   ) {
     redirect(workspace ? `/dashboard/${workspace.slug}` : '/dashboard')
   }
+  const [members, teams, schedulingSettings] = await Promise.all([
+    prisma.workspaceMember.findMany({
+      where: { workspaceId: workspace.id },
+      select: {
+        id: true,
+        user: { select: { fullName: true, email: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.workspaceTeam.findMany({
+      where: {
+        workspaceId: workspace.id,
+        isActive: true,
+        archivedAt: null,
+      },
+      select: { id: true, name: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    }),
+    getPersistedSchedulingSettings({
+      workspaceId: workspace.id,
+      businessModel: workspace.businessModel,
+    }),
+  ])
   return (
     <DashboardShell className="max-w-7xl">
       <EstimatesClient
@@ -59,6 +83,12 @@ export default async function EstimatesPage({
         initialLeadId={searchParams?.leadId}
         initialCustomerId={searchParams?.customerId}
         initialCreate={searchParams?.create === '1'}
+        timezone={schedulingSettings.timezone}
+        members={members.map((member) => ({
+          id: member.id,
+          name: member.user.fullName || member.user.email || 'Workspace member',
+        }))}
+        teams={teams}
       />
     </DashboardShell>
   )

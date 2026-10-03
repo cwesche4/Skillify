@@ -908,6 +908,14 @@ function JobDetailDrawer({
               />
               <DetailItem label="Status" value={jobStatusLabels[job.status]} />
             </div>
+            {canManage && job.sourceEstimate ? (
+              <Link
+                className="mt-3 inline-block text-xs font-medium text-brand-primary hover:underline"
+                href={`/dashboard/${encodeURIComponent(workspaceSlug)}/estimates?estimateId=${encodeURIComponent(job.sourceEstimate.id)}`}
+              >
+                Source Estimate {job.sourceEstimate.referenceNumber}
+              </Link>
+            ) : null}
           </section>
 
           {(job.serviceLocationSnapshot ||

@@ -71,6 +71,11 @@ export type RecurringServiceClientRecord = {
     }
   }
   jobs?: RecurringServiceClientJob[]
+  sourceEstimate?: {
+    id: string
+    referenceNumber: string
+    title: string
+  } | null
 }
 
 export type RecurringServiceMutation = {

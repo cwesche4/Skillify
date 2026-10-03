@@ -42,6 +42,11 @@ export type JobClientRecord = {
   unableToCompleteAt?: string | null
   unableToCompleteReportedByMemberId?: string | null
   canCurrentMemberExecute?: boolean
+  sourceEstimate?: {
+    id: string
+    referenceNumber: string
+    title: string
+  } | null
 }
 
 export type JobAssignmentClientRecord = {

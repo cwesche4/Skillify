@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   transitionEstimate: vi.fn(),
   createRevision: vi.fn(),
   archiveEstimate: vi.fn(),
+  operationalize: vi.fn(),
 }))
 
 vi.mock('@/lib/estimates/api', async () => {
@@ -30,9 +31,14 @@ vi.mock('@/lib/estimates/defaultService', () => ({
   },
 }))
 
+vi.mock('@/lib/estimates/operationalization', () => ({
+  operationalizeAcceptedEstimate: mocks.operationalize,
+}))
+
 import * as actionRoute from '@/app/api/workspaces/[workspaceId]/estimates/[estimateId]/[action]/route'
 import * as itemRoute from '@/app/api/workspaces/[workspaceId]/estimates/[estimateId]/route'
 import * as collectionRoute from '@/app/api/workspaces/[workspaceId]/estimates/route'
+import * as operationalizeRoute from '@/app/api/workspaces/[workspaceId]/estimates/[estimateId]/operationalize/route'
 
 const allowed = {
   allowed: true as const,
@@ -47,6 +53,63 @@ describe('Estimate API routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.authorize.mockResolvedValue(allowed)
+  })
+
+  it('uses the authorized management identity and returns 201 then 200 replay', async () => {
+    const body = {
+      expectedVersion: 2,
+      idempotencyKey: '11111111-1111-4111-8111-111111111111',
+      recurring: [],
+    }
+    mocks.operationalize.mockResolvedValueOnce({
+      operationalizationId: 'handoff-a',
+      replayed: false,
+    })
+    const created = await operationalizeRoute.POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+      { params: { workspaceId: 'ws-a', estimateId: 'estimate-a' } },
+    )
+    expect(created.status).toBe(201)
+    expect(mocks.operationalize).toHaveBeenCalledWith({
+      actor: expect.objectContaining({
+        workspaceId: 'ws-a',
+        userProfileId: 'profile-manager',
+        workspaceMemberId: 'member-manager',
+        canManageScheduling: true,
+      }),
+      estimateId: 'estimate-a',
+      rawInput: body,
+    })
+
+    mocks.operationalize.mockResolvedValueOnce({
+      operationalizationId: 'handoff-a',
+      replayed: true,
+    })
+    const replay = await operationalizeRoute.POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+      { params: { workspaceId: 'ws-a', estimateId: 'estimate-a' } },
+    )
+    expect(replay.status).toBe(200)
+  })
+
+  it('denies operationalization before reading the request body', async () => {
+    mocks.authorize.mockResolvedValueOnce({
+      allowed: false,
+      status: 403,
+      message: 'Forbidden',
+    })
+    const response = await operationalizeRoute.POST(
+      new Request('http://localhost', { method: 'POST', body: '{broken' }),
+      { params: { workspaceId: 'ws-a', estimateId: 'estimate-a' } },
+    )
+    expect(response.status).toBe(403)
+    expect(mocks.operationalize).not.toHaveBeenCalled()
   })
 
   it('passes only bounded saved-view and cursor inputs to the list service', async () => {

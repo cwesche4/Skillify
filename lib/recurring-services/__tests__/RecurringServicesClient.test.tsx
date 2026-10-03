@@ -161,6 +161,23 @@ describe('Recurring Services UX', () => {
     expect(screen.getByText('Ended')).toBeTruthy()
   })
 
+  it('opens the workspace-scoped service requested by a management drill-down', async () => {
+    render(
+      <RecurringServicesClient
+        workspaceId="ws-1"
+        workspaceSlug="acme"
+        timezone="America/New_York"
+        members={[]}
+        canManage
+        initialRecurringServiceId="paused"
+      />,
+    )
+
+    expect(
+      await screen.findByRole('dialog', { name: 'PAUSED Lawn Care' }),
+    ).toBeTruthy()
+  })
+
   it('does not present management controls to a Member', async () => {
     render(
       <RecurringServicesClient

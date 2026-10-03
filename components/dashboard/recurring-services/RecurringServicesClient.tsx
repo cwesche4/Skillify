@@ -341,12 +341,14 @@ export function RecurringServicesClient({
   timezone,
   members,
   canManage,
+  initialRecurringServiceId = null,
 }: {
   workspaceId: string
   workspaceSlug: string
   timezone: string
   members: MemberOption[]
   canManage: boolean
+  initialRecurringServiceId?: string | null
 }) {
   const [services, setServices] = useState<RecurringServiceClientRecord[]>([])
   const [customers, setCustomers] = useState<CustomerClientRecord[]>([])
@@ -386,14 +388,16 @@ export function RecurringServicesClient({
       setSelected((current) =>
         current
           ? (nextServices.find((service) => service.id === current.id) ?? null)
-          : null,
+          : (nextServices.find(
+              (service) => service.id === initialRecurringServiceId,
+            ) ?? null),
       )
     } catch (loadError) {
       setError(errorMessage(loadError))
     } finally {
       setLoading(false)
     }
-  }, [workspaceId])
+  }, [initialRecurringServiceId, workspaceId])
 
   useEffect(() => {
     void load()
@@ -1379,6 +1383,14 @@ function ServiceDetailDialog({
             value={`${completedCount} completed Job${completedCount === 1 ? '' : 's'}`}
           />
         </div>
+        {canManage && service.sourceEstimate ? (
+          <Link
+            className="inline-block text-xs font-medium text-brand-primary hover:underline"
+            href={`/dashboard/${encodeURIComponent(workspaceSlug)}/estimates?estimateId=${encodeURIComponent(service.sourceEstimate.id)}`}
+          >
+            Source Estimate {service.sourceEstimate.referenceNumber}
+          </Link>
+        ) : null}
         {service.description ? (
           <TextBlock title="Description" text={service.description} />
         ) : null}

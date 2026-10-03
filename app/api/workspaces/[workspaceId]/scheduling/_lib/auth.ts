@@ -6,6 +6,7 @@ import { schedulingApiError } from '@/lib/scheduling/apiResponses'
 import { SchedulingRepositoryError } from '@/lib/scheduling/repository'
 import type { SchedulingMutationActor } from '@/lib/scheduling/services/schedulingService'
 import { SchedulingServiceError } from '@/lib/scheduling/services/schedulingService'
+import { canManageScheduling } from '@/lib/workspaces/workspaceRoles'
 
 export async function getSchedulingActor(
   workspaceId: string,
@@ -38,12 +39,11 @@ export async function getSchedulingActor(
     })
   }
 
-  const role = String(membership.role).toLowerCase()
   return {
     workspaceId,
     actorUserId: membership.userId,
     workspaceMemberId: membership.id,
-    canManageScheduling: role === 'owner' || role === 'admin',
+    canManageScheduling: canManageScheduling(membership.role),
   }
 }
 

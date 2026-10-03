@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { EstimatesClient } from '@/components/dashboard/estimates/EstimatesClient'
 import type { EstimateClientRecord } from '@/lib/estimates/clientTypes'
+import type {
+  EstimateClientOperationalCustomer,
+  EstimateClientOperationalization,
+} from '@/lib/estimates/clientTypes'
 
 function estimate(
   overrides: Partial<EstimateClientRecord> = {},
@@ -76,7 +80,11 @@ function estimate(
 
 function installApi(
   record = estimate(),
-  options: { revisionHistoryTruncated?: boolean } = {},
+  options: {
+    revisionHistoryTruncated?: boolean
+    operationalCustomer?: EstimateClientOperationalCustomer | null
+    operationalization?: EstimateClientOperationalization | null
+  } = {},
 ) {
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -100,6 +108,8 @@ function installApi(
             : [record],
           revisionHistoryTruncated: options.revisionHistoryTruncated ?? false,
           workspaceDateKey: '2026-09-30',
+          operationalCustomer: options.operationalCustomer ?? null,
+          operationalization: options.operationalization ?? null,
         })
       }
       if (url.pathname.endsWith('/estimates') && !init?.method) {
@@ -251,6 +261,80 @@ describe('Estimate management UI', () => {
     )
     expect(
       await screen.findByText(/Additional revision history is not shown/i),
+    ).toBeTruthy()
+  })
+
+  it('shows Convert Lead first when accepted work has no durable Customer', async () => {
+    installApi(estimate({ status: 'ACCEPTED' }))
+    const user = userEvent.setup()
+    render(<EstimatesClient workspaceId="ws-a" workspaceSlug="acme" />)
+    await user.click(
+      await screen.findByRole('button', { name: /Spring cleanup and mowing/i }),
+    )
+    expect(
+      await screen.findByText('Convert Lead to Customer first'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Create Work' })).toBeNull()
+  })
+
+  it('opens the explicit mobile handoff for accepted Customer work', async () => {
+    installApi(estimate({ status: 'ACCEPTED', customerId: 'customer-a' }), {
+      operationalCustomer: {
+        id: 'customer-a',
+        displayName: 'Jamie Rivera',
+        contactName: 'Jamie Rivera',
+        email: 'jamie@example.com',
+        phone: '555-0101',
+        serviceAddressLine1: '12 Oak Lane',
+        serviceAddressLine2: null,
+        serviceAddressCity: 'Raleigh',
+        serviceAddressRegion: 'NC',
+        serviceAddressPostalCode: '27601',
+        serviceAddressCountry: 'US',
+      },
+    })
+    const user = userEvent.setup()
+    render(
+      <EstimatesClient
+        workspaceId="ws-a"
+        workspaceSlug="acme"
+        timezone="America/New_York"
+        members={[{ id: 'member-a', name: 'Morgan Manager' }]}
+        teams={[{ id: 'team-a', name: 'Crew A' }]}
+      />,
+    )
+    await user.click(
+      await screen.findByRole('button', { name: /Spring cleanup and mowing/i }),
+    )
+    await user.click(await screen.findByRole('button', { name: 'Create Work' }))
+    expect(
+      screen.getByRole('button', { name: 'Create Operational Work' }),
+    ).toBeTruthy()
+    expect(screen.getByText('Proposed Job Steps')).toBeTruthy()
+    expect(screen.getAllByText('Weekly mowing')).toHaveLength(2)
+    expect(screen.getByDisplayValue('America/New_York')).toBeTruthy()
+  })
+
+  it('shows management source links after work is created', async () => {
+    installApi(estimate({ status: 'ACCEPTED', customerId: 'customer-a' }), {
+      operationalization: {
+        id: 'handoff-a',
+        customerId: 'customer-a',
+        operationalizedAt: '2026-10-01T12:00:00.000Z',
+        jobId: 'job-a',
+        recurringServiceIds: ['service-a'],
+        mappings: [],
+      },
+    })
+    const user = userEvent.setup()
+    render(<EstimatesClient workspaceId="ws-a" workspaceSlug="acme" />)
+    await user.click(
+      await screen.findByRole('button', { name: /Spring cleanup and mowing/i }),
+    )
+    expect(await screen.findByText('Work Created')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Open Job' })).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: 'Open Recurring Service 1' }),
     ).toBeTruthy()
   })
 })

@@ -1,5 +1,7 @@
 import type {
   EstimateClientListRecord,
+  EstimateClientOperationalCustomer,
+  EstimateClientOperationalization,
   EstimateClientRecord,
   EstimateClientRevision,
   EstimateCreateInput,
@@ -8,6 +10,7 @@ import type {
 import type { EstimateListView } from '@/lib/estimates/types'
 
 type ErrorBody = {
+  code?: string
   message?: string
   fieldErrors?: Record<string, string[] | undefined>
 }
@@ -17,6 +20,7 @@ export class EstimatesApiError extends Error {
     message: string,
     readonly status: number,
     readonly fieldErrors?: Record<string, string[] | undefined>,
+    readonly code?: string,
   ) {
     super(message)
     this.name = 'EstimatesApiError'
@@ -35,6 +39,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
       body?.message || 'The Estimate request could not be completed.',
       response.status,
       body?.fieldErrors,
+      body?.code,
     )
   }
   return body as T
@@ -76,7 +81,78 @@ export async function getEstimate(workspaceId: string, estimateId: string) {
     revisions: EstimateClientRevision[]
     revisionHistoryTruncated: boolean
     workspaceDateKey: string
+    operationalization: EstimateClientOperationalization | null
+    operationalCustomer: EstimateClientOperationalCustomer | null
   }>(path(workspaceId, estimateId))
+}
+
+export type EstimateOperationalizationRequest = {
+  expectedVersion: number
+  idempotencyKey: string
+  oneTime?: {
+    title?: string
+    notes?: string | null
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
+    scheduledStartAt?: string
+    scheduledEndAt?: string
+    assignments: Array<
+      | { assignmentType: 'MEMBER'; workspaceMemberId: string }
+      | { assignmentType: 'TEAM'; teamId: string }
+    >
+    lineItems: Array<{
+      estimateLineItemId: string
+      createJobStep: boolean
+      stepTitle?: string
+      stepDescription?: string | null
+    }>
+  }
+  recurring: Array<{
+    estimateLineItemId: string
+    serviceInstructions?: string | null
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
+    stepTemplates: Array<{ title: string; description?: string | null }>
+    schedule: {
+      startsAt: string
+      endsAt: string
+      timezone: string
+      recurrenceRule: {
+        frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'
+        interval: number
+        daysOfWeek?: number[]
+        endType: 'never' | 'onDate' | 'afterOccurrences'
+        endDate?: string
+        occurrenceCount?: number
+      }
+      locationType: 'customerLocation' | 'physicalAddress' | 'toBeDetermined'
+      locationLabel?: string | null
+      locationAddress?: string | null
+      assignments: Array<
+        | { assignmentType: 'MEMBER'; workspaceMemberId: string }
+        | { assignmentType: 'TEAM'; teamId: string }
+      >
+    }
+  }>
+}
+
+export async function operationalizeEstimate(
+  workspaceId: string,
+  estimateId: string,
+  input: EstimateOperationalizationRequest,
+) {
+  return requestJson<{
+    operationalizationId: string
+    estimateId: string
+    referenceNumber: string
+    customerId: string
+    jobId: string | null
+    recurringServiceIds: string[]
+    mappings: EstimateClientOperationalization['mappings']
+    operationalizedAt: string
+    replayed: boolean
+  }>(path(workspaceId, estimateId, 'operationalize'), {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
 }
 
 export async function createEstimate(

@@ -623,6 +623,89 @@ async function validateAssignments({
   return uniqueIds.map((id) => idByInput.get(id) as string)
 }
 
+export type SchedulingAssignmentResolution = {
+  memberIdByInput: Map<string, string>
+  teamNameById: Map<string, string>
+}
+
+export async function resolveSchedulingAssignmentsInTransaction({
+  tx,
+  workspaceId,
+  inputs,
+}: {
+  tx: Prisma.TransactionClient
+  workspaceId: string
+  inputs: Array<{
+    assignedMemberIds?: string[]
+    assignments?: SchedulingAssignmentTarget[]
+  }>
+}): Promise<SchedulingAssignmentResolution> {
+  const memberIds = [
+    ...new Set(
+      inputs.flatMap((input) => [
+        ...(input.assignedMemberIds ?? []),
+        ...(input.assignments ?? []).flatMap((assignment) =>
+          assignment.assignmentType === 'MEMBER' && assignment.workspaceMemberId
+            ? [assignment.workspaceMemberId]
+            : [],
+        ),
+      ]),
+    ),
+  ]
+  const teamIds = [
+    ...new Set(
+      inputs.flatMap((input) =>
+        (input.assignments ?? []).flatMap((assignment) =>
+          assignment.assignmentType === 'TEAM' && assignment.teamId
+            ? [assignment.teamId]
+            : [],
+        ),
+      ),
+    ),
+  ]
+  const [members, teams] = await Promise.all([
+    memberIds.length
+      ? tx.workspaceMember.findMany({
+          where: {
+            workspaceId,
+            OR: [{ id: { in: memberIds } }, { userId: { in: memberIds } }],
+          },
+          select: { id: true, userId: true },
+        })
+      : [],
+    teamIds.length
+      ? tx.workspaceTeam.findMany({
+          where: {
+            workspaceId,
+            id: { in: teamIds },
+            isActive: true,
+            archivedAt: null,
+          },
+          select: { id: true, name: true },
+        })
+      : [],
+  ])
+  const memberIdByInput = new Map<string, string>()
+  members.forEach((member) => {
+    memberIdByInput.set(member.id, member.id)
+    memberIdByInput.set(member.userId, member.id)
+  })
+  if (memberIds.some((id) => !memberIdByInput.has(id))) {
+    throw new SchedulingRepositoryError(
+      'The selected team member no longer belongs to this workspace.',
+      'forbidden',
+    )
+  }
+  const teamNameById = new Map(teams.map((team) => [team.id, team.name]))
+  if (teamIds.some((id) => !teamNameById.has(id))) {
+    throw new SchedulingRepositoryError(
+      'The selected team is no longer active in this workspace.',
+      'forbidden',
+    )
+  }
+  return { memberIdByInput, teamNameById }
+}
+
 function normalizeRecurrenceOrThrow(
   args: Parameters<typeof normalizeSchedulingRecurrenceRule>[0],
 ) {
@@ -2261,25 +2344,39 @@ async function replaceEventAssignments(
     eventId,
     assignedMemberIds,
     assignments,
+    assignmentResolution,
   }: {
     workspaceId: string
     eventId: string
     assignedMemberIds?: string[]
     assignments?: SchedulingAssignmentTarget[]
+    assignmentResolution?: SchedulingAssignmentResolution
   },
 ) {
-  const validMemberIds = await validateAssignments({
-    db,
-    workspaceId,
-    assignedMemberIds: [
-      ...(assignedMemberIds ?? []),
-      ...(assignments ?? []).flatMap((assignment) =>
-        assignment.assignmentType === 'MEMBER' && assignment.workspaceMemberId
-          ? [assignment.workspaceMemberId]
-          : [],
-      ),
-    ],
-  })
+  const requestedMemberIds = [
+    ...(assignedMemberIds ?? []),
+    ...(assignments ?? []).flatMap((assignment) =>
+      assignment.assignmentType === 'MEMBER' && assignment.workspaceMemberId
+        ? [assignment.workspaceMemberId]
+        : [],
+    ),
+  ]
+  const validMemberIds = assignmentResolution
+    ? [...new Set(requestedMemberIds.filter(Boolean))].map((id) => {
+        const resolved = assignmentResolution.memberIdByInput.get(id)
+        if (!resolved) {
+          throw new SchedulingRepositoryError(
+            'The selected team member no longer belongs to this workspace.',
+            'forbidden',
+          )
+        }
+        return resolved
+      })
+    : await validateAssignments({
+        db,
+        workspaceId,
+        assignedMemberIds: requestedMemberIds,
+      })
   const requestedTeamIds = [
     ...new Set(
       (assignments ?? []).flatMap((assignment) =>
@@ -2289,24 +2386,33 @@ async function replaceEventAssignments(
       ),
     ),
   ]
-  const teams = requestedTeamIds.length
-    ? await db.workspaceTeam.findMany({
-        where: {
-          workspaceId,
-          id: { in: requestedTeamIds },
-          isActive: true,
-          archivedAt: null,
-        },
-        select: { id: true, name: true },
-      })
-    : []
-  if (teams.length !== requestedTeamIds.length) {
+  const teams =
+    requestedTeamIds.length && !assignmentResolution
+      ? await db.workspaceTeam.findMany({
+          where: {
+            workspaceId,
+            id: { in: requestedTeamIds },
+            isActive: true,
+            archivedAt: null,
+          },
+          select: { id: true, name: true },
+        })
+      : []
+  if (
+    assignmentResolution
+      ? requestedTeamIds.some(
+          (teamId) => !assignmentResolution.teamNameById.has(teamId),
+        )
+      : teams.length !== requestedTeamIds.length
+  ) {
     throw new SchedulingRepositoryError(
       'The selected team is no longer active in this workspace.',
       'forbidden',
     )
   }
-  const teamNameById = new Map(teams.map((team) => [team.id, team.name]))
+  const teamNameById =
+    assignmentResolution?.teamNameById ??
+    new Map(teams.map((team) => [team.id, team.name]))
   const requestedByMemberId = new Map(
     (assignments ?? []).flatMap((assignment) =>
       assignment.assignmentType === 'MEMBER' && assignment.workspaceMemberId
@@ -2632,6 +2738,131 @@ function buildAvailabilityData({
   }
 }
 
+export async function createSchedulingEventInTransaction({
+  tx,
+  workspaceId,
+  actorUserId,
+  input,
+  assignmentResolution,
+}: {
+  tx: Prisma.TransactionClient
+  workspaceId: string
+  actorUserId: string
+  input: SchedulingEventWriteInput
+  assignmentResolution?: SchedulingAssignmentResolution
+}): Promise<SchedulingEvent> {
+  validateEventTiming(input)
+  const recurrence = input.recurrenceRule
+    ? normalizeRecurrenceOrThrow({
+        rule: input.recurrenceRule,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        timezone: input.timezone,
+      })
+    : null
+  const created = await tx.schedulingEvent.create({
+    data: buildEventData({
+      workspaceId,
+      actorUserId,
+      input: recurrence ? { ...input, recurrenceRule: recurrence.rule } : input,
+      isCreate: true,
+    }) as Prisma.SchedulingEventUncheckedCreateInput,
+    include: eventInclude,
+  })
+  if (recurrence) {
+    await tx.schedulingEvent.update({
+      where: { id: created.id },
+      data: {
+        occurrenceState: PrismaSchedulingOccurrenceState.MASTER,
+        recurrenceTimezone: recurrence.timezone,
+      },
+    })
+  }
+  await replaceEventAssignments(tx, {
+    workspaceId,
+    eventId: created.id,
+    assignedMemberIds: input.assignedMemberIds,
+    assignments: input.assignments,
+    assignmentResolution,
+  })
+  await replaceEventAttendees(tx, {
+    workspaceId,
+    eventId: created.id,
+    attendees: input.attendees,
+  })
+  await appendActivity(tx, {
+    workspaceId,
+    eventId: created.id,
+    actorId: actorUserId,
+    action: 'created',
+    summary: 'Event created.',
+    metadata: { title: input.title, eventType: input.type },
+  })
+  await appendOutbox(tx, {
+    workspaceId,
+    topic: 'scheduling.event.created',
+    aggregateId: created.id,
+    payload: { eventId: created.id },
+  })
+  if (!recurrence) {
+    return eventToDomain(await getScopedEvent(tx, workspaceId, created.id))
+  }
+
+  const series = await tx.schedulingRecurrenceSeries.create({
+    data: {
+      workspaceId,
+      masterEventId: created.id,
+      timezone: recurrence.timezone,
+      rrule: recurrence.rrule,
+      startsAtLocal: `${recurrence.localStartDate}T${recurrence.localStartTime}`,
+      localStartDate: recurrence.localStartDate,
+      localStartTime: recurrence.localStartTime,
+      durationMinutes: recurrence.durationMinutes,
+      normalizedRule: recurrence.rule as Prisma.InputJsonValue,
+      untilUtc: recurrence.untilUtc,
+      occurrenceCount: recurrence.occurrenceCount,
+      metadata: { summary: recurrence.summary },
+      status: PrismaSchedulingRecurrenceSeriesStatus.ACTIVE,
+    },
+    include: { masterEvent: { include: eventInclude } },
+  })
+  const startWindow = new Date(
+    new Date(input.startsAt).getTime() -
+      RECURRENCE_MATERIALIZATION_DAYS_BEHIND * 86_400_000,
+  )
+  const endWindow = new Date(
+    new Date(input.startsAt).getTime() +
+      RECURRENCE_MATERIALIZATION_DAYS_AHEAD * 86_400_000,
+  )
+  const materializedIds = await materializeRecurrenceSeries({
+    db: tx,
+    workspaceId,
+    series,
+    rangeStart: startWindow,
+    rangeEnd: endWindow,
+  })
+  await appendActivity(tx, {
+    workspaceId,
+    eventId: created.id,
+    actorId: actorUserId,
+    action: 'recurrence_series_created',
+    summary: 'Recurring schedule created.',
+    metadata: {
+      seriesId: series.id,
+      rrule: recurrence.rrule,
+      summary: recurrence.summary,
+    },
+  })
+  await appendOutbox(tx, {
+    workspaceId,
+    topic: 'scheduling.recurrence_series.created',
+    aggregateId: series.id,
+    payload: { seriesId: series.id, masterEventId: created.id },
+  })
+  const firstOccurrenceId = materializedIds[0] ?? created.id
+  return eventToDomain(await getScopedEvent(tx, workspaceId, firstOccurrenceId))
+}
+
 export const schedulingRepository = {
   async listEventsByRange(
     args: SchedulingRangeQuery,
@@ -2677,126 +2908,14 @@ export const schedulingRepository = {
     actorUserId: string
     input: SchedulingEventWriteInput
   }): Promise<SchedulingEvent> {
-    validateEventTiming(input)
-    return prisma.$transaction(async (tx) => {
-      await validateAssignments({
-        db: tx,
+    return prisma.$transaction((tx) =>
+      createSchedulingEventInTransaction({
+        tx,
         workspaceId,
-        assignedMemberIds: input.assignedMemberIds,
-      })
-      const recurrence = input.recurrenceRule
-        ? normalizeRecurrenceOrThrow({
-            rule: input.recurrenceRule,
-            startsAt: input.startsAt,
-            endsAt: input.endsAt,
-            timezone: input.timezone,
-          })
-        : null
-      const created = await tx.schedulingEvent.create({
-        data: buildEventData({
-          workspaceId,
-          actorUserId,
-          input: recurrence
-            ? { ...input, recurrenceRule: recurrence.rule }
-            : input,
-          isCreate: true,
-        }) as Prisma.SchedulingEventUncheckedCreateInput,
-        include: eventInclude,
-      })
-      if (recurrence) {
-        await tx.schedulingEvent.update({
-          where: { id: created.id },
-          data: {
-            occurrenceState: PrismaSchedulingOccurrenceState.MASTER,
-            recurrenceTimezone: recurrence.timezone,
-          },
-        })
-      }
-      await replaceEventAssignments(tx, {
-        workspaceId,
-        eventId: created.id,
-        assignedMemberIds: input.assignedMemberIds,
-        assignments: input.assignments,
-      })
-      await replaceEventAttendees(tx, {
-        workspaceId,
-        eventId: created.id,
-        attendees: input.attendees,
-      })
-      await appendActivity(tx, {
-        workspaceId,
-        eventId: created.id,
-        actorId: actorUserId,
-        action: 'created',
-        summary: 'Event created.',
-        metadata: { title: input.title, eventType: input.type },
-      })
-      await appendOutbox(tx, {
-        workspaceId,
-        topic: 'scheduling.event.created',
-        aggregateId: created.id,
-        payload: { eventId: created.id },
-      })
-      if (!recurrence) {
-        return eventToDomain(await getScopedEvent(tx, workspaceId, created.id))
-      }
-
-      const series = await tx.schedulingRecurrenceSeries.create({
-        data: {
-          workspaceId,
-          masterEventId: created.id,
-          timezone: recurrence.timezone,
-          rrule: recurrence.rrule,
-          startsAtLocal: `${recurrence.localStartDate}T${recurrence.localStartTime}`,
-          localStartDate: recurrence.localStartDate,
-          localStartTime: recurrence.localStartTime,
-          durationMinutes: recurrence.durationMinutes,
-          normalizedRule: recurrence.rule as Prisma.InputJsonValue,
-          untilUtc: recurrence.untilUtc,
-          occurrenceCount: recurrence.occurrenceCount,
-          metadata: { summary: recurrence.summary },
-          status: PrismaSchedulingRecurrenceSeriesStatus.ACTIVE,
-        },
-        include: { masterEvent: { include: eventInclude } },
-      })
-      const startWindow = new Date(
-        new Date(input.startsAt).getTime() -
-          RECURRENCE_MATERIALIZATION_DAYS_BEHIND * 86_400_000,
-      )
-      const endWindow = new Date(
-        new Date(input.startsAt).getTime() +
-          RECURRENCE_MATERIALIZATION_DAYS_AHEAD * 86_400_000,
-      )
-      const materializedIds = await materializeRecurrenceSeries({
-        db: tx,
-        workspaceId,
-        series,
-        rangeStart: startWindow,
-        rangeEnd: endWindow,
-      })
-      await appendActivity(tx, {
-        workspaceId,
-        eventId: created.id,
-        actorId: actorUserId,
-        action: 'recurrence_series_created',
-        summary: 'Recurring schedule created.',
-        metadata: {
-          seriesId: series.id,
-          rrule: recurrence.rrule,
-          summary: recurrence.summary,
-        },
-      })
-      await appendOutbox(tx, {
-        workspaceId,
-        topic: 'scheduling.recurrence_series.created',
-        aggregateId: series.id,
-        payload: { seriesId: series.id, masterEventId: created.id },
-      })
-      const firstOccurrenceId = materializedIds[0] ?? created.id
-      return eventToDomain(
-        await getScopedEvent(tx, workspaceId, firstOccurrenceId),
-      )
-    })
+        actorUserId,
+        input,
+      }),
+    )
   },
 
   async updateEvent({

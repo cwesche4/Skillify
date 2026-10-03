@@ -25,7 +25,10 @@ export class EstimateServiceError extends Error {
       | 'FORBIDDEN'
       | 'NOT_FOUND'
       | 'UNAVAILABLE'
-      | 'CONFLICT',
+      | 'CONFLICT'
+      | 'CUSTOMER_REQUIRED'
+      | 'STALE_ESTIMATE'
+      | 'ALREADY_OPERATIONALIZED',
     readonly fieldErrors?: Record<string, string[] | undefined>,
   ) {
     super(message)

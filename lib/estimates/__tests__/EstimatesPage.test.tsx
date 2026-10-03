@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn(),
   findProfile: vi.fn(),
   findWorkspace: vi.fn(),
+  findMembers: vi.fn(),
+  findTeams: vi.fn(),
+  getSchedulingSettings: vi.fn(),
 }))
 
 vi.mock('@clerk/nextjs/server', () => ({ auth: mocks.auth }))
@@ -15,7 +18,12 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     userProfile: { findUnique: mocks.findProfile },
     workspace: { findUnique: mocks.findWorkspace },
+    workspaceMember: { findMany: mocks.findMembers },
+    workspaceTeam: { findMany: mocks.findTeams },
   },
+}))
+vi.mock('@/lib/scheduling/services/schedulingService', () => ({
+  getPersistedSchedulingSettings: mocks.getSchedulingSettings,
 }))
 vi.mock('@/components/dashboard/DashboardShell', () => ({
   DashboardShell: ({ children }: { children: React.ReactNode }) => children,
@@ -33,6 +41,9 @@ describe('Estimate page authorization', () => {
     vi.clearAllMocks()
     mocks.auth.mockReturnValue({ userId: 'clerk-user' })
     mocks.findProfile.mockResolvedValue({ id: 'profile-user' })
+    mocks.findMembers.mockResolvedValue([])
+    mocks.findTeams.mockResolvedValue([])
+    mocks.getSchedulingSettings.mockResolvedValue({ timezone: 'UTC' })
     mocks.redirect.mockImplementation((location: string) => {
       throw new Error(`REDIRECT:${location}`)
     })

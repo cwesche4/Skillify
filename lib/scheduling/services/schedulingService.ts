@@ -663,6 +663,30 @@ async function validateSchedulingEventLocationInput({
   return normalizeSchedulingLocation({ eventType, settings, location })
 }
 
+export async function prepareSchedulingEventForTransactionalCreate({
+  actor,
+  input,
+}: {
+  actor: SchedulingMutationActor
+  input: unknown
+}): Promise<SchedulingEventWriteInput> {
+  assertCanManage(actor)
+  const normalizedInput = normalizeSchedulingEventInput(input)
+  await validateSchedulingEventLinkedRecordInput({
+    workspaceId: actor.workspaceId,
+    input: normalizedInput,
+  })
+  const normalizedLocation = await validateSchedulingEventLocationInput({
+    workspaceId: actor.workspaceId,
+    input: normalizedInput,
+  })
+  await checkSchedulingEventExternalAvailability({
+    actor,
+    input: normalizedInput,
+  })
+  return { ...normalizedInput, ...normalizedLocation }
+}
+
 export async function getPersistedSchedulingSettings({
   workspaceId,
   businessModel,

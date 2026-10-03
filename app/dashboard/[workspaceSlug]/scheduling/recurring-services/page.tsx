@@ -4,10 +4,14 @@ import { canManageSchedulingRole } from '@/lib/scheduling/loadSchedulingPageProp
 import { requireSchedulingSectionAccess } from '@/lib/scheduling/routeGuards'
 import { getPersistedSchedulingSettings } from '@/lib/scheduling/services/schedulingService'
 
-type PageProps = { params: { workspaceSlug: string } }
+type PageProps = {
+  params: { workspaceSlug: string }
+  searchParams: { recurringServiceId?: string | string[] }
+}
 
 export default async function SchedulingRecurringServicesPage({
   params,
+  searchParams,
 }: PageProps) {
   const { workspace, capabilities, membership } =
     await requireSchedulingSectionAccess({
@@ -34,6 +38,11 @@ export default async function SchedulingRecurringServicesPage({
       workspaceSlug={workspace.slug}
       timezone={settings.timezone}
       canManage={canManageSchedulingRole(membership.role)}
+      initialRecurringServiceId={
+        typeof searchParams.recurringServiceId === 'string'
+          ? searchParams.recurringServiceId
+          : null
+      }
       members={members.map((member) => ({
         id: member.id,
         role: member.role,
