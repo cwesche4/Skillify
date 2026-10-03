@@ -3,7 +3,16 @@
 import Link from 'next/link'
 import React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, FilePlus2, Plus, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  Copy,
+  FilePlus2,
+  Mail,
+  Plus,
+  RefreshCw,
+  ShieldOff,
+  Trash2,
+} from 'lucide-react'
 
 import { EstimateOperationalizationModal } from '@/components/dashboard/estimates/EstimateOperationalizationModal'
 import { Alert } from '@/components/ui/Alert'
@@ -17,15 +26,20 @@ import { listCustomers } from '@/lib/customers/client'
 import type { CustomerClientRecord } from '@/lib/customers/clientTypes'
 import {
   archiveEstimate,
+  createEstimateShare,
   createEstimate,
   estimateAction,
   EstimatesApiError,
   getEstimate,
   listEstimates,
+  revokeEstimateShare,
+  rotateEstimateShare,
+  sendEstimateEmail,
   updateEstimate,
 } from '@/lib/estimates/client'
 import type {
   EstimateClientListRecord,
+  EstimateClientCustomerExperience,
   EstimateClientOperationalCustomer,
   EstimateClientOperationalization,
   EstimateClientRecord,
@@ -230,7 +244,12 @@ export function EstimatesClient({
     useState<EstimateClientOperationalization | null>(null)
   const [operationalCustomer, setOperationalCustomer] =
     useState<EstimateClientOperationalCustomer | null>(null)
+  const [customerExperience, setCustomerExperience] =
+    useState<EstimateClientCustomerExperience | null>(null)
   const [handoffOpen, setHandoffOpen] = useState(false)
+  const [sendOpen, setSendOpen] = useState(false)
+  const [sendEmail, setSendEmail] = useState('')
+  const [sendIdempotencyKey, setSendIdempotencyKey] = useState('')
   const [leads, setLeads] = useState<LeadClientRecord[]>([])
   const [customers, setCustomers] = useState<CustomerClientRecord[]>([])
   const [draft, setDraft] = useState<DraftState>(() =>
@@ -283,6 +302,7 @@ export function EstimatesClient({
         setRevisionHistoryTruncated(result.revisionHistoryTruncated)
         setOperationalization(result.operationalization)
         setOperationalCustomer(result.operationalCustomer)
+        setCustomerExperience(result.customerExperience)
         setWorkspaceDateKey(result.workspaceDateKey)
       } catch (loadError) {
         setError(
@@ -443,6 +463,105 @@ export function EstimatesClient({
     }
   }
 
+  async function copySecureLink() {
+    if (!selected) return
+    setSaving(true)
+    setError(null)
+    try {
+      const result = await createEstimateShare(
+        workspaceId,
+        selected.id,
+        selected.version,
+      )
+      await navigator.clipboard.writeText(result.share.url)
+      await openEstimate(selected.id)
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : 'The secure link could not be copied.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function rotateSecureLink() {
+    if (!selected) return
+    setSaving(true)
+    setError(null)
+    try {
+      const result = await rotateEstimateShare(
+        workspaceId,
+        selected.id,
+        selected.version,
+      )
+      await navigator.clipboard.writeText(result.share.url)
+      await openEstimate(selected.id)
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : 'The secure link could not be rotated.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function revokeSecureLink() {
+    if (!selected) return
+    setSaving(true)
+    setError(null)
+    try {
+      await revokeEstimateShare(workspaceId, selected.id, selected.version)
+      await openEstimate(selected.id)
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : 'The secure link could not be revoked.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function openSendEmail() {
+    if (!selected) return
+    setSendEmail(
+      customerExperience?.deliveries[0]?.recipientEmail ||
+        selected.contactEmailSnapshot ||
+        '',
+    )
+    setSendIdempotencyKey(crypto.randomUUID())
+    setSendOpen(true)
+  }
+
+  async function queueEmail() {
+    if (!selected) return
+    setSaving(true)
+    setError(null)
+    try {
+      await sendEstimateEmail(workspaceId, selected.id, {
+        expectedVersion: selected.version,
+        recipientEmail: sendEmail,
+        idempotencyKey: sendIdempotencyKey || crypto.randomUUID(),
+      })
+      setSendOpen(false)
+      setSendIdempotencyKey('')
+      await openEstimate(selected.id)
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : 'The Estimate email could not be queued.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const effectiveStatus = selected
     ? statusLabel(selected, workspaceDateKey)
     : null
@@ -458,8 +577,8 @@ export function EstimatesClient({
             Estimates
           </h1>
           <p className="text-app-muted mt-2 max-w-2xl text-sm">
-            Record priced work, presented revisions, and customer decisions.
-            Presentation and acceptance are recorded manually in this phase.
+            Record priced work, present exact revisions, securely share them,
+            and track customer decisions separately from operational work.
           </p>
         </div>
         <Button
@@ -693,6 +812,84 @@ export function EstimatesClient({
                 {dateTime(selected.voidedAt)} · {actorName(selected.voidedBy)}
               </Detail>
             </div>
+            <section aria-labelledby="estimate-customer-experience-heading">
+              <h3
+                id="estimate-customer-experience-heading"
+                className="text-app-primary text-sm font-medium"
+              >
+                Customer experience
+              </h3>
+              <div className="mt-2 grid gap-3 text-xs sm:grid-cols-3">
+                <Detail label="Commercial">
+                  {effectiveStatus || 'Not recorded'}
+                </Detail>
+                <Detail label="Customer access">
+                  {customerExperience?.share?.state
+                    ? customerExperience.share.state.charAt(0) +
+                      customerExperience.share.state.slice(1).toLowerCase()
+                    : 'Not shared'}
+                </Detail>
+                <Detail label="Decision">
+                  {customerExperience?.decision
+                    ? `${customerExperience.decision.decision === 'ACCEPTED' ? 'Accepted' : 'Declined'} · ${customerExperience.decision.source === 'CUSTOMER_LINK' ? 'Customer link' : 'Recorded by management'}`
+                    : 'Awaiting decision'}
+                </Detail>
+              </div>
+              {customerExperience?.decision ? (
+                <p className="text-app-muted mt-2 text-xs">
+                  Recorded {dateTime(customerExperience.decision.occurredAt)}
+                  {customerExperience.decision.acknowledgmentNameSnapshot
+                    ? ` · Acknowledged by ${customerExperience.decision.acknowledgmentNameSnapshot}`
+                    : customerExperience.decision.managementActor
+                      ? ` · ${actorName(customerExperience.decision.managementActor)}`
+                      : ''}
+                </p>
+              ) : null}
+            </section>
+            {customerExperience?.deliveries.length ? (
+              <section aria-labelledby="estimate-delivery-history-heading">
+                <h3
+                  id="estimate-delivery-history-heading"
+                  className="text-app-primary text-sm font-medium"
+                >
+                  Email delivery history
+                </h3>
+                <div className="border-app mt-2 divide-y overflow-hidden rounded-xl border">
+                  {customerExperience.deliveries.map((delivery) => (
+                    <div
+                      key={delivery.id}
+                      className="flex flex-col gap-1 p-3 text-xs sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <span>
+                        <span className="text-app-primary block font-medium">
+                          {delivery.recipientEmail}
+                        </span>
+                        <span className="text-app-muted">
+                          Requested {dateTime(delivery.requestedAt)}
+                        </span>
+                      </span>
+                      <span className="text-app-muted">
+                        {delivery.status
+                          .split('_')
+                          .map(
+                            (word) =>
+                              word.charAt(0) + word.slice(1).toLowerCase(),
+                          )
+                          .join(' ')}
+                        {delivery.attempts
+                          ? ` · ${delivery.attempts} attempt${delivery.attempts === 1 ? '' : 's'}`
+                          : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {customerExperience.deliveryHistoryTruncated ? (
+                  <p className="text-app-muted mt-2 text-xs">
+                    Showing the 20 most recent deliveries.
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
             {revisions.length > 1 ? (
               <section aria-labelledby="estimate-revisions-heading">
                 <h3
@@ -811,6 +1008,51 @@ export function EstimatesClient({
                 ) : null}
                 {selected.status === EstimateStatus.PRESENTED &&
                 effectiveStatus !== 'Expired' ? (
+                  <Button
+                    variant="outline"
+                    leftIcon={<Copy className="h-4 w-4" />}
+                    loading={saving}
+                    onClick={() => void copySecureLink()}
+                  >
+                    Copy Secure Link
+                  </Button>
+                ) : null}
+                {selected.status === EstimateStatus.PRESENTED &&
+                effectiveStatus !== 'Expired' ? (
+                  <Button
+                    variant="outline"
+                    leftIcon={<Mail className="h-4 w-4" />}
+                    onClick={openSendEmail}
+                  >
+                    {customerExperience?.deliveries.length
+                      ? 'Resend Email'
+                      : 'Send Email'}
+                  </Button>
+                ) : null}
+                {selected.status === EstimateStatus.PRESENTED &&
+                effectiveStatus !== 'Expired' &&
+                customerExperience?.share?.state === 'ACTIVE' ? (
+                  <Button
+                    variant="ghost"
+                    leftIcon={<RefreshCw className="h-4 w-4" />}
+                    loading={saving}
+                    onClick={() => void rotateSecureLink()}
+                  >
+                    Rotate Link
+                  </Button>
+                ) : null}
+                {customerExperience?.share?.state === 'ACTIVE' ? (
+                  <Button
+                    variant="ghost"
+                    leftIcon={<ShieldOff className="h-4 w-4" />}
+                    loading={saving}
+                    onClick={() => void revokeSecureLink()}
+                  >
+                    Revoke Link
+                  </Button>
+                ) : null}
+                {selected.status === EstimateStatus.PRESENTED &&
+                effectiveStatus !== 'Expired' ? (
                   <Button onClick={() => setConfirmAction('accept')}>
                     Record Accepted
                   </Button>
@@ -831,6 +1073,11 @@ export function EstimatesClient({
                     onClick={() => void revise()}
                   >
                     Create Revision
+                  </Button>
+                ) : null}
+                {selected.status === EstimateStatus.DECLINED ? (
+                  <Button variant="outline" onClick={startCreate}>
+                    Create New Estimate
                   </Button>
                 ) : null}
                 {selected.status === EstimateStatus.DRAFT ||
@@ -879,6 +1126,55 @@ export function EstimatesClient({
           }}
         />
       ) : null}
+
+      <Modal
+        isOpen={sendOpen}
+        onClose={() => !saving && setSendOpen(false)}
+        title={
+          customerExperience?.deliveries.length
+            ? 'Resend Estimate Email'
+            : 'Send Estimate Email'
+        }
+        description="This queues an email from your verified workspace Resend sender. Presented remains the commercial state until the customer responds."
+        size="sm"
+      >
+        <div className="space-y-4">
+          {error ? <Alert variant="error">{error}</Alert> : null}
+          <Field label="Customer email" htmlFor="estimate-send-email">
+            <Input
+              id="estimate-send-email"
+              type="email"
+              className="min-h-11"
+              value={sendEmail}
+              maxLength={320}
+              required
+              onChange={(event) => setSendEmail(event.target.value)}
+            />
+          </Field>
+          <Alert variant="info">
+            The secure link is bound to this exact revision. Sending does not
+            mean the message was delivered or opened.
+          </Alert>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button
+              className="min-h-11"
+              variant="ghost"
+              disabled={saving}
+              onClick={() => setSendOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="min-h-11"
+              loading={saving}
+              disabled={!sendEmail.trim()}
+              onClick={() => void queueEmail()}
+            >
+              Queue Email
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={editorOpen}

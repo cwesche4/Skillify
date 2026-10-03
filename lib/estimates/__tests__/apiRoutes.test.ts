@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   createRevision: vi.fn(),
   archiveEstimate: vi.fn(),
   operationalize: vi.fn(),
+  getCustomerExperience: vi.fn(),
 }))
 
 vi.mock('@/lib/estimates/api', async () => {
@@ -35,6 +36,11 @@ vi.mock('@/lib/estimates/operationalization', () => ({
   operationalizeAcceptedEstimate: mocks.operationalize,
 }))
 
+vi.mock('@/lib/estimates/customerExperience', () => ({
+  getEstimateCustomerExperienceSummary: mocks.getCustomerExperience,
+  publicEstimateBaseUrl: () => 'http://localhost',
+}))
+
 import * as actionRoute from '@/app/api/workspaces/[workspaceId]/estimates/[estimateId]/[action]/route'
 import * as itemRoute from '@/app/api/workspaces/[workspaceId]/estimates/[estimateId]/route'
 import * as collectionRoute from '@/app/api/workspaces/[workspaceId]/estimates/route'
@@ -53,6 +59,12 @@ describe('Estimate API routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.authorize.mockResolvedValue(allowed)
+    mocks.getCustomerExperience.mockResolvedValue({
+      share: null,
+      deliveries: [],
+      deliveryHistoryTruncated: false,
+      decision: null,
+    })
   })
 
   it('uses the authorized management identity and returns 201 then 200 replay', async () => {

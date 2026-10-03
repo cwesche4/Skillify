@@ -7,12 +7,16 @@ import {
   readEstimateJson,
 } from '@/lib/estimates/api'
 import { estimateService } from '@/lib/estimates/defaultService'
+import {
+  getEstimateCustomerExperienceSummary,
+  publicEstimateBaseUrl,
+} from '@/lib/estimates/customerExperience'
 
 type RouteContext = {
   params: { workspaceId: string; estimateId: string }
 }
 
-export async function GET(_request: Request, { params }: RouteContext) {
+export async function GET(request: Request, { params }: RouteContext) {
   const authorization = await authorizeEstimateRequest(params.workspaceId)
   if (!authorization.allowed) return estimateAuthorizationError(authorization)
   try {
@@ -20,7 +24,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
       params.workspaceId,
       params.estimateId,
     )
-    return NextResponse.json({ ok: true, ...result })
+    const customerExperience = await getEstimateCustomerExperienceSummary({
+      workspaceId: params.workspaceId,
+      estimateId: params.estimateId,
+      baseUrl: publicEstimateBaseUrl(request.url),
+    })
+    return NextResponse.json({ ok: true, ...result, customerExperience })
   } catch (error) {
     return estimateApiError(error)
   }

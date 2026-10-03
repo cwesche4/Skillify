@@ -129,6 +129,47 @@ export type EstimateClientOperationalCustomer = {
   serviceAddressCountry: string | null
 }
 
+export type EstimateClientCustomerExperience = {
+  share: {
+    id: string
+    state: 'ACTIVE' | 'EXPIRED' | 'REVOKED'
+    expiresAt: string
+    revokedAt: string | null
+    createdAt: string
+    signedUrl: string | null
+  } | null
+  deliveries: Array<{
+    id: string
+    channel: 'EMAIL'
+    recipientEmail: string
+    status:
+      | 'PENDING'
+      | 'PROCESSING'
+      | 'SENT'
+      | 'FAILED'
+      | 'PERMANENTLY_FAILED'
+      | 'CANCELED'
+    attempts: number
+    provider: string | null
+    providerMessageId: string | null
+    lastErrorCode: string | null
+    lastErrorMessage: string | null
+    requestedAt: string
+    sentAt: string | null
+    failedAt: string | null
+  }>
+  deliveryHistoryTruncated: boolean
+  decision: {
+    decision: 'ACCEPTED' | 'DECLINED'
+    source: 'MANAGEMENT' | 'CUSTOMER_LINK'
+    acknowledgmentNameSnapshot: string | null
+    declineReason: string | null
+    declineNote: string | null
+    occurredAt: string
+    managementActor: EstimateClientActor | null
+  } | null
+}
+
 export type EstimateDraftInput = {
   leadId?: string | null
   customerId?: string | null

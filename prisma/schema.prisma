@@ -141,6 +141,29 @@ enum EstimateOperationalizationTargetKind {
   RECURRING_SERVICE
 }
 
+enum EstimateDeliveryChannel {
+  EMAIL
+}
+
+enum EstimateDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  PERMANENTLY_FAILED
+  CANCELED
+}
+
+enum EstimateDecisionKind {
+  ACCEPTED
+  DECLINED
+}
+
+enum EstimateDecisionSource {
+  MANAGEMENT
+  CUSTOMER_LINK
+}
+
 enum WorkspaceTeamType {
   GENERAL
   OFFICE
@@ -829,6 +852,9 @@ model UserProfile {
   estimatesDeclined                       Estimate[]                     @relation("EstimateDeclinedBy")
   estimatesVoided                         Estimate[]                     @relation("EstimateVoidedBy")
   estimateOperationalizations             EstimateOperationalization[]   @relation("EstimateOperationalizedBy")
+  estimateSharesCreated                   EstimateShare[]                @relation("EstimateShareCreatedBy")
+  estimateDeliveriesRequested             EstimateDelivery[]             @relation("EstimateDeliveryRequestedBy")
+  estimateDecisionsManaged                EstimateDecision[]             @relation("EstimateDecisionManagementActor")
 
   @@index([clerkId])
 }
@@ -975,6 +1001,9 @@ model Workspace {
   estimates                         Estimate[]
   estimateOperationalizations       EstimateOperationalization[]
   estimateOperationalizationItems   EstimateOperationalizationItem[]
+  estimateShares                    EstimateShare[]
+  estimateDeliveries                EstimateDelivery[]
+  estimateDecisions                 EstimateDecision[]
 
   @@index([ownerId])
   @@index([slug])
@@ -1336,6 +1365,9 @@ model Estimate {
   lineItems               EstimateLineItem[]
   operationalization      EstimateOperationalization?
   operationalizationItems EstimateOperationalizationItem[]
+  shares                  EstimateShare[]
+  deliveries              EstimateDelivery[]
+  decisionEvidence        EstimateDecision?
 
   @@unique([id, workspaceId])
   @@unique([id, workspaceId, referenceNumber])
@@ -1371,6 +1403,97 @@ model EstimateLineItem {
   @@unique([id, workspaceId, estimateId], map: "EstimateLineItem_id_workspace_estimate_key")
   @@unique([estimateId, sortOrder])
   @@index([workspaceId, estimateId, sortOrder])
+}
+
+model EstimateShare {
+  id                       String    @id @default(cuid())
+  workspaceId              String
+  estimateId               String
+  publicId                 String    @unique
+  businessIdentitySnapshot Json
+  expiresAt                DateTime
+  revokedAt                DateTime?
+  createdByUserId          String
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Restrict, map: "EstimateShare_workspace_fkey")
+  estimate  Estimate    @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateShare_estimate_fkey")
+  createdBy UserProfile @relation("EstimateShareCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, map: "EstimateShare_creator_fkey")
+
+  deliveries EstimateDelivery[]
+  decisions  EstimateDecision[]
+
+  @@unique([id, workspaceId, estimateId], map: "EstimateShare_id_workspace_estimate_key")
+  @@index([workspaceId, estimateId, createdAt], map: "EstimateShare_workspace_estimate_time_idx")
+  @@index([workspaceId, revokedAt, expiresAt], map: "EstimateShare_workspace_active_idx")
+  @@index([createdByUserId], map: "EstimateShare_creator_idx")
+}
+
+model EstimateDelivery {
+  id                String                  @id @default(cuid())
+  workspaceId       String
+  estimateId        String
+  estimateShareId   String
+  channel           EstimateDeliveryChannel @default(EMAIL)
+  recipientEmail    String
+  requestedByUserId String
+  status            EstimateDeliveryStatus  @default(PENDING)
+  attempts          Int                     @default(0)
+  nextAttemptAt     DateTime?
+  claimedAt         DateTime?
+  claimedBy         String?
+  leaseExpiresAt    DateTime?
+  lastAttemptAt     DateTime?
+  provider          String?
+  providerMessageId String?
+  lastErrorCode     String?
+  lastErrorMessage  String?
+  idempotencyKey    String
+  templateVersion   Int                     @default(1)
+  requestedAt       DateTime                @default(now())
+  sentAt            DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict, map: "EstimateDelivery_workspace_fkey")
+  estimate      Estimate      @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateDelivery_estimate_fkey")
+  estimateShare EstimateShare @relation(fields: [estimateShareId, workspaceId, estimateId], references: [id, workspaceId, estimateId], onDelete: Restrict, map: "EstimateDelivery_share_fkey")
+  requestedBy   UserProfile   @relation("EstimateDeliveryRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict, map: "EstimateDelivery_requester_fkey")
+
+  @@unique([workspaceId, idempotencyKey], map: "EstimateDelivery_workspace_idempotency_key")
+  @@index([status, nextAttemptAt], map: "EstimateDelivery_status_next_attempt_idx")
+  @@index([status, leaseExpiresAt], map: "EstimateDelivery_status_lease_idx")
+  @@index([workspaceId, estimateId, requestedAt], map: "EstimateDelivery_workspace_estimate_time_idx")
+  @@index([estimateShareId], map: "EstimateDelivery_share_idx")
+  @@index([requestedByUserId], map: "EstimateDelivery_requester_idx")
+}
+
+model EstimateDecision {
+  id                         String                 @id @default(cuid())
+  workspaceId                String
+  estimateId                 String
+  estimateShareId            String?
+  decision                   EstimateDecisionKind
+  source                     EstimateDecisionSource
+  managementActorUserId      String?
+  acknowledgmentNameSnapshot String?
+  declineReason              String?
+  declineNote                String?
+  occurredAt                 DateTime
+  createdAt                  DateTime               @default(now())
+
+  workspace       Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Restrict, map: "EstimateDecision_workspace_fkey")
+  estimate        Estimate       @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateDecision_estimate_fkey")
+  estimateShare   EstimateShare? @relation(fields: [estimateShareId, workspaceId, estimateId], references: [id, workspaceId, estimateId], onDelete: Restrict, map: "EstimateDecision_share_fkey")
+  managementActor UserProfile?   @relation("EstimateDecisionManagementActor", fields: [managementActorUserId], references: [id], onDelete: Restrict, map: "EstimateDecision_actor_fkey")
+
+  @@unique([workspaceId, estimateId], map: "EstimateDecision_workspace_estimate_key")
+  @@unique([estimateId, workspaceId], map: "EstimateDecision_estimate_workspace_key")
+  @@index([workspaceId, occurredAt], map: "EstimateDecision_workspace_time_idx")
+  @@index([estimateShareId], map: "EstimateDecision_share_idx")
+  @@index([managementActorUserId], map: "EstimateDecision_actor_idx")
 }
 
 model EstimateOperationalization {

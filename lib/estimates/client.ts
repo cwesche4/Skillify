@@ -1,5 +1,6 @@
 import type {
   EstimateClientListRecord,
+  EstimateClientCustomerExperience,
   EstimateClientOperationalCustomer,
   EstimateClientOperationalization,
   EstimateClientRecord,
@@ -83,7 +84,66 @@ export async function getEstimate(workspaceId: string, estimateId: string) {
     workspaceDateKey: string
     operationalization: EstimateClientOperationalization | null
     operationalCustomer: EstimateClientOperationalCustomer | null
+    customerExperience: EstimateClientCustomerExperience
   }>(path(workspaceId, estimateId))
+}
+
+export async function createEstimateShare(
+  workspaceId: string,
+  estimateId: string,
+  expectedVersion: number,
+) {
+  return requestJson<{
+    share: { id: string; expiresAt: string; url: string }
+  }>(`${path(workspaceId, estimateId)}/share`, {
+    method: 'POST',
+    body: JSON.stringify({ expectedVersion }),
+  })
+}
+
+export async function rotateEstimateShare(
+  workspaceId: string,
+  estimateId: string,
+  expectedVersion: number,
+) {
+  return requestJson<{
+    share: { id: string; expiresAt: string; url: string }
+  }>(`${path(workspaceId, estimateId)}/share/rotate`, {
+    method: 'POST',
+    body: JSON.stringify({ expectedVersion }),
+  })
+}
+
+export async function revokeEstimateShare(
+  workspaceId: string,
+  estimateId: string,
+  expectedVersion: number,
+) {
+  return requestJson<{ revoked: boolean }>(
+    `${path(workspaceId, estimateId)}/share`,
+    {
+      method: 'DELETE',
+      body: JSON.stringify({ expectedVersion }),
+    },
+  )
+}
+
+export async function sendEstimateEmail(
+  workspaceId: string,
+  estimateId: string,
+  input: {
+    expectedVersion: number
+    recipientEmail: string
+    idempotencyKey: string
+  },
+) {
+  return requestJson<{
+    delivery: EstimateClientCustomerExperience['deliveries'][number]
+    replayed: boolean
+  }>(`${path(workspaceId, estimateId)}/deliveries`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
 }
 
 export type EstimateOperationalizationRequest = {

@@ -163,6 +163,41 @@ export const EstimateBillingBasis = {
 export type EstimateBillingBasis =
   (typeof EstimateBillingBasis)[keyof typeof EstimateBillingBasis]
 
+export const EstimateDeliveryChannel = {
+  EMAIL: 'EMAIL',
+} as const
+
+export type EstimateDeliveryChannel =
+  (typeof EstimateDeliveryChannel)[keyof typeof EstimateDeliveryChannel]
+
+export const EstimateDeliveryStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  SENT: 'SENT',
+  FAILED: 'FAILED',
+  PERMANENTLY_FAILED: 'PERMANENTLY_FAILED',
+  CANCELED: 'CANCELED',
+} as const
+
+export type EstimateDeliveryStatus =
+  (typeof EstimateDeliveryStatus)[keyof typeof EstimateDeliveryStatus]
+
+export const EstimateDecisionKind = {
+  ACCEPTED: 'ACCEPTED',
+  DECLINED: 'DECLINED',
+} as const
+
+export type EstimateDecisionKind =
+  (typeof EstimateDecisionKind)[keyof typeof EstimateDecisionKind]
+
+export const EstimateDecisionSource = {
+  MANAGEMENT: 'MANAGEMENT',
+  CUSTOMER_LINK: 'CUSTOMER_LINK',
+} as const
+
+export type EstimateDecisionSource =
+  (typeof EstimateDecisionSource)[keyof typeof EstimateDecisionSource]
+
 export const WorkspaceTeamType = {
   GENERAL: 'GENERAL',
   OFFICE: 'OFFICE',

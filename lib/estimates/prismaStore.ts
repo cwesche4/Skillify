@@ -8,7 +8,11 @@ import {
   type EstimateStore,
 } from '@/lib/estimates/service'
 import type { EstimateLineItemInput } from '@/lib/estimates/types'
-import { EstimateStatus } from '@/lib/prisma/enums'
+import {
+  EstimateDecisionKind,
+  EstimateDecisionSource,
+  EstimateStatus,
+} from '@/lib/prisma/enums'
 import { normalizeSchedulingSettings } from '@/lib/scheduling/normalizeSchedulingSettings'
 
 const actorSelect = { id: true, fullName: true, email: true } as const
@@ -657,6 +661,19 @@ export const prismaEstimateStore: EstimateStore = {
                   declinedByUserId: input.actor.userProfileId,
                   version: { increment: 1 },
                 },
+        })
+        await tx.estimateDecision.create({
+          data: {
+            workspaceId: input.actor.workspaceId,
+            estimateId: current.id,
+            decision:
+              input.action === 'accept'
+                ? EstimateDecisionKind.ACCEPTED
+                : EstimateDecisionKind.DECLINED,
+            source: EstimateDecisionSource.MANAGEMENT,
+            managementActorUserId: input.actor.userProfileId,
+            occurredAt: input.now,
+          },
         })
       } else {
         if (

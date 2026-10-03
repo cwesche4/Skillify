@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EstimatesClient } from '@/components/dashboard/estimates/EstimatesClient'
 import type { EstimateClientRecord } from '@/lib/estimates/clientTypes'
 import type {
+  EstimateClientCustomerExperience,
   EstimateClientOperationalCustomer,
   EstimateClientOperationalization,
 } from '@/lib/estimates/clientTypes'
@@ -84,6 +85,7 @@ function installApi(
     revisionHistoryTruncated?: boolean
     operationalCustomer?: EstimateClientOperationalCustomer | null
     operationalization?: EstimateClientOperationalization | null
+    customerExperience?: EstimateClientCustomerExperience | null
   } = {},
 ) {
   const fetchMock = vi.fn(
@@ -110,6 +112,7 @@ function installApi(
           workspaceDateKey: '2026-09-30',
           operationalCustomer: options.operationalCustomer ?? null,
           operationalization: options.operationalization ?? null,
+          customerExperience: options.customerExperience ?? null,
         })
       }
       if (url.pathname.endsWith('/estimates') && !init?.method) {
@@ -336,5 +339,58 @@ describe('Estimate management UI', () => {
     expect(
       screen.getByRole('link', { name: 'Open Recurring Service 1' }),
     ).toBeTruthy()
+  })
+
+  it('shows truthful Presented sharing, delivery, and customer decision controls', async () => {
+    installApi(
+      estimate({
+        status: 'PRESENTED',
+        presentedAt: '2026-10-01T12:00:00.000Z',
+        expiresOn: '2026-10-15',
+      }),
+      {
+        customerExperience: {
+          share: {
+            id: 'share-a',
+            state: 'ACTIVE',
+            expiresAt: '2027-01-01T00:00:00.000Z',
+            revokedAt: null,
+            createdAt: '2026-10-01T12:00:00.000Z',
+            signedUrl: 'https://app.example.test/e/signed-token',
+          },
+          deliveries: [
+            {
+              id: 'delivery-a',
+              channel: 'EMAIL',
+              recipientEmail: 'jamie@example.com',
+              status: 'SENT',
+              attempts: 1,
+              provider: 'resend',
+              providerMessageId: 'provider-message-a',
+              lastErrorCode: null,
+              lastErrorMessage: null,
+              requestedAt: '2026-10-01T12:01:00.000Z',
+              sentAt: '2026-10-01T12:01:10.000Z',
+              failedAt: null,
+            },
+          ],
+          deliveryHistoryTruncated: false,
+          decision: null,
+        },
+      },
+    )
+    const user = userEvent.setup()
+    render(<EstimatesClient workspaceId="ws-a" workspaceSlug="acme" />)
+    await user.click(
+      await screen.findByRole('button', { name: /Spring cleanup and mowing/i }),
+    )
+    expect(
+      await screen.findByRole('button', { name: 'Copy Secure Link' }),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Resend Email' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Rotate Link' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Revoke Link' })).toBeTruthy()
+    expect(screen.getByText('Sent · 1 attempt')).toBeTruthy()
+    expect(screen.queryByText(/delivered/i)).toBeNull()
   })
 })

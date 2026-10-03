@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
+import { EstimateExperienceError } from '@/lib/estimates/customerExperienceError'
 import { EstimateServiceError } from '@/lib/estimates/service'
 
 export function authorizeEstimateRequest(workspaceId: string) {
@@ -21,6 +22,17 @@ export async function readEstimateJson(request: Request) {
 }
 
 export function estimateApiError(error: unknown) {
+  if (error instanceof EstimateExperienceError) {
+    return NextResponse.json(
+      {
+        ok: false,
+        code: error.code,
+        message: error.message,
+        fieldErrors: error.fieldErrors,
+      },
+      { status: error.status },
+    )
+  }
   if (error instanceof EstimateServiceError) {
     return NextResponse.json(
       {
