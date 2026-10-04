@@ -224,16 +224,17 @@ describe('Estimate domain service', () => {
   it('uses bounded pagination and the workspace business date for saved views', async () => {
     const { service, store } = setup()
     await service.listEstimates('ws-a', {
-      view: 'PAST_EXPIRY',
+      view: 'EXPIRED',
       pageSize: '50',
       cursor: 'estimate-before',
     })
     expect(store.listEstimates).toHaveBeenCalledWith({
       workspaceId: 'ws-a',
-      view: 'PAST_EXPIRY',
+      view: 'EXPIRED',
       pageSize: 50,
       cursor: 'estimate-before',
       workspaceDateKey: '2026-03-08',
+      now: NOW,
     })
     await expect(
       service.listEstimates('ws-a', { pageSize: 51 }),

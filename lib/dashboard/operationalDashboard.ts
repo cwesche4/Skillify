@@ -14,6 +14,10 @@ import {
   getWorkspaceDateKey,
 } from '@/lib/scheduling/schedulingDateTime'
 import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
+import {
+  loadEstimateDashboardAttention,
+  type EstimateDashboardAttentionItem,
+} from '@/lib/estimates/attention'
 
 const DASHBOARD_PREVIEW_LIMIT = 3
 const TODAY_PREVIEW_LIMIT = 5
@@ -175,6 +179,8 @@ export type OperationalDashboardData =
         failedAutomations: OperationalDashboardFailure[]
         failedAutomationsHref: string
         failureWindowDays: number
+        estimatesCount: number
+        estimates: EstimateDashboardAttentionItem[]
       }
       waitingOnClientCount: number
       today: TodayWork & {
@@ -187,7 +193,8 @@ export type OperationalDashboardData =
 type OperationalDashboardDb = Pick<
   PrismaClient,
   'job' | 'lead' | 'automationRun'
->
+> &
+  Partial<Pick<PrismaClient, '$queryRaw'>>
 
 function memberDisplayName(
   member:
@@ -488,6 +495,12 @@ export async function loadOperationalDashboard(
   const scopedFailures = failedAutomations.filter(
     (run) => run.workspaceId === input.workspaceId,
   )
+  const estimateAttention = db.$queryRaw
+    ? await loadEstimateDashboardAttention(
+        { workspaceId: input.workspaceId, workspaceDateKey: todayDateKey },
+        db as Pick<PrismaClient, '$queryRaw'>,
+      )
+    : { count: 0, items: [] }
   const failedAutomationViews = scopedFailures.map(mapFailure)
   return {
     ...base,
@@ -510,6 +523,8 @@ export async function loadOperationalDashboard(
         failedAutomationViews,
       ),
       failureWindowDays: AUTOMATION_FAILURE_WINDOW_DAYS,
+      estimatesCount: estimateAttention.count,
+      estimates: estimateAttention.items,
     },
     waitingOnClientCount,
     today: {

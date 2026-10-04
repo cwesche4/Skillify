@@ -14,6 +14,13 @@ import {
   EstimateStatus,
 } from '@/lib/prisma/enums'
 import { normalizeSchedulingSettings } from '@/lib/scheduling/normalizeSchedulingSettings'
+import { cancelPendingEstimateFollowUps } from '@/lib/estimates/followUp'
+import {
+  estimateAttentionWhere,
+  findDeliveryFailedEstimateIds,
+  findOperationalizationViewEstimateIds,
+  loadEstimateAttentionSignals,
+} from '@/lib/estimates/attention'
 
 const actorSelect = { id: true, fullName: true, email: true } as const
 
@@ -350,24 +357,38 @@ export const prismaEstimateStore: EstimateStore = {
     const cursor = input.cursor
       ? decodeListCursor(input.cursor, input.workspaceId)
       : null
-    const archived = input.view === 'ARCHIVED'
-    const status = [
-      'DRAFT',
-      'PRESENTED',
-      'ACCEPTED',
-      'DECLINED',
-      'VOIDED',
-    ].includes(input.view)
-      ? input.view
-      : undefined
-    const rows = await prisma.estimate.findMany({
+    const filteredIds =
+      input.view === 'DELIVERY_FAILED'
+        ? await findDeliveryFailedEstimateIds({
+            workspaceId: input.workspaceId,
+            cursor,
+            leadId: input.leadId,
+            customerId: input.customerId,
+            limit: input.pageSize + 1,
+          })
+        : input.view === 'READY_TO_CREATE_WORK' || input.view === 'WORK_CREATED'
+          ? await findOperationalizationViewEstimateIds({
+              workspaceId: input.workspaceId,
+              view: input.view,
+              cursor,
+              leadId: input.leadId,
+              customerId: input.customerId,
+              limit: input.pageSize + 1,
+            })
+          : null
+    const queriedRows = await prisma.estimate.findMany({
       where: {
         workspaceId: input.workspaceId,
-        archivedAt: archived ? { not: null } : null,
-        status: status as any,
+        ...(filteredIds
+          ? { id: { in: filteredIds } }
+          : estimateAttentionWhere({
+              view: input.view,
+              workspaceDateKey: input.workspaceDateKey,
+              now: input.now,
+            })),
         leadId: input.leadId,
         customerId: input.customerId,
-        ...(cursor
+        ...(!filteredIds && cursor
           ? {
               OR: [
                 { updatedAt: { lt: cursor.updatedAt } },
@@ -375,19 +396,28 @@ export const prismaEstimateStore: EstimateStore = {
               ],
             }
           : {}),
-        ...(input.view === 'PAST_EXPIRY'
-          ? {
-              status: EstimateStatus.PRESENTED,
-              expiresOn: { lt: input.workspaceDateKey },
-            }
-          : {}),
       },
       select: estimateListSelect,
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: input.pageSize + 1,
     })
+    const rows = filteredIds
+      ? filteredIds
+          .map((id) => queriedRows.find((row) => row.id === id))
+          .filter((row): row is (typeof queriedRows)[number] => Boolean(row))
+      : queriedRows
     const hasMore = rows.length > input.pageSize
-    const estimates = hasMore ? rows.slice(0, input.pageSize) : rows
+    const pageRows = hasMore ? rows.slice(0, input.pageSize) : rows
+    const signals = await loadEstimateAttentionSignals({
+      workspaceId: input.workspaceId,
+      estimateIds: pageRows.map((row) => row.id),
+      workspaceDateKey: input.workspaceDateKey,
+      now: input.now,
+    })
+    const estimates = pageRows.map((row) => ({
+      ...row,
+      attention: signals.get(row.id),
+    }))
     return {
       estimates,
       nextCursor:
@@ -621,6 +651,16 @@ export const prismaEstimateStore: EstimateStore = {
               version: { increment: 1 },
             },
           })
+          for (const revision of family) {
+            if (revision.status === EstimateStatus.PRESENTED) {
+              await cancelPendingEstimateFollowUps(tx, {
+                workspaceId: input.actor.workspaceId,
+                estimateId: revision.id,
+                reason: 'ESTIMATE_REVISION_SUPERSEDED',
+                now: input.now,
+              })
+            }
+          }
         }
         await tx.estimate.update({
           where: { id: current.id },
@@ -675,6 +715,12 @@ export const prismaEstimateStore: EstimateStore = {
             occurredAt: input.now,
           },
         })
+        await cancelPendingEstimateFollowUps(tx, {
+          workspaceId: input.actor.workspaceId,
+          estimateId: current.id,
+          reason: 'ESTIMATE_DECIDED',
+          now: input.now,
+        })
       } else {
         if (
           current.status !== EstimateStatus.DRAFT &&
@@ -707,6 +753,12 @@ export const prismaEstimateStore: EstimateStore = {
             voidedByUserId: input.actor.userProfileId,
             version: { increment: 1 },
           },
+        })
+        await cancelPendingEstimateFollowUps(tx, {
+          workspaceId: input.actor.workspaceId,
+          estimateId: current.id,
+          reason: 'ESTIMATE_VOIDED',
+          now: input.now,
         })
       }
       return {
@@ -827,6 +879,12 @@ export const prismaEstimateStore: EstimateStore = {
       await tx.estimate.update({
         where: { id: current.id },
         data: { archivedAt, version: { increment: 1 } },
+      })
+      await cancelPendingEstimateFollowUps(tx, {
+        workspaceId: actor.workspaceId,
+        estimateId: current.id,
+        reason: 'ESTIMATE_ARCHIVED',
+        now: archivedAt,
       })
       return {
         status: 'OK' as const,

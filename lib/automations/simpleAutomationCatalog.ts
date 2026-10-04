@@ -202,17 +202,22 @@ export const SIMPLE_AUTOMATION_CATALOG: SimpleAutomationDefinition[] = [
     key: 'estimate-follow-up',
     definitionVersion: 1,
     title: 'Estimate Follow-Up',
-    description: 'Remind customers about estimates that still need a response.',
+    description: 'Send one email reminder after Skillify sends an Estimate.',
     category: 'leads-sales',
     categoryLabel: 'Leads & Sales',
     icon: 'estimate',
     availability: {
-      state: 'coming-soon',
-      label: 'Coming Soon',
-      helpText: 'Estimate automation support is still being prepared.',
-      requirementLabel: 'Estimate foundation required',
+      state: 'available',
+      label: 'Available',
+      helpText:
+        'Choose when Skillify should send one transactional email reminder.',
+      requirementLabel: 'Basic+, verified email sender, and Estimates',
     },
-    supportedWorkspaceModels: SERVICE_OR_CONSULTATIVE_WORKSPACE_MODELS,
+    statusHelpText:
+      'Starts only after Skillify successfully sends an Estimate and stops when the customer decides or the Estimate becomes unavailable.',
+    activationNotice:
+      'Activation applies only to future successful manual Estimate sends. Existing Estimate emails are not enrolled.',
+    supportedWorkspaceModels: [WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS],
     setupFields: [
       {
         id: 'estimate-delay',
@@ -281,8 +286,7 @@ export const SIMPLE_AUTOMATION_CATALOG: SimpleAutomationDefinition[] = [
         ],
       },
     ],
-    messagePreview:
-      'Appointment in {{timeUntil}}: {{appointmentTitle}}.',
+    messagePreview: 'Appointment in {{timeUntil}}: {{appointmentTitle}}.',
   },
   {
     key: 'schedule-change-notification',

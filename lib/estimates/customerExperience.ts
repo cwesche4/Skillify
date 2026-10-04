@@ -20,6 +20,7 @@ import {
   getEndOfWorkspaceDay,
   getWorkspaceDateKey,
 } from '@/lib/scheduling/schedulingDateTime'
+import { cancelPendingEstimateFollowUps } from '@/lib/estimates/followUp'
 
 const SHARE_BASE_LIFETIME_MS = 180 * 24 * 60 * 60_000
 const SHARE_COMMERCIAL_GRACE_MS = 30 * 24 * 60 * 60_000
@@ -60,6 +61,7 @@ export type EstimateCustomerExperienceSummary = {
       | 'PERMANENTLY_FAILED'
       | 'CANCELED'
     attempts: number
+    origin: 'MANUAL' | 'AUTOMATED_FOLLOW_UP'
     provider: string | null
     providerMessageId: string | null
     lastErrorCode: string | null
@@ -69,6 +71,7 @@ export type EstimateCustomerExperienceSummary = {
     failedAt: Date | null
   }>
   deliveryHistoryTruncated: boolean
+  followUp: { status: string; dueAt: Date } | null
   decision: {
     decision: 'ACCEPTED' | 'DECLINED'
     source: 'MANAGEMENT' | 'CUSTOMER_LINK'
@@ -438,10 +441,17 @@ export async function revokeEstimateShare({
     }
     const current = await lockShare(tx, workspaceId, estimateId)
     if (!current) return null
-    return tx.estimateShare.update({
+    const revoked = await tx.estimateShare.update({
       where: { id: current.id },
       data: { revokedAt: safeRevocationTime(current, now) },
     })
+    await cancelPendingEstimateFollowUps(tx, {
+      workspaceId,
+      estimateId,
+      reason: 'ESTIMATE_SHARE_REVOKED',
+      now,
+    })
+    return revoked
   })
 }
 
@@ -468,6 +478,12 @@ export async function rotateEstimateShare({
       await tx.estimateShare.update({
         where: { id: current.id },
         data: { revokedAt: safeRevocationTime(current, now) },
+      })
+      await cancelPendingEstimateFollowUps(tx, {
+        workspaceId,
+        estimateId,
+        reason: 'ESTIMATE_SHARE_ROTATED',
+        now,
       })
     }
     return createShareRecord(tx, estimate, actorUserId, now)
@@ -516,7 +532,7 @@ export async function getEstimateCustomerExperienceSummary({
   baseUrl: string
   now?: Date
 }): Promise<EstimateCustomerExperienceSummary> {
-  const [share, deliveries, decision] = await Promise.all([
+  const [share, deliveries, decision, followUp] = await Promise.all([
     prisma.estimateShare.findFirst({
       where: { workspaceId, estimateId },
       orderBy: { createdAt: 'desc' },
@@ -533,6 +549,11 @@ export async function getEstimateCustomerExperienceSummary({
           select: { id: true, fullName: true, email: true },
         },
       },
+    }),
+    prisma.estimateFollowUpSchedule.findFirst({
+      where: { workspaceId, estimateId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { status: true, dueAt: true },
     }),
   ])
   const state = share ? shareState(share, now) : null
@@ -552,6 +573,7 @@ export async function getEstimateCustomerExperienceSummary({
       : null,
     deliveries: deliveries.slice(0, DELIVERY_HISTORY_DEFAULT),
     deliveryHistoryTruncated: deliveries.length > DELIVERY_HISTORY_DEFAULT,
+    followUp,
     decision: decision
       ? {
           decision: decision.decision,
@@ -821,6 +843,12 @@ export async function decidePublicEstimate({
               version: { increment: 1 },
             },
     })
+    await cancelPendingEstimateFollowUps(tx, {
+      workspaceId: estimate.workspaceId,
+      estimateId: estimate.id,
+      reason: 'ESTIMATE_DECIDED',
+      now,
+    })
     return { decision, estimate: updated, replayed: false }
   })
 }
@@ -959,6 +987,13 @@ export async function queueEstimateDelivery({
 
     assertPresentedEstimate(estimate, input.expectedVersion, now)
 
+    await cancelPendingEstimateFollowUps(tx, {
+      workspaceId,
+      estimateId,
+      reason: 'SUPERSEDED_BY_MANUAL_DELIVERY',
+      now,
+    })
+
     let share = await lockShare(tx, workspaceId, estimateId)
     if (share && share.expiresAt <= now) {
       await tx.estimateShare.update({
@@ -977,6 +1012,7 @@ export async function queueEstimateDelivery({
         recipientEmail: input.recipientEmail,
         requestedByUserId: actorUserId,
         status: EstimateDeliveryStatus.PENDING,
+        origin: 'MANUAL',
         idempotencyKey: input.idempotencyKey,
         nextAttemptAt: now,
       },

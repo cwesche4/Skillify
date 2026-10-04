@@ -7,10 +7,12 @@ const mocks = vi.hoisted(() => ({
   operationalizationFindFirst: vi.fn(),
   leadFindFirst: vi.fn(),
   customerFindFirst: vi.fn(),
+  queryRaw: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
   prisma: {
+    $queryRaw: mocks.queryRaw,
     $transaction: mocks.transaction,
     estimate: {
       findMany: mocks.estimateFindMany,
@@ -77,6 +79,7 @@ function installTransaction(tx: Record<string, unknown>) {
 describe('Estimate Prisma store lifecycle and concurrency', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.queryRaw.mockResolvedValue([])
     mocks.operationalizationFindFirst.mockResolvedValue(null)
     mocks.leadFindFirst.mockResolvedValue(null)
     mocks.customerFindFirst.mockResolvedValue(null)
@@ -246,6 +249,7 @@ describe('Estimate Prisma store lifecycle and concurrency', () => {
       view: 'ALL',
       pageSize: 1,
       workspaceDateKey: '2026-09-30',
+      now: NOW,
     })
 
     expect(firstPage.nextCursor).toEqual(expect.any(String))
@@ -256,8 +260,9 @@ describe('Estimate Prisma store lifecycle and concurrency', () => {
       pageSize: 1,
       cursor: firstPage.nextCursor!,
       workspaceDateKey: '2026-09-30',
+      now: NOW,
     })
-    expect(mocks.estimateFindMany).toHaveBeenLastCalledWith(
+    expect(mocks.estimateFindMany.mock.calls).toContainEqual([
       expect.objectContaining({
         where: expect.objectContaining({
           workspaceId: 'ws-a',
@@ -267,7 +272,7 @@ describe('Estimate Prisma store lifecycle and concurrency', () => {
           ],
         }),
       }),
-    )
+    ])
 
     await expect(
       prismaEstimateStore.listEstimates({
@@ -276,8 +281,56 @@ describe('Estimate Prisma store lifecycle and concurrency', () => {
         pageSize: 1,
         cursor: firstPage.nextCursor!,
         workspaceDateKey: '2026-09-30',
+        now: NOW,
       }),
     ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
+  })
+
+  it('uses reference-family operationalization authority for work views', async () => {
+    const accepted = estimate({
+      status: EstimateStatus.ACCEPTED,
+      updatedAt: NOW,
+    })
+    mocks.queryRaw
+      .mockResolvedValueOnce([{ id: 'estimate-a' }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'estimate-a' }])
+    mocks.estimateFindMany
+      .mockResolvedValueOnce([accepted])
+      .mockResolvedValueOnce([
+        {
+          id: 'estimate-a',
+          status: EstimateStatus.ACCEPTED,
+          expiresOn: null,
+          archivedAt: null,
+          decisionEvidence: null,
+          operationalization: null,
+          shares: [],
+          followUpSchedules: [],
+        },
+      ])
+
+    const result = await prismaEstimateStore.listEstimates({
+      workspaceId: 'ws-a',
+      view: 'WORK_CREATED',
+      pageSize: 20,
+      workspaceDateKey: '2026-09-30',
+      now: NOW,
+    })
+
+    expect(result.estimates).toHaveLength(1)
+    expect(result.estimates[0]?.attention).toMatchObject({
+      workCreated: true,
+    })
+    expect(mocks.estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { in: ['estimate-a'] } }),
+      }),
+    )
+    const sql = (
+      mocks.queryRaw.mock.calls[0]?.[0] as { strings: string[] }
+    ).strings.join(' ')
+    expect(sql).toContain('work."referenceNumber" = estimate."referenceNumber"')
   })
 
   it('bounds revision history and reports truncation explicitly', async () => {

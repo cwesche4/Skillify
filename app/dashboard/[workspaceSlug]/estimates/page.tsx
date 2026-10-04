@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db'
 import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
 import { getPersistedSchedulingSettings } from '@/lib/scheduling/services/schedulingService'
 import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
+import type { EstimateListView } from '@/lib/estimates/types'
 
 type PageProps = {
   params: { workspaceSlug: string }
@@ -16,7 +17,26 @@ type PageProps = {
     leadId?: string
     customerId?: string
     create?: string
+    view?: string
   }
+}
+
+const canonicalViews: Record<string, EstimateListView> = {
+  all: 'ALL',
+  drafts: 'DRAFT',
+  'awaiting-decision': 'AWAITING_DECISION',
+  'expiring-soon': 'EXPIRING_SOON',
+  expired: 'EXPIRED',
+  'past-expiry': 'EXPIRED',
+  PAST_EXPIRY: 'EXPIRED',
+  'delivery-failed': 'DELIVERY_FAILED',
+  'ready-to-create-work': 'READY_TO_CREATE_WORK',
+  'work-created': 'WORK_CREATED',
+  presented: 'PRESENTED',
+  accepted: 'ACCEPTED',
+  declined: 'DECLINED',
+  voided: 'VOIDED',
+  archived: 'ARCHIVED',
 }
 
 export default async function EstimatesPage({
@@ -83,6 +103,7 @@ export default async function EstimatesPage({
         initialLeadId={searchParams?.leadId}
         initialCustomerId={searchParams?.customerId}
         initialCreate={searchParams?.create === '1'}
+        initialView={canonicalViews[searchParams?.view ?? 'all'] ?? 'ALL'}
         timezone={schedulingSettings.timezone}
         members={members.map((member) => ({
           id: member.id,

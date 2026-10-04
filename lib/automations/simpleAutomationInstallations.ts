@@ -133,7 +133,7 @@ async function persistInstallation(
             flow: Prisma.DbNull,
           },
         })
-        return tx.simpleAutomationInstallation.update({
+        const updated = await tx.simpleAutomationInstallation.update({
           where: { id: existing.id },
           data: {
             config,
@@ -143,6 +143,16 @@ async function persistInstallation(
           },
           select: installationSelect,
         })
+        if (input.definitionKey === 'estimate-follow-up') {
+          const { cancelPendingEstimateFollowUps } =
+            await import('@/lib/estimates/followUp')
+          await cancelPendingEstimateFollowUps(tx, {
+            workspaceId: input.workspaceId,
+            installationId: existing.id,
+            reason: 'ESTIMATE_FOLLOW_UP_CONFIGURATION_CHANGED',
+          })
+        }
+        return updated
       }
 
       const automation = await tx.automation.create({
@@ -205,7 +215,7 @@ async function persistInstallation(
           flow: Prisma.DbNull,
         },
       })
-      return tx.simpleAutomationInstallation.update({
+      const updated = await tx.simpleAutomationInstallation.update({
         where: { id: winner.id },
         data: {
           config,
@@ -215,6 +225,16 @@ async function persistInstallation(
         },
         select: installationSelect,
       })
+      if (input.definitionKey === 'estimate-follow-up') {
+        const { cancelPendingEstimateFollowUps } =
+          await import('@/lib/estimates/followUp')
+        await cancelPendingEstimateFollowUps(tx, {
+          workspaceId: input.workspaceId,
+          installationId: winner.id,
+          reason: 'ESTIMATE_FOLLOW_UP_CONFIGURATION_CHANGED',
+        })
+      }
+      return updated
     })
     return toInstallationView(installation)
   }
@@ -244,14 +264,32 @@ async function removeInstallation(input: RemoveInstallationInput) {
       where: { id: installation.automationId },
       data: { status: 'ARCHIVED', flow: Prisma.DbNull },
     })
+    if (input.definitionKey === 'estimate-follow-up') {
+      const { cancelPendingEstimateFollowUps } =
+        await import('@/lib/estimates/followUp')
+      await cancelPendingEstimateFollowUps(tx, {
+        workspaceId: input.workspaceId,
+        installationId: installation.id,
+        reason: 'ESTIMATE_FOLLOW_UP_REMOVED',
+      })
+    }
     const runCount = await tx.automationRun.count({
       where: {
         automationId: installation.automationId,
         workspaceId: input.workspaceId,
       },
     })
+    const scheduleCount =
+      input.definitionKey === 'estimate-follow-up'
+        ? await tx.estimateFollowUpSchedule.count({
+            where: {
+              workspaceId: input.workspaceId,
+              installationId: installation.id,
+            },
+          })
+        : 0
 
-    if (runCount > 0) {
+    if (runCount > 0 || scheduleCount > 0) {
       await tx.simpleAutomationInstallation.update({
         where: { id: installation.id },
         data: { removedAt: new Date() },

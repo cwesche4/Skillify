@@ -10,6 +10,7 @@ import {
   WorkspaceBusinessModel,
   type WorkspaceBusinessModel as WorkspaceBusinessModelValue,
 } from '@/lib/prisma/enums'
+import { isSupportedSchedulingTimezone } from '@/lib/scheduling/schedulingTimezones'
 
 export type SimpleAutomationRequirement = {
   code: string
@@ -34,16 +35,13 @@ export type SimpleAutomationReadinessInput = {
   canUseStarterAutomations: boolean
   connectedCrmProviders: string[]
   crmInboundDisabled?: boolean
+  estimateEmailReady?: boolean
+  schedulingTimezoneReady?: boolean
 }
 
 const nonLiveReasonByKey: Partial<
   Record<SimpleAutomationKey, SimpleAutomationRequirement>
-> = {
-  'estimate-follow-up': {
-    code: 'estimate-foundation-unavailable',
-    message: 'Estimate automation support is still being prepared.',
-  },
-}
+> = {}
 
 export function evaluateSimpleAutomationReadiness(
   input: SimpleAutomationReadinessInput,
@@ -103,7 +101,8 @@ export function evaluateSimpleAutomationReadiness(
     definition.key !== 'lead-follow-up' &&
     definition.key !== 'job-completion-message' &&
     definition.key !== 'appointment-reminder' &&
-    definition.key !== 'schedule-change-notification'
+    definition.key !== 'schedule-change-notification' &&
+    definition.key !== 'estimate-follow-up'
   ) {
     if (definition.availability.state === 'available') {
       requirements.push(
@@ -149,6 +148,31 @@ export function evaluateSimpleAutomationReadiness(
       ready: requirements.length === 0,
       nativeLeadEvents:
         input.businessModel === WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
+      requirements,
+      crmProviders: [],
+    }
+  }
+
+  if (definition.key === 'estimate-follow-up') {
+    if (!input.estimateEmailReady) {
+      requirements.push({
+        code: 'verified-estimate-email-required',
+        message:
+          'Connect and verify a workspace-owned Resend sender before activation.',
+        action: 'Open Integrations',
+      })
+    }
+    if (!input.schedulingTimezoneReady) {
+      requirements.push({
+        code: 'scheduling-timezone-required',
+        message: 'Choose a valid Scheduling timezone before activation.',
+        action: 'Open Scheduling settings',
+      })
+    }
+    return {
+      liveSupported: true,
+      ready: requirements.length === 0,
+      nativeLeadEvents: false,
       requirements,
       crmProviders: [],
     }
@@ -317,17 +341,29 @@ export async function getSimpleAutomationReadiness(input: {
   config: unknown
 }) {
   const { prisma } = await import('@/lib/db')
-  const [workspace, capabilities, integrations] = await Promise.all([
-    prisma.workspace.findUnique({
-      where: { id: input.workspaceId },
-      select: { businessModel: true },
-    }),
-    getWorkspaceAutomationCapabilities(input.workspaceId),
-    prisma.integration.findMany({
-      where: { workspaceId: input.workspaceId, status: 'connected' },
-      select: { provider: true, metadata: true },
-    }),
-  ])
+  const [workspace, capabilities, integrations, estimateEmailReady] =
+    await Promise.all([
+      prisma.workspace.findUnique({
+        where: { id: input.workspaceId },
+        select: {
+          businessModel: true,
+          settings: { select: { scheduling: true } },
+        },
+      }),
+      getWorkspaceAutomationCapabilities(input.workspaceId),
+      prisma.integration.findMany({
+        where: { workspaceId: input.workspaceId, status: 'connected' },
+        select: { provider: true, metadata: true },
+      }),
+      input.definitionKey === 'estimate-follow-up'
+        ? import('@/lib/estimates/estimateEmail')
+            .then(({ resolveVerifiedEstimateSender }) =>
+              resolveVerifiedEstimateSender(input.workspaceId),
+            )
+            .then(() => true)
+            .catch(() => false)
+        : Promise.resolve(false),
+    ])
 
   if (!workspace) {
     return {
@@ -340,6 +376,14 @@ export async function getSimpleAutomationReadiness(input: {
       ],
     } satisfies SimpleAutomationReadiness
   }
+
+  const persistedScheduling = workspace.settings?.scheduling as
+    | { timezone?: unknown }
+    | null
+    | undefined
+  const schedulingTimezoneReady =
+    typeof persistedScheduling?.timezone === 'string' &&
+    isSupportedSchedulingTimezone(persistedScheduling.timezone)
 
   return evaluateSimpleAutomationReadiness({
     ...input,
@@ -360,5 +404,7 @@ export async function getSimpleAutomationReadiness(input: {
     crmInboundDisabled:
       process.env.CRM_DISABLE_ALL === 'true' ||
       process.env.CRM_DISABLE_INBOUND === 'true',
+    estimateEmailReady,
+    schedulingTimezoneReady,
   })
 }

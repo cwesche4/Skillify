@@ -11,6 +11,7 @@ const LIVE_DEFINITION_VERSIONS: Partial<Record<SimpleAutomationKey, number>> = {
   'job-completion-message': 2,
   'appointment-reminder': 2,
   'schedule-change-notification': 2,
+  'estimate-follow-up': 1,
 }
 
 export class SimpleAutomationCompileError extends Error {}
@@ -65,7 +66,8 @@ export function compileSimpleAutomation(
     input.definitionKey !== 'lead-follow-up' &&
     input.definitionKey !== 'job-completion-message' &&
     input.definitionKey !== 'appointment-reminder' &&
-    input.definitionKey !== 'schedule-change-notification'
+    input.definitionKey !== 'schedule-change-notification' &&
+    input.definitionKey !== 'estimate-follow-up'
   ) {
     throw new SimpleAutomationCompileError(
       'This Simple Automation does not have a production compiler yet.',
@@ -73,6 +75,50 @@ export function compileSimpleAutomation(
   }
 
   const config = parsed.data as SimpleAutomationConfig
+  if (input.definitionKey === 'estimate-follow-up') {
+    const delay = config['estimate-delay']
+    if (delay !== '1-day' && delay !== '3-days' && delay !== '7-days') {
+      throw new SimpleAutomationCompileError(
+        'Choose a supported Estimate follow-up delay.',
+      )
+    }
+    const triggerId = 'simple:estimate-follow-up:v1:trigger'
+    const actionId = 'simple:estimate-follow-up:v1:queue-email'
+    return {
+      nodes: [
+        {
+          id: triggerId,
+          type: 'simple-estimate-follow-up-trigger',
+          position: { x: 0, y: 0 },
+          data: {
+            label: 'Estimate follow-up due',
+            source: { kind: 'native', event: 'estimate.follow_up_due' },
+            __simpleManaged: true,
+          },
+        },
+        {
+          id: actionId,
+          type: 'simple-estimate-follow-up-email',
+          position: { x: 320, y: 0 },
+          data: {
+            label: 'Queue one Estimate reminder email',
+            definitionKey: input.definitionKey,
+            definitionVersion: input.definitionVersion,
+            delay,
+            channel: 'email',
+            __simpleManaged: true,
+          },
+        },
+      ],
+      edges: [
+        {
+          id: `${triggerId}->${actionId}`,
+          source: triggerId,
+          target: actionId,
+        },
+      ],
+    }
+  }
   if (input.definitionKey === 'schedule-change-notification') {
     if (
       config['notification-channel'] !== 'in-app' ||

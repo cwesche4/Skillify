@@ -62,6 +62,7 @@ export type EstimateStore = {
     leadId?: string
     customerId?: string
     workspaceDateKey: string
+    now: Date
   }): Promise<Omit<EstimateListResult, 'workspaceDateKey'>>
   getEstimateDetail(input: {
     workspaceId: string
@@ -197,6 +198,7 @@ export function createEstimateService(
         workspaceId,
         ...query,
         workspaceDateKey,
+        now: now(),
       })
       return { ...result, workspaceDateKey }
     },

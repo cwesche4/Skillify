@@ -98,7 +98,20 @@ export type EstimateClientListRecord = Pick<
   | 'archivedAt'
   | 'lead'
   | 'customer'
->
+> & {
+  attention?: {
+    attention:
+      | 'READY_TO_CREATE_WORK'
+      | 'DELIVERY_FAILED'
+      | 'EXPIRING_SOON'
+      | 'EXPIRED'
+      | null
+    awaitingDecision: boolean
+    sentThroughSkillify: boolean
+    followUp: { status: string; dueAt: string } | null
+    workCreated: boolean
+  }
+}
 
 export type EstimateClientOperationalization = {
   id: string
@@ -150,6 +163,7 @@ export type EstimateClientCustomerExperience = {
       | 'PERMANENTLY_FAILED'
       | 'CANCELED'
     attempts: number
+    origin: 'MANUAL' | 'AUTOMATED_FOLLOW_UP'
     provider: string | null
     providerMessageId: string | null
     lastErrorCode: string | null
@@ -159,6 +173,7 @@ export type EstimateClientCustomerExperience = {
     failedAt: string | null
   }>
   deliveryHistoryTruncated: boolean
+  followUp: { status: string; dueAt: string } | null
   decision: {
     decision: 'ACCEPTED' | 'DECLINED'
     source: 'MANAGEMENT' | 'CUSTOMER_LINK'

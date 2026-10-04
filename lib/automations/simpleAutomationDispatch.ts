@@ -93,6 +93,18 @@ const defaultDependencies: SimpleAutomationDispatchDependencies = {
           })
           return 'duplicate'
         }
+        if (priorRun?.status === 'RUNNING') {
+          const { reconcileQueuedEstimateFollowUpRun } =
+            await import('@/lib/estimates/followUp')
+          const reconciled = await reconcileQueuedEstimateFollowUpRun({
+            workspaceId: input.workspaceId,
+            installationId: input.installationId,
+            eventKey: input.eventKey,
+            dispatchId: existing.id,
+            runId: existing.runId,
+          })
+          if (reconciled) return 'duplicate'
+        }
       }
 
       const staleBefore = new Date(Date.now() - 5 * 60_000)
@@ -157,6 +169,18 @@ const defaultDependencies: SimpleAutomationDispatchDependencies = {
       },
     })
     if (succeeded.count !== 1) {
+      const existing = await prisma.simpleAutomationDispatch.findUnique({
+        where: {
+          installationId_eventKey: {
+            installationId: input.installationId,
+            eventKey: input.eventKey,
+          },
+        },
+        select: { status: true, runId: true },
+      })
+      if (existing?.status === 'SUCCEEDED' && existing.runId === input.runId) {
+        return
+      }
       throw new Error('Simple Automation dispatch lease was lost.')
     }
   },
@@ -211,6 +235,9 @@ const TERMINAL_LIFECYCLE_ERRORS = new Set([
   'Schedule Change Notification is missing its change identity.',
   'Schedule Change Notification workspace does not match.',
   'Managed Schedule Change Notification is no longer current.',
+  'Managed Estimate Follow-Up is no longer current.',
+  'Estimate Follow-Up is missing its schedule identity.',
+  'Estimate Follow-Up worker claim was lost.',
   'Automation has no flow',
 ])
 

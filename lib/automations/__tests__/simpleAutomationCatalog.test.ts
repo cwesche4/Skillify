@@ -26,14 +26,18 @@ describe('Simple Automation catalog', () => {
     ).toHaveLength(6)
   })
 
-  it('keeps unsupported foundations out of available state', () => {
+  it('exposes only recipes backed by their durable foundations', () => {
     const byKey = new Map(
       SIMPLE_AUTOMATION_CATALOG.map((recipe) => [recipe.key, recipe]),
     )
 
-    expect(byKey.get('estimate-follow-up')?.availability.state).toBe(
-      'coming-soon',
-    )
+    expect(byKey.get('estimate-follow-up')).toMatchObject({
+      definitionVersion: 1,
+      availability: { state: 'available' },
+      supportedWorkspaceModels: [
+        WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
+      ],
+    })
     expect(byKey.get('job-completion-message')).toMatchObject({
       definitionVersion: 2,
       description: 'Let your team know when a Job has been completed.',
@@ -80,7 +84,9 @@ describe('Simple Automation catalog', () => {
     const byKey = new Map(
       SIMPLE_AUTOMATION_CATALOG.map((recipe) => [recipe.key, recipe]),
     )
-    expect(byKey.get('lead-follow-up')?.activationNotice).toMatch(/not backfilled/i)
+    expect(byKey.get('lead-follow-up')?.activationNotice).toMatch(
+      /not backfilled/i,
+    )
     expect(byKey.get('appointment-reminder')?.activationNotice).toMatch(
       /not retroactively reconciled/i,
     )

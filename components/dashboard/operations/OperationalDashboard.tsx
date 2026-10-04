@@ -299,7 +299,8 @@ export function OperationalDashboard({
   const attentionCount = isManagement
     ? data.attention.unableJobsCount +
       data.attention.overdueLeadsCount +
-      data.attention.failedAutomationsCount
+      data.attention.failedAutomationsCount +
+      (data.attention.estimatesCount ?? 0)
     : 0
 
   return (
@@ -419,7 +420,7 @@ export function OperationalDashboard({
                     </p>
                     <p className="text-app-secondary mt-1 text-sm">
                       No Unable Jobs, overdue Lead follow-ups, or recent
-                      Automation failures were found.
+                      Automation or Estimate attention items were found.
                     </p>
                   </div>
                 </div>
@@ -552,6 +553,57 @@ export function OperationalDashboard({
               </Card>
             </div>
           )}
+
+          <Card>
+            <CardHeader>
+              <CountTitle
+                label="Estimate attention"
+                count={data.attention.estimatesCount ?? 0}
+                attention
+              />
+              <CardDescription>
+                Accepted work, delivery failures, and commercial expiry that
+                need management review.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {data.attention.estimates?.length ? (
+                data.attention.estimates.map((estimate) => (
+                  <RowLink
+                    key={estimate.id}
+                    href={`/dashboard/${data.workspaceSlug}/estimates?view=${estimate.view}&estimateId=${estimate.id}#estimates-workspace`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-app-primary truncate text-sm font-medium">
+                        {estimate.title}
+                      </p>
+                      <Badge variant="orange" size="xs">
+                        {estimate.kind === 'READY_TO_CREATE_WORK'
+                          ? 'Accepted — Create Work'
+                          : estimate.kind === 'DELIVERY_FAILED'
+                            ? 'Delivery Failed'
+                            : estimate.kind === 'EXPIRING_SOON'
+                              ? 'Expiring Soon'
+                              : 'Expired'}
+                      </Badge>
+                    </div>
+                    <p className="text-app-tertiary mt-1 text-xs">
+                      {estimate.referenceNumber} ·{' '}
+                      {estimate.customerDisplayName}
+                    </p>
+                  </RowLink>
+                ))
+              ) : (
+                <EmptyState>No Estimates need attention.</EmptyState>
+              )}
+              <Link
+                href={`/dashboard/${data.workspaceSlug}/estimates?view=all#estimates-workspace`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+              >
+                Review Estimates <ArrowRight className="h-3 w-3" />
+              </Link>
+            </CardContent>
+          </Card>
         </section>
       ) : null}
 

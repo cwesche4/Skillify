@@ -57,6 +57,7 @@ type Props = {
   initialLeadId?: string
   initialCustomerId?: string
   initialCreate?: boolean
+  initialView?: EstimateListView
   timezone?: string
   members?: Array<{ id: string; name: string }>
   teams?: Array<{ id: string; name: string }>
@@ -91,14 +92,42 @@ type DraftState = {
 
 const views: Array<{ key: EstimateListView; label: string }> = [
   { key: 'ALL', label: 'All' },
-  { key: 'DRAFT', label: 'Draft' },
-  { key: 'PRESENTED', label: 'Presented' },
-  { key: 'PAST_EXPIRY', label: 'Past expiry' },
-  { key: 'ACCEPTED', label: 'Accepted' },
-  { key: 'DECLINED', label: 'Declined' },
-  { key: 'VOIDED', label: 'Voided' },
+  { key: 'DRAFT', label: 'Drafts' },
+  { key: 'AWAITING_DECISION', label: 'Awaiting Decision' },
+  { key: 'EXPIRING_SOON', label: 'Expiring Soon' },
+  { key: 'EXPIRED', label: 'Expired' },
+  { key: 'DELIVERY_FAILED', label: 'Delivery Failed' },
+  { key: 'READY_TO_CREATE_WORK', label: 'Ready to Create Work' },
+  { key: 'WORK_CREATED', label: 'Work Created' },
   { key: 'ARCHIVED', label: 'Archived' },
 ]
+
+const viewUrls: Record<EstimateListView, string> = {
+  ALL: 'all',
+  DRAFT: 'drafts',
+  AWAITING_DECISION: 'awaiting-decision',
+  EXPIRING_SOON: 'expiring-soon',
+  EXPIRED: 'expired',
+  DELIVERY_FAILED: 'delivery-failed',
+  READY_TO_CREATE_WORK: 'ready-to-create-work',
+  WORK_CREATED: 'work-created',
+  PRESENTED: 'presented',
+  ACCEPTED: 'accepted',
+  DECLINED: 'declined',
+  VOIDED: 'voided',
+  ARCHIVED: 'archived',
+}
+
+const urlViews = Object.fromEntries(
+  Object.entries(viewUrls).map(([key, value]) => [value, key]),
+) as Record<string, EstimateListView>
+
+const attentionLabels = {
+  READY_TO_CREATE_WORK: 'Accepted — Create Work',
+  DELIVERY_FAILED: 'Delivery Failed',
+  EXPIRING_SOON: 'Expiring Soon',
+  EXPIRED: 'Expired',
+} as const
 
 const emptyLine = (): DraftLine => ({
   key: crypto.randomUUID(),
@@ -228,11 +257,12 @@ export function EstimatesClient({
   initialLeadId,
   initialCustomerId,
   initialCreate,
+  initialView = 'ALL',
   timezone = 'UTC',
   members = [],
   teams = [],
 }: Props) {
-  const [view, setView] = useState<EstimateListView>('ALL')
+  const [view, setView] = useState<EstimateListView>(initialView)
   const [estimates, setEstimates] = useState<EstimateClientListRecord[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [workspaceDateKey, setWorkspaceDateKey] = useState('')
@@ -331,6 +361,15 @@ export function EstimatesClient({
   useEffect(() => {
     if (initialEstimateId) void openEstimate(initialEstimateId)
   }, [initialEstimateId, openEstimate])
+
+  useEffect(() => {
+    const syncView = () => {
+      const value = new URLSearchParams(window.location.search).get('view')
+      setView(urlViews[value ?? 'all'] ?? 'ALL')
+    }
+    window.addEventListener('popstate', syncView)
+    return () => window.removeEventListener('popstate', syncView)
+  }, [])
 
   const subtotals = useMemo(
     () =>
@@ -566,8 +605,20 @@ export function EstimatesClient({
     ? statusLabel(selected, workspaceDateKey)
     : null
 
+  const selectView = (nextView: EstimateListView) => {
+    setView(nextView)
+    const query = new URLSearchParams(window.location.search)
+    query.set('view', viewUrls[nextView])
+    query.delete('estimateId')
+    window.history.pushState(
+      null,
+      '',
+      `${window.location.pathname}?${query.toString()}#estimates-workspace`,
+    )
+  }
+
   return (
-    <div className="space-y-6">
+    <div id="estimates-workspace" className="space-y-6" tabIndex={-1}>
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-brand-primary">
@@ -597,7 +648,8 @@ export function EstimatesClient({
             key={item.key}
             size="sm"
             variant={view === item.key ? 'primary' : 'outline'}
-            onClick={() => setView(item.key)}
+            aria-pressed={view === item.key}
+            onClick={() => selectView(item.key)}
           >
             {item.label}
           </Button>
@@ -640,6 +692,15 @@ export function EstimatesClient({
                         estimate.lead?.displayName ||
                         'Commercial context'}
                     </span>
+                    <span className="text-app-muted mt-1 block text-xs">
+                      {estimate.attention?.followUp?.status === 'SCHEDULED'
+                        ? `Follow-up scheduled for ${new Date(estimate.attention.followUp.dueAt).toLocaleString()}`
+                        : estimate.attention?.followUp?.status === 'DISPATCHED'
+                          ? 'Follow-up email queued'
+                          : estimate.attention?.sentThroughSkillify
+                            ? 'Sent through Skillify'
+                            : 'Not sent through Skillify'}
+                    </span>
                   </span>
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="text-app-muted text-xs">
@@ -656,6 +717,11 @@ export function EstimatesClient({
                     <Badge variant={statusVariant(label)}>
                       {estimate.archivedAt ? `Archived · ${label}` : label}
                     </Badge>
+                    {estimate.attention?.attention ? (
+                      <Badge variant="orange">
+                        {attentionLabels[estimate.attention.attention]}
+                      </Badge>
+                    ) : null}
                   </span>
                 </button>
               )
@@ -819,7 +885,7 @@ export function EstimatesClient({
               >
                 Customer experience
               </h3>
-              <div className="mt-2 grid gap-3 text-xs sm:grid-cols-3">
+              <div className="mt-2 grid gap-3 text-xs sm:grid-cols-4">
                 <Detail label="Commercial">
                   {effectiveStatus || 'Not recorded'}
                 </Detail>
@@ -833,6 +899,21 @@ export function EstimatesClient({
                   {customerExperience?.decision
                     ? `${customerExperience.decision.decision === 'ACCEPTED' ? 'Accepted' : 'Declined'} · ${customerExperience.decision.source === 'CUSTOMER_LINK' ? 'Customer link' : 'Recorded by management'}`
                     : 'Awaiting decision'}
+                </Detail>
+                <Detail label="Follow-up">
+                  {customerExperience?.followUp?.status === 'SCHEDULED'
+                    ? `Scheduled for ${dateTime(customerExperience.followUp.dueAt)}`
+                    : customerExperience?.followUp?.status === 'DISPATCHED'
+                      ? 'Email queued'
+                      : customerExperience?.followUp
+                        ? customerExperience.followUp.status
+                            .split('_')
+                            .map(
+                              (word) =>
+                                word.charAt(0) + word.slice(1).toLowerCase(),
+                            )
+                            .join(' ')
+                        : 'No follow-up scheduled'}
                 </Detail>
               </div>
               {customerExperience?.decision ? (
@@ -865,7 +946,10 @@ export function EstimatesClient({
                           {delivery.recipientEmail}
                         </span>
                         <span className="text-app-muted">
-                          Requested {dateTime(delivery.requestedAt)}
+                          {delivery.origin === 'AUTOMATED_FOLLOW_UP'
+                            ? 'Automated follow-up'
+                            : 'Manual email'}{' '}
+                          · Requested {dateTime(delivery.requestedAt)}
                         </span>
                       </span>
                       <span className="text-app-muted">

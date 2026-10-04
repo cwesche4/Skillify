@@ -20,8 +20,8 @@ const schema = readFileSync(
 
 describe('Estimate operationalization migration', () => {
   it('remains the frozen additive migration 42', () => {
-    expect(migrations).toHaveLength(43)
-    expect(migrations.at(-2)).toBe('20261001000000_estimate_operationalization')
+    expect(migrations).toHaveLength(44)
+    expect(migrations.at(-3)).toBe('20261001000000_estimate_operationalization')
     expect(migration).not.toMatch(
       /^\s*(DROP|TRUNCATE|DELETE FROM|UPDATE|INSERT INTO)\b/m,
     )

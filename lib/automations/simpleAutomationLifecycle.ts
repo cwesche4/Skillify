@@ -66,19 +66,43 @@ const defaultDependencies: SimpleAutomationLifecycleDependencies = {
   getReadiness: getSimpleAutomationReadiness,
   async updateAutomation(input) {
     const { prisma } = await import('@/lib/db')
-    const updated = await prisma.automation.updateMany({
-      where: {
-        id: input.automationId,
-        workspaceId: input.workspaceId,
-        status: input.expectedStatus,
-        simpleAutomationInstallation: { isNot: null },
-      },
-      data: {
-        status: input.status,
-        flow: input.flow,
-      },
+    return prisma.$transaction(async (tx) => {
+      const installation = await tx.simpleAutomationInstallation.findFirst({
+        where: {
+          automationId: input.automationId,
+          workspaceId: input.workspaceId,
+          removedAt: null,
+        },
+        select: { id: true, definitionKey: true },
+      })
+      if (!installation) return false
+      const updated = await tx.automation.updateMany({
+        where: {
+          id: input.automationId,
+          workspaceId: input.workspaceId,
+          status: input.expectedStatus,
+          simpleAutomationInstallation: { isNot: null },
+        },
+        data: {
+          status: input.status,
+          flow: input.flow,
+        },
+      })
+      if (
+        updated.count === 1 &&
+        input.status === 'PAUSED' &&
+        installation.definitionKey === 'estimate-follow-up'
+      ) {
+        const { cancelPendingEstimateFollowUps } =
+          await import('@/lib/estimates/followUp')
+        await cancelPendingEstimateFollowUps(tx, {
+          workspaceId: input.workspaceId,
+          installationId: installation.id,
+          reason: 'ESTIMATE_FOLLOW_UP_PAUSED',
+        })
+      }
+      return updated.count === 1
     })
-    return updated.count === 1
   },
 }
 

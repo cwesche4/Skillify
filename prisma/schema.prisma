@@ -154,6 +154,21 @@ enum EstimateDeliveryStatus {
   CANCELED
 }
 
+enum EstimateDeliveryOrigin {
+  MANUAL
+  AUTOMATED_FOLLOW_UP
+}
+
+enum EstimateFollowUpStatus {
+  SCHEDULED
+  PROCESSING
+  DISPATCHED
+  FAILED
+  PERMANENTLY_FAILED
+  CANCELED
+  SKIPPED
+}
+
 enum EstimateDecisionKind {
   ACCEPTED
   DECLINED
@@ -1003,6 +1018,7 @@ model Workspace {
   estimateOperationalizationItems   EstimateOperationalizationItem[]
   estimateShares                    EstimateShare[]
   estimateDeliveries                EstimateDelivery[]
+  estimateFollowUpSchedules         EstimateFollowUpSchedule[]
   estimateDecisions                 EstimateDecision[]
 
   @@index([ownerId])
@@ -1368,6 +1384,7 @@ model Estimate {
   shares                  EstimateShare[]
   deliveries              EstimateDelivery[]
   decisionEvidence        EstimateDecision?
+  followUpSchedules       EstimateFollowUpSchedule[]
 
   @@unique([id, workspaceId])
   @@unique([id, workspaceId, referenceNumber])
@@ -1439,6 +1456,7 @@ model EstimateDelivery {
   recipientEmail    String
   requestedByUserId String
   status            EstimateDeliveryStatus  @default(PENDING)
+  origin            EstimateDeliveryOrigin  @default(MANUAL)
   attempts          Int                     @default(0)
   nextAttemptAt     DateTime?
   claimedAt         DateTime?
@@ -1457,17 +1475,69 @@ model EstimateDelivery {
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
 
-  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict, map: "EstimateDelivery_workspace_fkey")
-  estimate      Estimate      @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateDelivery_estimate_fkey")
-  estimateShare EstimateShare @relation(fields: [estimateShareId, workspaceId, estimateId], references: [id, workspaceId, estimateId], onDelete: Restrict, map: "EstimateDelivery_share_fkey")
-  requestedBy   UserProfile   @relation("EstimateDeliveryRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict, map: "EstimateDelivery_requester_fkey")
+  workspace                 Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Restrict, map: "EstimateDelivery_workspace_fkey")
+  estimate                  Estimate                   @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateDelivery_estimate_fkey")
+  estimateShare             EstimateShare              @relation(fields: [estimateShareId, workspaceId, estimateId], references: [id, workspaceId, estimateId], onDelete: Restrict, map: "EstimateDelivery_share_fkey")
+  requestedBy               UserProfile                @relation("EstimateDeliveryRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict, map: "EstimateDelivery_requester_fkey")
+  sourceFollowUpSchedules   EstimateFollowUpSchedule[] @relation("EstimateFollowUpSourceDelivery")
+  generatedFollowUpSchedule EstimateFollowUpSchedule?  @relation("EstimateFollowUpGeneratedDelivery")
 
   @@unique([workspaceId, idempotencyKey], map: "EstimateDelivery_workspace_idempotency_key")
+  @@unique([id, workspaceId, estimateId], map: "EstimateDelivery_id_workspace_estimate_key")
   @@index([status, nextAttemptAt], map: "EstimateDelivery_status_next_attempt_idx")
   @@index([status, leaseExpiresAt], map: "EstimateDelivery_status_lease_idx")
   @@index([workspaceId, estimateId, requestedAt], map: "EstimateDelivery_workspace_estimate_time_idx")
   @@index([estimateShareId], map: "EstimateDelivery_share_idx")
   @@index([requestedByUserId], map: "EstimateDelivery_requester_idx")
+}
+
+model EstimateFollowUpSchedule {
+  id                       String                 @id @default(cuid())
+  workspaceId              String
+  estimateId               String
+  installationId           String
+  sourceDeliveryId         String
+  reminderOrdinal          Int                    @default(1)
+  dueAt                    DateTime
+  timezone                 String
+  configurationFingerprint String
+  status                   EstimateFollowUpStatus @default(SCHEDULED)
+  attempts                 Int                    @default(0)
+  nextAttemptAt            DateTime?
+  claimedAt                DateTime?
+  claimedBy                String?
+  leaseExpiresAt           DateTime?
+  dispatchId               String?
+  automationRunId          String?
+  generatedDeliveryId      String?                @unique
+  idempotencyKey           String
+  cancellationReason       String?
+  lastErrorCode            String?
+  lastErrorMessage         String?
+  dispatchedAt             DateTime?
+  canceledAt               DateTime?
+  skippedAt                DateTime?
+  failedAt                 DateTime?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+
+  workspace         Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Restrict, map: "EstimateFollowUpSchedule_workspace_fkey")
+  estimate          Estimate                     @relation(fields: [estimateId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateFollowUpSchedule_estimate_fkey")
+  installation      SimpleAutomationInstallation @relation(fields: [installationId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateFollowUpSchedule_installation_fkey")
+  sourceDelivery    EstimateDelivery             @relation("EstimateFollowUpSourceDelivery", fields: [sourceDeliveryId, workspaceId, estimateId], references: [id, workspaceId, estimateId], onDelete: Restrict, map: "EstimateFollowUpSchedule_source_delivery_fkey")
+  generatedDelivery EstimateDelivery?            @relation("EstimateFollowUpGeneratedDelivery", fields: [generatedDeliveryId, workspaceId, estimateId], references: [id, workspaceId, estimateId], onDelete: Restrict, map: "EstimateFollowUpSchedule_generated_delivery_fkey")
+  dispatch          SimpleAutomationDispatch?    @relation(fields: [dispatchId, workspaceId, automationRunId], references: [id, workspaceId, runId], onDelete: Restrict, map: "EstimateFollowUpSchedule_dispatch_run_fkey")
+  automationRun     AutomationRun?               @relation(fields: [automationRunId, workspaceId], references: [id, workspaceId], onDelete: Restrict, map: "EstimateFollowUpSchedule_run_fkey")
+
+  @@unique([workspaceId, idempotencyKey], map: "EstimateFollowUpSchedule_workspace_idempotency_key")
+  @@unique([installationId, sourceDeliveryId, reminderOrdinal], map: "EstimateFollowUpSchedule_logical_identity_key")
+  @@unique([generatedDeliveryId, workspaceId, estimateId], map: "EstimateFollowUpSchedule_generated_workspace_estimate_key")
+  @@index([status, dueAt], map: "EstimateFollowUpSchedule_status_due_idx")
+  @@index([status, leaseExpiresAt], map: "EstimateFollowUpSchedule_status_lease_idx")
+  @@index([workspaceId, status, dueAt], map: "EstimateFollowUpSchedule_workspace_status_due_idx")
+  @@index([workspaceId, estimateId, status], map: "EstimateFollowUpSchedule_workspace_estimate_status_idx")
+  @@index([installationId, status], map: "EstimateFollowUpSchedule_installation_status_idx")
+  @@index([sourceDeliveryId], map: "EstimateFollowUpSchedule_source_delivery_idx")
 }
 
 model EstimateDecision {
@@ -2626,13 +2696,15 @@ model SimpleAutomationInstallation {
   updatedAt              DateTime  @updatedAt
   removedAt              DateTime?
 
-  workspace        Workspace                  @relation(fields: [workspaceId], references: [id])
-  automation       Automation                 @relation(fields: [automationId], references: [id])
-  createdBy        UserProfile                @relation("SimpleAutomationInstallationCreatedBy", fields: [createdByUserId], references: [id])
-  lastConfiguredBy UserProfile                @relation("SimpleAutomationInstallationConfiguredBy", fields: [lastConfiguredByUserId], references: [id])
-  dispatches       SimpleAutomationDispatch[]
+  workspace                 Workspace                  @relation(fields: [workspaceId], references: [id])
+  automation                Automation                 @relation(fields: [automationId], references: [id])
+  createdBy                 UserProfile                @relation("SimpleAutomationInstallationCreatedBy", fields: [createdByUserId], references: [id])
+  lastConfiguredBy          UserProfile                @relation("SimpleAutomationInstallationConfiguredBy", fields: [lastConfiguredByUserId], references: [id])
+  dispatches                SimpleAutomationDispatch[]
+  estimateFollowUpSchedules EstimateFollowUpSchedule[]
 
   @@unique([workspaceId, definitionKey])
+  @@unique([id, workspaceId], map: "SimpleAutomationInstallation_id_workspace_key")
   @@index([workspaceId])
   @@index([definitionKey, definitionVersion])
   @@index([createdByUserId])
@@ -2654,10 +2726,13 @@ model SimpleAutomationDispatch {
   updatedAt      DateTime  @updatedAt
   completedAt    DateTime?
 
-  workspace    Workspace                    @relation(fields: [workspaceId], references: [id])
-  installation SimpleAutomationInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  workspace                 Workspace                    @relation(fields: [workspaceId], references: [id])
+  installation              SimpleAutomationInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  estimateFollowUpSchedules EstimateFollowUpSchedule[]
 
   @@unique([installationId, eventKey])
+  @@unique([id, workspaceId], map: "SimpleAutomationDispatch_id_workspace_key")
+  @@unique([id, workspaceId, runId], map: "SimpleAutomationDispatch_id_workspace_run_key")
   @@index([workspaceId, createdAt])
   @@index([status, updatedAt])
 }
@@ -2828,8 +2903,10 @@ model AutomationRun {
   userProfile   UserProfile? @relation(fields: [userProfileId], references: [id])
   userProfileId String?
 
-  events AutomationRunEvent[]
+  events                    AutomationRunEvent[]
+  estimateFollowUpSchedules EstimateFollowUpSchedule[]
 
+  @@unique([id, workspaceId], map: "AutomationRun_id_workspace_key")
   @@index([workspaceId])
   @@index([automationId])
 }

@@ -178,6 +178,31 @@ describe('Simple Automation compiler and readiness', () => {
     })
   })
 
+  it('compiles Estimate Follow-Up as one deterministic email queue action', () => {
+    const input = {
+      definitionKey: 'estimate-follow-up' as const,
+      definitionVersion: 1,
+      config: { 'estimate-delay': '3-days' },
+      workspaceContext: { crmProviders: [] },
+    }
+    const first = compileSimpleAutomation(input)
+    expect(compileSimpleAutomation(input)).toEqual(first)
+    expect(first.nodes.map((node) => [node.id, node.type])).toEqual([
+      [
+        'simple:estimate-follow-up:v1:trigger',
+        'simple-estimate-follow-up-trigger',
+      ],
+      [
+        'simple:estimate-follow-up:v1:queue-email',
+        'simple-estimate-follow-up-email',
+      ],
+    ])
+    expect(first.nodes[1]?.data).toMatchObject({
+      channel: 'email',
+      delay: '3-days',
+    })
+  })
+
   it('fails safely for version mismatch and recipes without a live compiler', () => {
     expect(() =>
       compileSimpleAutomation({
@@ -280,28 +305,27 @@ describe('Simple Automation compiler and readiness', () => {
     })
   })
 
-  it.each([['estimate-follow-up', 'estimate-foundation-unavailable']])(
-    'keeps %s non-live with reason %s',
-    (definitionKey, reasonCode) => {
-    const configs: Record<string, unknown> = {
-      'estimate-follow-up': { 'estimate-delay': '3-days' },
-    }
+  it('requires verified email and Scheduling timezone for Estimate Follow-Up', () => {
     const result = evaluateSimpleAutomationReadiness({
-      definitionKey,
+      definitionKey: 'estimate-follow-up',
       definitionVersion: 1,
-      config: configs[definitionKey],
+      config: { 'estimate-delay': '3-days' },
       businessModel: WorkspaceBusinessModel.SIMPLE_SERVICE_BUSINESS,
-      plan: 'Elite',
+      plan: 'Basic',
       canUseStarterAutomations: true,
-      connectedCrmProviders: ['hubspot'],
+      connectedCrmProviders: [],
+      estimateEmailReady: false,
+      schedulingTimezoneReady: false,
     })
 
-    expect(result).toMatchObject({ liveSupported: false, ready: false })
+    expect(result).toMatchObject({ liveSupported: true, ready: false })
     expect(result.requirements).toContainEqual(
-      expect.objectContaining({ code: reasonCode }),
+      expect.objectContaining({ code: 'verified-estimate-email-required' }),
     )
-    },
-  )
+    expect(result.requirements).toContainEqual(
+      expect.objectContaining({ code: 'scheduling-timezone-required' }),
+    )
+  })
 
   it('allows native Appointment Reminder on Basic without CRM capability', () => {
     const result = evaluateSimpleAutomationReadiness({

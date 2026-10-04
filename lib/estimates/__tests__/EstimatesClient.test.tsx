@@ -139,7 +139,7 @@ describe('Estimate management UI', () => {
     installApi()
     render(<EstimatesClient workspaceId="ws-a" workspaceSlug="acme" />)
     expect(await screen.findByText('Spring cleanup and mowing')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Past expiry' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Expired' })).toBeTruthy()
     expect(screen.getByText('$450.00 one-time')).toBeTruthy()
     expect(screen.getByText('$75.00 / visit')).toBeTruthy()
   })
@@ -334,7 +334,9 @@ describe('Estimate management UI', () => {
     await user.click(
       await screen.findByRole('button', { name: /Spring cleanup and mowing/i }),
     )
-    expect(await screen.findByText('Work Created')).toBeTruthy()
+    expect((await screen.findAllByText('Work Created')).length).toBeGreaterThan(
+      0,
+    )
     expect(screen.getByRole('link', { name: 'Open Job' })).toBeTruthy()
     expect(
       screen.getByRole('link', { name: 'Open Recurring Service 1' }),
@@ -365,6 +367,7 @@ describe('Estimate management UI', () => {
               recipientEmail: 'jamie@example.com',
               status: 'SENT',
               attempts: 1,
+              origin: 'MANUAL',
               provider: 'resend',
               providerMessageId: 'provider-message-a',
               lastErrorCode: null,
@@ -375,6 +378,7 @@ describe('Estimate management UI', () => {
             },
           ],
           deliveryHistoryTruncated: false,
+          followUp: null,
           decision: null,
         },
       },

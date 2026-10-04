@@ -53,6 +53,10 @@ import {
 const DEBUG_MODE = process.env.AUTOMATION_DEBUG_MODE === 'true'
 import { classifyAutomationFailureSource } from '@/lib/automations/failure'
 import { getAutomationExecutionPreconditionError } from '@/lib/automations/policy'
+import {
+  ESTIMATE_FOLLOW_UP_DEFINITION_VERSION,
+  queueAutomatedEstimateFollowUpDelivery,
+} from '@/lib/estimates/followUp'
 
 ensureIntegrationAdapters()
 
@@ -237,6 +241,38 @@ export async function executeNode(
         },
         log: 'Native Skillify schedule change received.',
       }
+
+    case 'simple-estimate-follow-up-trigger':
+      return {
+        output: {
+          source: context.triggerPayload?.source ?? null,
+          payload: context.triggerPayload ?? null,
+        },
+        log: 'Estimate follow-up occurrence is due.',
+      }
+
+    case 'simple-estimate-follow-up-email': {
+      if (
+        data?.definitionKey !== 'estimate-follow-up' ||
+        data?.definitionVersion !== ESTIMATE_FOLLOW_UP_DEFINITION_VERSION ||
+        data?.channel !== 'email'
+      ) {
+        throw new Error('Unsupported Estimate Follow-Up action.')
+      }
+      if (!context.workspaceId || !context.automationId || !context.runId) {
+        throw new Error('Estimate Follow-Up requires run context.')
+      }
+      const queued = await queueAutomatedEstimateFollowUpDelivery({
+        workspaceId: context.workspaceId,
+        automationId: context.automationId,
+        runId: context.runId,
+        triggerPayload: context.triggerPayload,
+      })
+      return {
+        output: { queued: true, deliveryId: queued.deliveryId },
+        log: 'Estimate follow-up email queued.',
+      }
+    }
 
     case 'simple-in-app-notification': {
       if (data?.definitionKey !== 'new-lead-alert') {
@@ -435,7 +471,9 @@ export async function executeNode(
         metadata.data.automationId !== automationId ||
         change.eventId !== occurrenceId
       ) {
-        throw new Error('Schedule Change Notification workspace does not match.')
+        throw new Error(
+          'Schedule Change Notification workspace does not match.',
+        )
       }
 
       const workspace = await prisma.workspace.findUnique({
@@ -505,8 +543,7 @@ export async function executeNode(
         })
         const lockedPlan = resolveWorkspacePlan({
           workspaceSubscriptionPlan: lockedPlanWorkspace?.subscription?.plan,
-          ownerSubscriptionPlan:
-            lockedPlanWorkspace?.owner.subscription?.plan,
+          ownerSubscriptionPlan: lockedPlanWorkspace?.owner.subscription?.plan,
         })
         if (!getAutomationCapabilities(lockedPlan).canUseStarterAutomations) {
           throw new Error('Managed Simple Automation is no longer eligible.')
@@ -744,8 +781,7 @@ export async function executeNode(
             : `Schedule changed: ${change.title} assignment changed.`
         const notificationIds: string[] = []
         for (const [recipientKey, recipient] of recipients) {
-          const deduplicationKey =
-            `simple:schedule-change:${eventKey}:${recipientKey}`
+          const deduplicationKey = `simple:schedule-change:${eventKey}:${recipientKey}`
           const notification = await tx.schedulingNotification.upsert({
             where: {
               workspaceId_deduplicationKey: { workspaceId, deduplicationKey },
@@ -916,9 +952,7 @@ export async function executeNode(
           getAppointmentReminderOffsetMinutes(installation.config) !==
             metadata.data.offsetMinutes
         ) {
-          throw new Error(
-            'Managed Appointment Reminder is no longer current.',
-          )
+          throw new Error('Managed Appointment Reminder is no longer current.')
         }
 
         await tx.$queryRaw<Array<{ id: string }>>(
@@ -1003,9 +1037,7 @@ export async function executeNode(
           (occurrence.occurrenceOriginalAt?.toISOString() ?? null) !==
             metadata.data.occurrenceOriginalAt
         ) {
-          throw new Error(
-            'Managed Appointment Reminder is no longer current.',
-          )
+          throw new Error('Managed Appointment Reminder is no longer current.')
         }
 
         const directMemberIds = occurrence.assignments
@@ -1081,8 +1113,7 @@ export async function executeNode(
           : occurrence.title
         const notificationIds: string[] = []
         for (const [recipientKey, recipient] of recipients) {
-          const deduplicationKey =
-            `simple:appointment-reminder:${eventKey}:${recipientKey}`
+          const deduplicationKey = `simple:appointment-reminder:${eventKey}:${recipientKey}`
           const notification = await tx.schedulingNotification.upsert({
             where: {
               workspaceId_deduplicationKey: {
@@ -1388,7 +1419,9 @@ export async function executeNode(
         context.triggerPayload?.source !== 'skillify-native' ||
         context.triggerPayload?.event !== 'job.completed'
       ) {
-        throw new Error('Job Completion Message is missing its occurrence identity.')
+        throw new Error(
+          'Job Completion Message is missing its occurrence identity.',
+        )
       }
       const occurrence = parsed.data
       if (occurrence.workspaceId !== workspaceId) {

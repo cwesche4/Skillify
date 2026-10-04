@@ -112,13 +112,20 @@ export type EstimateListRecord = Pick<
   | 'archivedAt'
   | 'lead'
   | 'customer'
->
+> & {
+  attention?: import('@/lib/estimates/attention').EstimateAttentionSignal
+}
 
 export type EstimateListView =
   | 'ALL'
   | 'DRAFT'
   | 'PRESENTED'
-  | 'PAST_EXPIRY'
+  | 'AWAITING_DECISION'
+  | 'EXPIRING_SOON'
+  | 'EXPIRED'
+  | 'DELIVERY_FAILED'
+  | 'READY_TO_CREATE_WORK'
+  | 'WORK_CREATED'
   | 'ACCEPTED'
   | 'DECLINED'
   | 'VOIDED'

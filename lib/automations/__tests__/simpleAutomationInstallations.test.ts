@@ -245,19 +245,22 @@ describe('Simple Automation installations', () => {
   })
 
   it.each(['estimate-follow-up'])(
-    'rejects persistence for coming-soon recipe %s',
+    'persists the live recipe %s',
     async (definitionKey) => {
       const result = await configureSimpleAutomationInstallation(
         {
           workspaceId: 'workspace-a',
           userProfileId: 'profile-user',
           definitionKey,
-          config: {},
+          config: { 'estimate-delay': '3-days' },
         },
         installationDependencies().dependencies,
       )
 
-      expect(result).toMatchObject({ ok: false, status: 409 })
+      expect(result).toMatchObject({
+        ok: true,
+        installation: { definitionKey: 'estimate-follow-up' },
+      })
     },
   )
 

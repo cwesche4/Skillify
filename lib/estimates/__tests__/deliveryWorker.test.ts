@@ -4,16 +4,27 @@ const mocks = vi.hoisted(() => ({
   queryRaw: vi.fn(),
   findFirst: vi.fn(),
   updateMany: vi.fn(),
+  scheduleFollowUp: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
   prisma: {
     $queryRaw: mocks.queryRaw,
+    $transaction: vi.fn(async (callback) =>
+      callback({
+        estimateDelivery: { updateMany: mocks.updateMany },
+      }),
+    ),
     estimateDelivery: {
       findFirst: mocks.findFirst,
       updateMany: mocks.updateMany,
     },
   },
+}))
+
+vi.mock('@/lib/estimates/followUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/estimates/followUp')>()),
+  scheduleEstimateFollowUpForSentDelivery: mocks.scheduleFollowUp,
 }))
 
 import { processEstimateDeliveryQueue } from '@/lib/estimates/deliveryWorker'
@@ -40,6 +51,7 @@ function claimedDelivery(
     estimate: {
       archivedAt: null,
       status: 'PRESENTED',
+      decisionEvidence: null,
       expiresOn: null,
       referenceNumber: 'EST-1234567890',
       revisionNumber: 2,
@@ -147,6 +159,78 @@ describe('Estimate delivery worker', () => {
       }),
     )
   })
+
+  it('cancels when terminal decision evidence exists even if status is stale Presented', async () => {
+    mocks.findFirst.mockResolvedValue(
+      claimedDelivery({
+        estimate: {
+          archivedAt: null,
+          status: 'PRESENTED',
+          decisionEvidence: { id: 'decision-a' },
+          expiresOn: null,
+          referenceNumber: 'EST-1234567890',
+          revisionNumber: 2,
+          title: 'Seasonal service',
+          workspace: {
+            businessModel: 'SIMPLE_SERVICE_BUSINESS',
+            settings: null,
+          },
+        },
+      }),
+    )
+    const resolveSender = vi.fn()
+    const send = vi.fn()
+
+    const result = await processEstimateDeliveryQueue({
+      now,
+      workerId: 'worker-a',
+      resolveSender,
+      send,
+    })
+
+    expect(result.canceled).toBe(1)
+    expect(resolveSender).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['missing', null],
+    ['invalid', { scheduling: { timezone: 'Not/A_Timezone' } }],
+  ])(
+    'cancels an automated follow-up when the persisted timezone is %s',
+    async (_label, settings) => {
+      mocks.findFirst.mockResolvedValue(
+        claimedDelivery({
+          origin: 'AUTOMATED_FOLLOW_UP',
+          estimate: {
+            archivedAt: null,
+            status: 'PRESENTED',
+            expiresOn: null,
+            referenceNumber: 'EST-1234567890',
+            revisionNumber: 2,
+            title: 'Seasonal service',
+            workspace: {
+              businessModel: 'SIMPLE_SERVICE_BUSINESS',
+              settings,
+            },
+          },
+        }),
+      )
+      const resolveSender = vi.fn()
+      const send = vi.fn()
+
+      const result = await processEstimateDeliveryQueue({
+        now,
+        workerId: 'worker-a',
+        resolveSender,
+        send,
+      })
+
+      expect(result.canceled).toBe(1)
+      expect(resolveSender).not.toHaveBeenCalled()
+      expect(send).not.toHaveBeenCalled()
+    },
+  )
 
   it('revalidates commercial expiry after sender resolution and before send', async () => {
     mocks.findFirst
