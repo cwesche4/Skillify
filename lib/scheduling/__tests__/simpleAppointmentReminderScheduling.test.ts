@@ -64,6 +64,7 @@ vi.mock('@/lib/db', () => ({
 
 import {
   processDueSchedulingReminders,
+  processPendingNotificationDeliveries,
   processSchedulingNotificationOutbox,
   reconcileSchedulingReminders,
 } from '@/lib/scheduling/notifications/notificationService'
@@ -189,6 +190,7 @@ function claimedScheduleChange(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubEnv('SCHEDULING_NOTIFICATIONS_ENABLED', 'true')
   mocks.workspaceFindUnique.mockResolvedValue({
     id: 'workspace-1',
     slug: 'acme',
@@ -216,6 +218,34 @@ beforeEach(() => {
     created: 0,
     existing: 0,
     ineligible: 0,
+  })
+})
+
+describe('Scheduling notification global kill switch', () => {
+  it('fails closed when missing and preserves all queued work', async () => {
+    delete process.env.SCHEDULING_NOTIFICATIONS_ENABLED
+
+    await expect(processSchedulingNotificationOutbox()).resolves.toMatchObject({
+      claimed: 0,
+    })
+    await expect(processDueSchedulingReminders()).resolves.toMatchObject({
+      claimed: 0,
+    })
+    await expect(processPendingNotificationDeliveries()).resolves.toMatchObject(
+      { claimed: 0 },
+    )
+    expect(mocks.queryRaw).not.toHaveBeenCalled()
+  })
+
+  it('resumes normal bounded claims after re-enable', async () => {
+    vi.stubEnv('SCHEDULING_NOTIFICATIONS_ENABLED', 'false')
+    await processSchedulingNotificationOutbox()
+    expect(mocks.queryRaw).not.toHaveBeenCalled()
+
+    vi.stubEnv('SCHEDULING_NOTIFICATIONS_ENABLED', 'true')
+    mocks.queryRaw.mockResolvedValue([])
+    await processSchedulingNotificationOutbox()
+    expect(mocks.queryRaw).toHaveBeenCalledOnce()
   })
 })
 

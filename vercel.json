@@ -16,6 +16,10 @@
     {
       "path": "/api/internal/scheduling/recurrence-horizon",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/internal/estimates/deliveries/process",
+      "schedule": "* * * * *"
     }
   ]
 }

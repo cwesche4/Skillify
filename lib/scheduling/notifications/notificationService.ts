@@ -74,6 +74,7 @@ import {
   type SchedulingNotificationRenderedTemplate,
 } from '@/lib/scheduling/notifications/templates'
 import { normalizeSchedulingSettings } from '@/lib/scheduling/normalizeSchedulingSettings'
+import { isSchedulingNotificationsEnabled } from '@/lib/scheduling/providers/config'
 import type {
   MemberSchedulingNotificationPreferences,
   SchedulingNotificationCategory,
@@ -910,6 +911,16 @@ export async function processSchedulingNotificationOutbox({
   nowUtc?: Date
   workerId?: string
 } = {}) {
+  if (!isSchedulingNotificationsEnabled()) {
+    return {
+      claimed: 0,
+      processed: 0,
+      skipped: 0,
+      notificationsCreated: 0,
+      suppressed: 0,
+      failed: 0,
+    }
+  }
   const records = await claimOutboxRecords({ nowUtc, batchSize, workerId })
   const result = {
     claimed: records.length,
@@ -1502,6 +1513,9 @@ export async function processDueSchedulingReminders({
   nowUtc?: Date
   workerId?: string
 } = {}) {
+  if (!isSchedulingNotificationsEnabled()) {
+    return { claimed: 0, sent: 0, skipped: 0, failed: 0 }
+  }
   const reminders = await claimReminderRecords({ nowUtc, batchSize, workerId })
   const result = { claimed: reminders.length, sent: 0, skipped: 0, failed: 0 }
   for (const reminder of reminders) {
@@ -1762,6 +1776,9 @@ export async function processPendingNotificationDeliveries({
   workerId?: string
   emailProvider?: SchedulingEmailProvider
 } = {}) {
+  if (!isSchedulingNotificationsEnabled()) {
+    return { claimed: 0, sent: 0, skipped: 0, failed: 0 }
+  }
   const claimed = await claimDeliveryRecords({ nowUtc, batchSize, workerId })
   const result = { claimed: claimed.length, sent: 0, skipped: 0, failed: 0 }
   for (const row of claimed) {
@@ -2267,6 +2284,13 @@ export async function recoverSchedulingNotificationWorkerLeases({
 }: {
   nowUtc?: Date
 } = {}) {
+  if (!isSchedulingNotificationsEnabled()) {
+    return {
+      recoveredOutbox: 0,
+      recoveredReminders: 0,
+      recoveredDeliveries: 0,
+    }
+  }
   const [outbox, reminders, deliveries] = await prisma.$transaction([
     prisma.domainOutboxEvent.updateMany({
       where: {

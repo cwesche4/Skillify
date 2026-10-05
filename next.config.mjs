@@ -1,9 +1,11 @@
+import { getServerActionAllowedOrigins } from './lib/config/serverActionOrigins.mjs'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: {
-      allowedOrigins: ['*'],
+      allowedOrigins: getServerActionAllowedOrigins(),
     },
     serverComponentsExternalPackages: [
       '@prisma/adapter-pg',

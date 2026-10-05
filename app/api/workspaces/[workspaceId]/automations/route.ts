@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 import { createWorkspaceAutomationSchema } from '@/lib/validations/automation'
+import { getAdvancedAutomationLaunchRestrictionError } from '@/lib/automations/policy'
 
 export async function POST(
   req: Request,
@@ -17,6 +18,10 @@ export async function POST(
       { error: access.message },
       { status: access.status },
     )
+  }
+  const launchError = getAdvancedAutomationLaunchRestrictionError()
+  if (launchError) {
+    return NextResponse.json({ error: launchError }, { status: 409 })
   }
 
   const parsed = createWorkspaceAutomationSchema.safeParse(

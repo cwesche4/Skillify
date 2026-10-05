@@ -33,6 +33,7 @@ describe('deleteWorkspaceCascade', () => {
       schedulingAttendee: delegate(),
       schedulingAvailabilityRecord: delegate(),
       schedulingRecurrenceMutation: delegate(),
+      estimateOperationalizationItem: delegate(),
       recurringServiceStepTemplate: delegate(),
       recurringService: delegate(),
       schedulingEvent: {
@@ -41,6 +42,7 @@ describe('deleteWorkspaceCascade', () => {
       },
       schedulingRecurrenceSeries: delegate(),
       automationRunEvent: delegate(),
+      estimateFollowUpSchedule: delegate(),
       automationRun: delegate(),
       simpleAutomationDispatch: delegate(),
       simpleAutomationInstallation: delegate(),
@@ -50,6 +52,15 @@ describe('deleteWorkspaceCascade', () => {
       workItem: delegate(),
       jobAssignment: delegate(),
       job: delegate(),
+      estimateOperationalization: delegate(),
+      estimateDecision: delegate(),
+      estimateDelivery: delegate(),
+      estimateShare: delegate(),
+      estimateLineItem: delegate(),
+      estimate: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
       customer: delegate(),
       lead: delegate(),
       workspaceTeamMember: delegate(),
@@ -132,12 +143,48 @@ describe('deleteWorkspaceCascade', () => {
     expect(tx.job.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
       tx.recurringService.deleteMany.mock.invocationCallOrder[0],
     )
+    expect(
+      tx.estimateOperationalizationItem.deleteMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(tx.job.deleteMany.mock.invocationCallOrder[0])
+    expect(
+      tx.estimateOperationalizationItem.deleteMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(tx.recurringService.deleteMany.mock.invocationCallOrder[0])
     expect(tx.job.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
       tx.schedulingEvent.deleteMany.mock.invocationCallOrder[0],
     )
     expect(tx.lead.deleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'ws_1' },
     })
+    expect(tx.estimateFollowUpSchedule.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws_1' },
+    })
+    expect(
+      tx.estimateFollowUpSchedule.deleteMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      tx.simpleAutomationInstallation.deleteMany.mock.invocationCallOrder[0],
+    )
+    expect(
+      tx.estimateFollowUpSchedule.deleteMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(tx.automationRun.deleteMany.mock.invocationCallOrder[0])
+    expect(tx.estimateDecision.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws_1' },
+    })
+    expect(
+      tx.estimateDelivery.deleteMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(tx.estimateShare.deleteMany.mock.invocationCallOrder[0])
+    expect(
+      tx.estimateDecision.deleteMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(tx.estimateShare.deleteMany.mock.invocationCallOrder[0])
+    expect(
+      tx.estimateLineItem.deleteMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(tx.estimate.deleteMany.mock.invocationCallOrder[0])
+    expect(tx.estimate.updateMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws_1' },
+      data: { previousRevisionId: null },
+    })
+    expect(tx.estimate.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.lead.deleteMany.mock.invocationCallOrder[0],
+    )
     expect(
       tx.domainOutboxEvent.deleteMany.mock.invocationCallOrder[0],
     ).toBeLessThan(tx.lead.deleteMany.mock.invocationCallOrder[0])

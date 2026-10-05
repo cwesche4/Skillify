@@ -14,11 +14,11 @@ const migration = readFileSync(
 
 describe('Phase 11D migration 44', () => {
   it('is the one additive migration after the frozen Phase 11C migration', () => {
-    expect(migrations).toHaveLength(44)
-    expect(migrations.at(-2)).toBe(
+    expect(migrations).toHaveLength(45)
+    expect(migrations.at(-3)).toBe(
       '20261003000000_estimate_customer_experience',
     )
-    expect(migrations.at(-1)).toBe(migrationName)
+    expect(migrations.at(-2)).toBe(migrationName)
   })
 
   it('defaults historical deliveries to manual without creating schedules', () => {

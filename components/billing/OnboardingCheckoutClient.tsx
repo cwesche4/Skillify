@@ -19,6 +19,8 @@ import {
 import { normalizeAccessCode } from '@/lib/billing/accessCodes'
 import { cn } from '@/lib/utils'
 
+const SELF_SERVICE_BILLING_ENABLED = false
+
 type AppliedCode = {
   message: string
   trialDays: number
@@ -53,14 +55,14 @@ export function OnboardingCheckoutClient({
       <div className="mx-auto max-w-5xl">
         <section className="max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200/75">
-            Checkout
+            Controlled launch
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-            Start your trial
+            Request approved pilot access
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-400">
-            Skillify records access rules first. Stripe executes billing when a
-            payment method is required and configured.
+            Self-service trial and paid-plan activation are unavailable until
+            provider-backed billing is ready.
           </p>
         </section>
         <OnboardingCheckoutPanel selectedPlan={selectedPlan} className="mt-6" />
@@ -104,6 +106,30 @@ export function OnboardingCheckoutPanel({
     appliedCode?.complimentaryEndsAt,
   )
   const canStartTrial = acceptedTerms && !starting && !applyingCode
+
+  if (!SELF_SERVICE_BILLING_ENABLED) {
+    return (
+      <Card className={cn('p-6', className)}>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200/75">
+          {plan.name} pilot access
+        </p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">
+          Self-service billing is unavailable
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+          Skillify is using controlled provisioning for the initial launch. No
+          trial or paid entitlement can be activated from this page, and no
+          payment has been collected.
+        </p>
+        <p className="mt-3 text-sm text-slate-300">
+          Contact Skillify support if you have been approved for the pilot.
+        </p>
+        <Button asChild className="mt-5" variant="secondary">
+          <Link href="/">Return to Skillify</Link>
+        </Button>
+      </Card>
+    )
+  }
 
   async function applyCode() {
     if (!normalizedCode || applyingCode) return

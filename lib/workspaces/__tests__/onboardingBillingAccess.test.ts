@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -19,7 +19,7 @@ import {
   resolveDefaultAccess,
 } from '@/lib/billing/accessCodes'
 import { resolveCheckoutExecutionMode } from '@/lib/billing/stripeClient'
-import { BILLING_PLANS, formatPlanPrice } from '@/lib/billing/plans'
+import { BILLING_PLANS } from '@/lib/billing/plans'
 import {
   AccessCodeType,
   SubscriptionPlan,
@@ -317,70 +317,24 @@ describe('onboarding and billing access foundation', () => {
     expect(prismaMocks.workspaceFindFirst).not.toHaveBeenCalled()
   })
 
-  it('requires consent, updates trial copy, and routes to explicit workspace creation', async () => {
+  it('truthfully disables self-service trial and paid access', () => {
     render(
       React.createElement(OnboardingCheckoutClient, { selectedPlan: 'Pro' }),
     )
 
-    const startTrial = screen.getByRole('button', { name: 'Start Free Trial' })
-    const termsCheckbox = screen.getByRole('checkbox', {
-      name: /14-day free trial/i,
-    })
-    const applyButton = screen.getByRole('button', { name: 'Apply' })
-
     expect(
-      screen.getByRole('heading', { name: 'Start your Pro trial' }),
-    ).toBeTruthy()
-    expect(screen.getByText('$0')).toBeTruthy()
-    expect(screen.getByText('14 days')).toBeTruthy()
-    expect(screen.getByText(`${formatPlanPrice(17900)}/mo`)).toBeTruthy()
-    expect(screen.getByText('Billing starts')).toBeTruthy()
-    expect(screen.getByText('Cancel before')).toBeTruthy()
-    expect(
-      screen.getByRole('link', { name: 'Terms of Service' }),
-    ).toHaveProperty('href', expect.stringContaining('/marketing/terms'))
-    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveProperty(
-      'href',
-      expect.stringContaining('/marketing/privacy'),
-    )
-    expect((startTrial as HTMLButtonElement).disabled).toBe(true)
-    expect((applyButton as HTMLButtonElement).disabled).toBe(true)
-
-    fireEvent.change(screen.getByPlaceholderText('Enter access code'), {
-      target: { value: '  beta30  ' },
-    })
-    expect((applyButton as HTMLButtonElement).disabled).toBe(false)
-    expect(applyButton.className).toContain('bg-brand-primary')
-    fireEvent.click(applyButton)
-
-    await screen.findByText('30-day trial applied.')
-    expect(screen.getByText('30 days')).toBeTruthy()
-    expect(screen.getByText('Not required')).toBeTruthy()
-    expect(
-      screen.getByRole('checkbox', { name: /30-day free trial/i }),
-    ).toBeTruthy()
-
-    expect((startTrial as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.click(termsCheckbox)
-    expect((startTrial as HTMLButtonElement).disabled).toBe(false)
-    expect(startTrial.className).toContain('bg-cyan-50')
-    fireEvent.click(startTrial)
-
-    await waitFor(() => {
-      expect(routerMocks.push).toHaveBeenCalledWith(
-        '/onboarding/create-workspace',
-      )
-    })
-    expect(global.fetch).toHaveBeenCalledWith(
-      '/api/billing/access-code',
-      expect.objectContaining({
-        body: JSON.stringify({ code: 'BETA30', plan: 'Pro' }),
+      screen.getByRole('heading', {
+        name: 'Self-service billing is unavailable',
       }),
-    )
-    expect(global.fetch).not.toHaveBeenCalledWith(
-      expect.stringContaining('/api/workspaces'),
-      expect.anything(),
-    )
+    ).toBeTruthy()
+    expect(
+      screen.getByText(/no trial or paid entitlement can be activated/i),
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'Start Free Trial' }),
+    ).toBeNull()
+    expect(screen.queryByPlaceholderText('Enter access code')).toBeNull()
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
   it('selects a plan, keeps it selected, and expands checkout below the cards', async () => {
@@ -409,9 +363,11 @@ describe('onboarding and billing access foundation', () => {
         .getAttribute('aria-pressed'),
     ).toBe('true')
     expect(
-      screen.getByRole('heading', { name: /start your pro trial/i }),
+      screen.getByRole('heading', {
+        name: /self-service billing is unavailable/i,
+      }),
     ).toBeTruthy()
-    expect(screen.getByText('$179/mo')).toBeTruthy()
+    expect(screen.getByText(/pro pilot access/i)).toBeTruthy()
     expect(
       screen.queryByText(/team availability and calendar connections/i),
     ).toBeNull()
@@ -463,72 +419,22 @@ describe('onboarding and billing access foundation', () => {
     expect(screen.getByText(/custom business terminology/i)).toBeTruthy()
   })
 
-  it('keeps complimentary access consent from promising automatic billing', async () => {
-    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes('/api/billing/access-code')) {
-        return {
-          ok: true,
-          json: async () => ({
-            access: {
-              message: 'Complimentary access applied.',
-              trialDays: 14,
-              paymentMethodRequired: false,
-              complimentaryEndsAt: '2026-09-12T12:00:00.000Z',
-            },
-          }),
-        } as Response
-      }
-      return {
-        ok: true,
-        json: async () => ({ next: '/onboarding/create-workspace' }),
-      } as Response
-    })
+  it('does not expose access-code provisioning as a pilot workaround', () => {
     render(
       React.createElement(OnboardingCheckoutClient, { selectedPlan: 'Basic' }),
     )
 
-    fireEvent.change(screen.getByPlaceholderText('Enter access code'), {
-      target: { value: 'comp' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
-
-    await screen.findByText('Complimentary access applied.')
-    expect(
-      screen.getByRole('checkbox', {
-        name: /complimentary access does not automatically begin paid billing/i,
-      }),
-    ).toBeTruthy()
-    expect(
-      screen.getByText(/paid billing can be configured later/i),
-    ).toBeTruthy()
+    expect(screen.queryByPlaceholderText('Enter access code')).toBeNull()
+    expect(screen.getByText(/controlled provisioning/i)).toBeTruthy()
   })
 
-  it('keeps invalid access codes retryable', async () => {
-    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes('/api/billing/access-code')) {
-        return {
-          ok: false,
-          json: async () => ({
-            error: 'That code is invalid or no longer available.',
-          }),
-        } as Response
-      }
-      return { ok: true, json: async () => ({}) } as Response
-    })
+  it('keeps the controlled-launch message consistent across paid plans', () => {
     render(
       React.createElement(OnboardingCheckoutClient, { selectedPlan: 'Elite' }),
     )
 
-    fireEvent.change(screen.getByPlaceholderText('Enter access code'), {
-      target: { value: 'wrong' },
-    })
-    const applyButton = screen.getByRole('button', { name: 'Apply' })
-    fireEvent.click(applyButton)
-
-    await screen.findByText('That code is invalid or no longer available.')
-    expect((applyButton as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByText(/elite pilot access/i)).toBeTruthy()
+    expect(screen.getByText(/no payment has been collected/i)).toBeTruthy()
   })
 
   it('uses buyer-facing plan copy and keeps Pro marked Most Popular', () => {

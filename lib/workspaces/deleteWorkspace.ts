@@ -71,6 +71,10 @@ export async function deleteWorkspaceCascade(
   await deleteMany(tx, 'automationRunEvent', {
     run: { is: { workspaceId } },
   })
+  // Estimate follow-up schedules restrict their installation, dispatch, run,
+  // source delivery, generated delivery, and Estimate. Remove that provenance
+  // before any of those parent records.
+  await deleteMany(tx, 'estimateFollowUpSchedule', { workspaceId })
   await deleteMany(tx, 'automationRun', { workspaceId })
 
   // Simple Automation rows use RESTRICT workspace/automation foreign keys.
@@ -112,6 +116,10 @@ export async function deleteWorkspaceCascade(
   await deleteMany(tx, 'schedulingAttendee', { workspaceId })
   await deleteMany(tx, 'schedulingAvailabilityRecord', { workspaceId })
   await deleteMany(tx, 'schedulingRecurrenceMutation', { workspaceId })
+  // Operationalization items are the restrictive bridge from accepted
+  // Estimate lines to Jobs, Job Steps, and Recurring Services. They must be
+  // removed before any operational target.
+  await deleteMany(tx, 'estimateOperationalizationItem', { workspaceId })
   // Generated Jobs restrict both their Recurring Service template and source
   // Scheduling occurrence. Remove operational children first only as part of
   // this explicit whole-workspace cascade.
@@ -145,6 +153,23 @@ export async function deleteWorkspaceCascade(
   await deleteMany(tx, 'dashboardPreference', { workspaceId })
   await deleteMany(tx, 'auditLog', { workspaceId })
   await deleteMany(tx, 'workspaceInvite', { workspaceId })
+
+  // Delete the remaining Estimate graph from leaves to roots. Migration 45
+  // permits decision DELETE only when this same transaction also removes the
+  // owning Workspace. Estimate removal alone cannot erase decision evidence
+  // from a surviving workspace.
+  await deleteMany(tx, 'estimateOperationalization', { workspaceId })
+  await deleteMany(tx, 'estimateDecision', { workspaceId })
+  await deleteMany(tx, 'estimateDelivery', { workspaceId })
+  await deleteMany(tx, 'estimateShare', { workspaceId })
+  await deleteMany(tx, 'estimateLineItem', { workspaceId })
+  await updateMany(
+    tx,
+    'estimate',
+    { workspaceId },
+    { previousRevisionId: null },
+  )
+  await deleteMany(tx, 'estimate', { workspaceId })
 
   // Leads may reference their converted Customer with a restrictive FK.
   // Delete Leads before Customers, then remove both before assigned members.

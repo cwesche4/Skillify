@@ -198,7 +198,9 @@ describe('Automation backend foundation', () => {
     expect(getAdvancedAutomationMutationError(true)).toBe(
       'This workflow is managed from Simple Automations.',
     )
-    expect(getAdvancedAutomationMutationError(false)).toBeNull()
+    expect(getAdvancedAutomationMutationError(false)).toBe(
+      'Advanced Automations are unavailable during the controlled launch.',
+    )
   })
 
   it('requires ACTIVE status and matching workspace before execution', () => {

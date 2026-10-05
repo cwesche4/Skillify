@@ -1,13 +1,17 @@
 import BuilderClientShell from './BuilderClientShell'
 import { auth } from '@clerk/nextjs/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
+import { ADVANCED_AUTOMATIONS_LAUNCH_ENABLED } from '@/lib/automations/policy'
 
 export default async function AutomationBuilderPage({
   params,
 }: {
   params: { workspaceSlug: string; automationId: string }
 }) {
+  if (!ADVANCED_AUTOMATIONS_LAUNCH_ENABLED) {
+    redirect(`/dashboard/${params.workspaceSlug}/automations/advanced`)
+  }
   const { userId } = auth()
   if (!userId) notFound()
 

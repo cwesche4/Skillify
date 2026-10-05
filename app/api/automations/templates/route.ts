@@ -5,6 +5,7 @@ import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 import { getWorkspaceAutomationCapabilities } from '@/lib/automations/capabilities'
 import { AUTOMATION_TEMPLATES } from '@/lib/automations/templates'
 import { prisma } from '@/lib/db'
+import { getAdvancedAutomationLaunchRestrictionError } from '@/lib/automations/policy'
 
 export async function GET(req: Request) {
   const { userId } = await auth()
@@ -24,6 +25,9 @@ export async function GET(req: Request) {
     access: 'view',
   })
   if (!access.allowed) return fail(access.message, access.status)
+
+  const launchError = getAdvancedAutomationLaunchRestrictionError()
+  if (launchError) return fail(launchError, 409)
 
   const capabilities = await getWorkspaceAutomationCapabilities(workspace.id)
 

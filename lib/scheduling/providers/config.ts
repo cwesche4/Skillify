@@ -57,6 +57,15 @@ export function isSchedulingPersistenceEnabled(): boolean {
   return envFlag('SCHEDULING_PERSISTENCE_ENABLED', true)
 }
 
+/**
+ * Global, fail-closed delivery control for customer-facing Scheduling
+ * notifications. Queued records are preserved while disabled and are
+ * revalidated normally when processing is enabled again.
+ */
+export function isSchedulingNotificationsEnabled(): boolean {
+  return envFlag('SCHEDULING_NOTIFICATIONS_ENABLED', false)
+}
+
 export function getSchedulingProviderConfigs(): SchedulingProviderConfig[] {
   const googleMissing = missingEnv([
     'GOOGLE_CALENDAR_CLIENT_ID',
@@ -148,7 +157,7 @@ export function getSchedulingIntegrationSummary() {
   const providers = getSchedulingProviderConfigs()
   return {
     nativePersistenceEnabled: isSchedulingPersistenceEnabled(),
-    notificationsEnabled: envFlag('SCHEDULING_NOTIFICATIONS_ENABLED'),
+    notificationsEnabled: isSchedulingNotificationsEnabled(),
     providers,
     externalSyncAvailable: providers.some(
       (provider) => provider.status === 'available',

@@ -7,6 +7,7 @@ import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
 import { planAtLeast, type Plan } from '@/lib/subscriptions/features'
 import { TemplatesGrid } from '@/components/automations/TemplatesGrid'
 import { prisma } from '@/lib/db'
+import { ADVANCED_AUTOMATIONS_LAUNCH_ENABLED } from '@/lib/automations/policy'
 
 const PLACEHOLDER_TEMPLATES: {
   id: string
@@ -44,6 +45,9 @@ export default async function AdvancedTemplatesPage({
 }: {
   params: { workspaceSlug: string }
 }) {
+  if (!ADVANCED_AUTOMATIONS_LAUNCH_ENABLED) {
+    redirect(`/dashboard/${params.workspaceSlug}/automations/advanced`)
+  }
   const { userId } = auth()
   if (!userId) redirect('/sign-in')
 

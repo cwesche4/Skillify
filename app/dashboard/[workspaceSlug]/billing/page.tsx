@@ -116,8 +116,8 @@ export default async function BillingPage({ params }: BillingPageProps) {
         </div>
 
         <p className="text-neutral-text-secondary mt-4 text-xs">
-          Stripe or another provider can be wired up here later. For now, this
-          page acts as a visible entry point for customers to manage their plan.
+          This page is read-only during the controlled launch. It does not
+          activate paid access or represent a completed provider checkout.
         </p>
       </Card>
     </DashboardShell>

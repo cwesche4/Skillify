@@ -1,7 +1,4 @@
-import {
-  DomainOutboxStatus,
-  SchedulingReminderStatus,
-} from '@prisma/client'
+import { DomainOutboxStatus, SchedulingReminderStatus } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMocks = vi.hoisted(() => ({
@@ -35,14 +32,17 @@ const NOW = new Date('2026-09-24T16:00:00.000Z')
 describe('Scheduling operational diagnostics', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    prismaMocks.domainOutboxEvent.count.mockImplementation(async ({ where }) => {
-      if (where.leaseExpiresAt) return 1
-      if (where.status === DomainOutboxStatus.PENDING) return 4
-      if (where.status === DomainOutboxStatus.PROCESSING) return 2
-      if (where.status === DomainOutboxStatus.FAILED) return 3
-      if (where.status === DomainOutboxStatus.DEAD) return 5
-      return 0
-    })
+    vi.stubEnv('SCHEDULING_NOTIFICATIONS_ENABLED', 'true')
+    prismaMocks.domainOutboxEvent.count.mockImplementation(
+      async ({ where }) => {
+        if (where.leaseExpiresAt) return 1
+        if (where.status === DomainOutboxStatus.PENDING) return 4
+        if (where.status === DomainOutboxStatus.PROCESSING) return 2
+        if (where.status === DomainOutboxStatus.FAILED) return 3
+        if (where.status === DomainOutboxStatus.DEAD) return 5
+        return 0
+      },
+    )
     prismaMocks.schedulingReminderSchedule.count.mockImplementation(
       async ({ where }) => {
         if (where.leaseExpiresAt) return 1
@@ -113,5 +113,18 @@ describe('Scheduling operational diagnostics', () => {
         }),
       }),
     )
+  })
+
+  it('does not mutate expired leases while notifications are disabled', async () => {
+    vi.stubEnv('SCHEDULING_NOTIFICATIONS_ENABLED', 'false')
+
+    await expect(
+      recoverSchedulingNotificationWorkerLeases({ nowUtc: NOW }),
+    ).resolves.toEqual({
+      recoveredOutbox: 0,
+      recoveredReminders: 0,
+      recoveredDeliveries: 0,
+    })
+    expect(prismaMocks.$transaction).not.toHaveBeenCalled()
   })
 })

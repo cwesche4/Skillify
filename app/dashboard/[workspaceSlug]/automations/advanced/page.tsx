@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { CreateAutomationForm } from '@/components/automations/CreateAutomationForm'
 import { RenameAutomationButton } from '@/components/automations/RenameAutomationButton'
 import { selectActiveAutomations } from '@/lib/workspace-records/relationships'
+import { ADVANCED_AUTOMATIONS_LAUNCH_ENABLED } from '@/lib/automations/policy'
 
 type PageProps = {
   params: { workspaceSlug: string }
@@ -43,6 +44,66 @@ export default async function AdvancedAutomationsPage({ params }: PageProps) {
   })
 
   if (!workspace) return null
+
+  if (!ADVANCED_AUTOMATIONS_LAUNCH_ENABLED) {
+    return (
+      <DashboardShell>
+        <AutomationsSectionHeader
+          workspaceSlug={workspace.slug}
+          activeMode="advanced"
+          description="Custom workflow building is unavailable during the controlled launch."
+        />
+        <Card className="space-y-4 p-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-100">
+              Advanced Automations are not available yet
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Use production-ready Simple Automations for the controlled launch.
+              Existing custom workflow records and run history remain available
+              for review, but they cannot be created, edited, activated, or
+              executed.
+            </p>
+          </div>
+          <Link
+            href={`/dashboard/${workspace.slug}/automations`}
+            className="inline-flex text-sm font-medium text-brand-primary hover:underline"
+          >
+            View Simple Automations
+          </Link>
+          {workspace.automations.length > 0 ? (
+            <div className="border-app space-y-2 border-t pt-4">
+              <h3 className="text-sm font-semibold text-slate-100">
+                Existing workflow history
+              </h3>
+              {workspace.automations.map((automation) => (
+                <div
+                  key={automation.id}
+                  className="flex flex-wrap items-center justify-between gap-3 text-sm"
+                >
+                  <span className="text-slate-300">{automation.name}</span>
+                  <div className="flex gap-3">
+                    <Link
+                      href={`/dashboard/${workspace.slug}/automations/${automation.id}`}
+                      className="text-brand-primary hover:underline"
+                    >
+                      Details
+                    </Link>
+                    <Link
+                      href={`/dashboard/${workspace.slug}/automations/${automation.id}/runs`}
+                      className="text-brand-primary hover:underline"
+                    >
+                      Run history
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </Card>
+      </DashboardShell>
+    )
+  }
 
   const sortAutomations = (automations: typeof workspace.automations) =>
     automations.slice().sort((first: any, second: any) => {

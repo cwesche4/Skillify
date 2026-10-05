@@ -23,6 +23,7 @@ import { createSchedulingEventChangedOutboxEvents } from '@/lib/scheduling/outbo
 import {
   getSchedulingIntegrationSummary,
   getSchedulingProviderConfig,
+  isSchedulingNotificationsEnabled,
 } from '@/lib/scheduling/providers/config'
 import {
   classifyCalendarConnectionPurpose,
@@ -542,6 +543,37 @@ describe('calendar provider governance', () => {
 })
 
 describe('scheduling provider configuration', () => {
+  it('keeps the notification runtime fail-closed unless explicitly enabled', () => {
+    delete process.env.SCHEDULING_NOTIFICATIONS_ENABLED
+    expect(isSchedulingNotificationsEnabled()).toBe(false)
+    expect(getSchedulingIntegrationSummary().notificationsEnabled).toBe(false)
+
+    process.env.SCHEDULING_NOTIFICATIONS_ENABLED = 'true'
+    expect(isSchedulingNotificationsEnabled()).toBe(true)
+    expect(getSchedulingIntegrationSummary().notificationsEnabled).toBe(true)
+  })
+
+  it('accepts only the explicit notification enablement vocabulary', () => {
+    for (const enabled of ['1', 'true', 'TRUE', 'yes', 'YeS', 'on', 'ON']) {
+      process.env.SCHEDULING_NOTIFICATIONS_ENABLED = enabled
+      expect(isSchedulingNotificationsEnabled()).toBe(true)
+    }
+
+    for (const disabled of [
+      '',
+      '0',
+      'false',
+      'no',
+      'off',
+      'enabled',
+      ' true ',
+      'garbage',
+    ]) {
+      process.env.SCHEDULING_NOTIFICATIONS_ENABLED = disabled
+      expect(isSchedulingNotificationsEnabled()).toBe(false)
+    }
+  })
+
   it('keeps native persistence enabled when external provider credentials are absent', () => {
     delete process.env.GOOGLE_CALENDAR_CLIENT_ID
     delete process.env.GOOGLE_CALENDAR_CLIENT_SECRET

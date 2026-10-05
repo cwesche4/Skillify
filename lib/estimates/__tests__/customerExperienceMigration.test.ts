@@ -18,9 +18,9 @@ const schema = readFileSync(
 
 describe('Phase 11C migration 43', () => {
   it('is the only migration after the frozen Phase 11B migration', () => {
-    expect(migrations).toHaveLength(44)
-    expect(migrations.at(-3)).toBe('20261001000000_estimate_operationalization')
-    expect(migrations.at(-2)).toBe(name)
+    expect(migrations).toHaveLength(45)
+    expect(migrations.at(-4)).toBe('20261001000000_estimate_operationalization')
+    expect(migrations.at(-3)).toBe(name)
   })
 
   it('adds workspace-safe share, delivery, and decision authority', () => {

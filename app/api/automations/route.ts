@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { logAudit } from '@/lib/audit/log'
 import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 import { createAutomationSchema } from '@/lib/validations/automation'
+import { getAdvancedAutomationLaunchRestrictionError } from '@/lib/automations/policy'
 
 export async function GET() {
   const { userId } = await auth()
@@ -39,6 +40,9 @@ export async function POST(req: Request) {
   })
 
   if (!user) return fail('User not found', 404)
+
+  const launchError = getAdvancedAutomationLaunchRestrictionError()
+  if (launchError) return fail(launchError, 409)
 
   const parsed = createAutomationSchema.safeParse(
     await req.json().catch(() => null),

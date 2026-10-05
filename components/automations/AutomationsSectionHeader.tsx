@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import { PageHeader } from '@/components/dashboard/PageHeader'
 import { cn } from '@/lib/utils'
+import { ADVANCED_AUTOMATIONS_LAUNCH_ENABLED } from '@/lib/automations/policy'
 
 type AutomationMode = 'simple' | 'advanced'
 type AdvancedSection = 'workflows' | 'templates' | 'executions'
@@ -40,18 +41,25 @@ export function AutomationsSectionHeader({
       <div className="border-app bg-app-surface-muted/70 rounded-xl border p-1.5">
         <nav
           aria-label="Automation mode"
-          className="grid w-full grid-cols-2 gap-1 sm:w-fit sm:min-w-64"
+          className={cn(
+            'grid w-full gap-1 sm:w-fit',
+            ADVANCED_AUTOMATIONS_LAUNCH_ENABLED
+              ? 'grid-cols-2 sm:min-w-64'
+              : 'grid-cols-1 sm:min-w-32',
+          )}
         >
           <ModeLink
             href={automationsHref}
             label="Simple"
             active={activeMode === 'simple'}
           />
-          <ModeLink
-            href={advancedHref}
-            label="Advanced"
-            active={activeMode === 'advanced'}
-          />
+          {ADVANCED_AUTOMATIONS_LAUNCH_ENABLED ? (
+            <ModeLink
+              href={advancedHref}
+              label="Advanced"
+              active={activeMode === 'advanced'}
+            />
+          ) : null}
         </nav>
 
         {activeMode === 'simple' ? (
@@ -72,7 +80,7 @@ export function AutomationsSectionHeader({
               />
             ) : null}
           </nav>
-        ) : (
+        ) : ADVANCED_AUTOMATIONS_LAUNCH_ENABLED ? (
           <nav
             aria-label="Advanced automation navigation"
             className="border-app mt-1.5 flex min-w-0 gap-1 overflow-x-auto border-t px-1 pt-1.5"
@@ -93,7 +101,7 @@ export function AutomationsSectionHeader({
               active={activeSection === 'executions'}
             />
           </nav>
-        )}
+        ) : null}
       </div>
     </div>
   )

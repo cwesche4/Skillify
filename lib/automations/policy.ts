@@ -10,6 +10,10 @@ export const AUTOMATION_MANAGEMENT_ROLES = [
   WorkspaceMemberRole.MANAGER,
 ] as const
 
+export const ADVANCED_AUTOMATIONS_LAUNCH_ENABLED = false
+export const ADVANCED_AUTOMATIONS_LAUNCH_MESSAGE =
+  'Advanced Automations are unavailable during the controlled launch.'
+
 export type AutomationLifecycleStatus =
   | 'INACTIVE'
   | 'ACTIVE'
@@ -75,7 +79,13 @@ export function getAutomationExecutionPreconditionError(input: {
 }
 
 export function getAdvancedAutomationMutationError(managedBySimple: boolean) {
-  return managedBySimple
-    ? 'This workflow is managed from Simple Automations.'
-    : null
+  if (managedBySimple)
+    return 'This workflow is managed from Simple Automations.'
+  return getAdvancedAutomationLaunchRestrictionError()
+}
+
+export function getAdvancedAutomationLaunchRestrictionError() {
+  return ADVANCED_AUTOMATIONS_LAUNCH_ENABLED
+    ? null
+    : ADVANCED_AUTOMATIONS_LAUNCH_MESSAGE
 }
