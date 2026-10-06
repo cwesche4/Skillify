@@ -221,19 +221,56 @@ describe('Automation backend foundation', () => {
   })
 
   it('uses workspace or owner billing rather than a member plan', () => {
+    const now = new Date('2026-10-06T12:00:00.000Z')
     expect(
       resolveWorkspacePlan({
-        workspaceSubscriptionPlan: 'Basic',
-        ownerSubscriptionPlan: 'Elite',
+        workspaceSubscription: { plan: 'Basic', status: 'active' },
+        ownerSubscription: { plan: 'Elite', status: 'active' },
+        now,
       }),
     ).toBe('Basic')
     expect(
       resolveWorkspacePlan({
-        workspaceSubscriptionPlan: 'Free',
-        ownerSubscriptionPlan: 'Elite',
+        workspaceSubscription: { plan: 'Free', status: 'active' },
+        ownerSubscription: { plan: 'Elite', status: 'active' },
+        now,
       }),
     ).toBe('Free')
-    expect(resolveWorkspacePlan({ ownerSubscriptionPlan: 'Pro' })).toBe('Pro')
+    expect(
+      resolveWorkspacePlan({
+        ownerSubscription: {
+          plan: 'Pro',
+          status: 'trialing',
+          complimentaryEndsAt: '2026-10-07T12:00:00.000Z',
+        },
+        now,
+      }),
+    ).toBe('Pro')
+    expect(
+      resolveWorkspacePlan({
+        ownerSubscription: {
+          plan: 'Elite',
+          status: 'trialing',
+          complimentaryEndsAt: now,
+        },
+        now,
+      }),
+    ).toBe('Free')
+    expect(
+      getAutomationCapabilities(
+        resolveWorkspacePlan({
+          ownerSubscription: {
+            plan: 'Elite',
+            status: 'trialing',
+            complimentaryEndsAt: new Date(now.getTime() - 1),
+          },
+          now,
+        }),
+      ),
+    ).toMatchObject({
+      canUseStarterAutomations: false,
+      canUseAdvancedBuilder: false,
+    })
   })
 
   it('exposes separate starter and advanced plan capabilities', () => {

@@ -1,4 +1,12 @@
 import type { Plan } from '@/lib/subscriptions/features'
+import { hasActiveSubscriptionAccess } from '@/lib/billing/onboardingAccess'
+
+export type PlanSubscriptionInput = {
+  plan?: string | null
+  status?: string | null
+  trialEndsAt?: Date | string | null
+  complimentaryEndsAt?: Date | string | null
+}
 
 const normalize = (p?: string | null) => p?.trim().toLowerCase()
 
@@ -11,13 +19,23 @@ export function normalizeWorkspacePlan(value?: string | null): Plan | null {
   return null
 }
 
+export function resolveActiveSubscriptionPlan(
+  subscription?: PlanSubscriptionInput | null,
+  now = new Date(),
+): Plan | null {
+  if (!hasActiveSubscriptionAccess(subscription, now)) return null
+  return normalizeWorkspacePlan(subscription?.plan)
+}
+
 export function resolveWorkspacePlan(input: {
-  workspaceSubscriptionPlan?: string | null
-  ownerSubscriptionPlan?: string | null
+  workspaceSubscription?: PlanSubscriptionInput | null
+  ownerSubscription?: PlanSubscriptionInput | null
+  now?: Date
 }): Plan {
+  const now = input.now ?? new Date()
   return (
-    normalizeWorkspacePlan(input.workspaceSubscriptionPlan) ??
-    normalizeWorkspacePlan(input.ownerSubscriptionPlan) ??
+    resolveActiveSubscriptionPlan(input.workspaceSubscription, now) ??
+    resolveActiveSubscriptionPlan(input.ownerSubscription, now) ??
     'Free'
   )
 }
@@ -32,14 +50,32 @@ export async function getWorkspacePlan(
   const workspace = await prisma.workspace.findUnique({
     where: { id: workspaceId },
     select: {
-      subscription: { select: { plan: true } },
-      owner: { select: { subscription: { select: { plan: true } } } },
+      subscription: {
+        select: {
+          plan: true,
+          status: true,
+          trialEndsAt: true,
+          complimentaryEndsAt: true,
+        },
+      },
+      owner: {
+        select: {
+          subscription: {
+            select: {
+              plan: true,
+              status: true,
+              trialEndsAt: true,
+              complimentaryEndsAt: true,
+            },
+          },
+        },
+      },
     },
   })
   if (!workspace) return 'Free'
 
   return resolveWorkspacePlan({
-    workspaceSubscriptionPlan: workspace.subscription?.plan,
-    ownerSubscriptionPlan: workspace.owner?.subscription?.plan,
+    workspaceSubscription: workspace.subscription,
+    ownerSubscription: workspace.owner?.subscription,
   })
 }

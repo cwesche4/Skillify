@@ -150,6 +150,15 @@ describe('onboarding and billing access foundation', () => {
         now,
       ),
     ).toBe(true)
+    expect(
+      hasActiveSubscriptionAccess(
+        {
+          status: SubscriptionStatus.trialing,
+          complimentaryEndsAt: now,
+        },
+        now,
+      ),
+    ).toBe(false)
   })
 
   it('resolves a BETA30-style trial override without a payment method', () => {

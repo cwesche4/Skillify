@@ -1,7 +1,10 @@
 // lib/auth/protect.ts
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
-import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
+import {
+  getWorkspacePlan,
+  resolveActiveSubscriptionPlan,
+} from '@/lib/subscriptions/getWorkspacePlan'
 
 // Plan ranking
 const PLAN_RANK = {
@@ -37,8 +40,14 @@ export async function getUserRole(userId: string, workspaceId: string) {
 export async function getUserPlan(userId: string): Promise<Plan> {
   const sub = await prisma.subscription.findFirst({
     where: { userId },
+    select: {
+      plan: true,
+      status: true,
+      trialEndsAt: true,
+      complimentaryEndsAt: true,
+    },
   })
-  return (sub?.plan as Plan) ?? 'Free'
+  return resolveActiveSubscriptionPlan(sub) ?? 'Free'
 }
 
 /* ---------------------------

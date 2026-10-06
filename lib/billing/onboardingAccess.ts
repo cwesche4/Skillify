@@ -26,7 +26,7 @@ export type OnboardingAccessInput = {
 function isFuture(value: Date | string | null | undefined, now: Date) {
   if (!value) return false
   const date = value instanceof Date ? value : new Date(value)
-  return !Number.isNaN(date.getTime()) && date.getTime() >= now.getTime()
+  return !Number.isNaN(date.getTime()) && date.getTime() > now.getTime()
 }
 
 export function hasActiveSubscriptionAccess(

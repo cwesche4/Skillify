@@ -4,17 +4,12 @@ import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { buildHubSpotAuthUrl } from '@/lib/integrations/hubspot/auth'
 import { logAudit } from '@/lib/audit/log'
-import { getUserPlanByClerkId } from '@/lib/auth/getUserPlan'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
 
 export async function GET(req: Request) {
   const { userId: clerkId } = auth()
   if (!clerkId)
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const plan = await getUserPlanByClerkId(clerkId)
-  if (plan === 'basic') {
-    return NextResponse.json({ error: 'Pro plan required' }, { status: 403 })
-  }
 
   const url = new URL(req.url)
   const workspaceId = url.searchParams.get('workspaceId')
@@ -27,11 +22,21 @@ export async function GET(req: Request) {
     include: {
       members: {
         where: { user: { clerkId } },
+        select: { userId: true, role: true },
       },
     },
   })
-  if (!workspace || workspace.members.length === 0) {
+  const member = workspace?.members[0]
+  if (
+    !workspace ||
+    !member ||
+    (member.role !== 'OWNER' && member.role !== 'ADMIN')
+  ) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  const plan = await getWorkspacePlan(workspaceId)
+  if (plan !== 'Pro' && plan !== 'Elite') {
+    return NextResponse.json({ error: 'Pro plan required' }, { status: 403 })
   }
 
   const state = crypto.randomBytes(16).toString('hex')
@@ -52,7 +57,7 @@ export async function GET(req: Request) {
   const authUrl = buildHubSpotAuthUrl({ workspaceId, state })
   await logAudit({
     workspaceId,
-    actorId: workspace.ownerId,
+    actorId: member.userId,
     action: 'CRM_CONNECTED',
     targetType: 'Integration',
     targetId: workspaceId,

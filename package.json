@@ -22,6 +22,7 @@
     "prisma:reset": "prisma migrate reset",
     "prisma:seed": "tsx prisma/seed.ts",
     "demo:workspace": "tsx scripts/generate-demo-workspace.ts",
+    "pilot:provision": "tsx scripts/provision-pilot-subscription.ts",
     "studio": "prisma studio --url=\"postgresql://postgres:postgres@localhost:5432/skillify?schema=public\"",
     "prepare": "husky",
     "test": "vitest run"

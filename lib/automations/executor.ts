@@ -506,10 +506,26 @@ export async function executeNode(
             slug: true,
             ownerId: true,
             businessModel: true,
-            subscription: { select: { id: true, plan: true } },
+            subscription: {
+              select: {
+                id: true,
+                plan: true,
+                status: true,
+                trialEndsAt: true,
+                complimentaryEndsAt: true,
+              },
+            },
             owner: {
               select: {
-                subscription: { select: { id: true, plan: true } },
+                subscription: {
+                  select: {
+                    id: true,
+                    plan: true,
+                    status: true,
+                    trialEndsAt: true,
+                    complimentaryEndsAt: true,
+                  },
+                },
               },
             },
           },
@@ -537,13 +553,31 @@ export async function executeNode(
         const lockedPlanWorkspace = await tx.workspace.findUnique({
           where: { id: workspaceId },
           select: {
-            subscription: { select: { plan: true } },
-            owner: { select: { subscription: { select: { plan: true } } } },
+            subscription: {
+              select: {
+                plan: true,
+                status: true,
+                trialEndsAt: true,
+                complimentaryEndsAt: true,
+              },
+            },
+            owner: {
+              select: {
+                subscription: {
+                  select: {
+                    plan: true,
+                    status: true,
+                    trialEndsAt: true,
+                    complimentaryEndsAt: true,
+                  },
+                },
+              },
+            },
           },
         })
         const lockedPlan = resolveWorkspacePlan({
-          workspaceSubscriptionPlan: lockedPlanWorkspace?.subscription?.plan,
-          ownerSubscriptionPlan: lockedPlanWorkspace?.owner.subscription?.plan,
+          workspaceSubscription: lockedPlanWorkspace?.subscription,
+          ownerSubscription: lockedPlanWorkspace?.owner.subscription,
         })
         if (!getAutomationCapabilities(lockedPlan).canUseStarterAutomations) {
           throw new Error('Managed Simple Automation is no longer eligible.')

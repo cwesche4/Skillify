@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -37,7 +38,7 @@ export default async function IntegrationsPage({ params }: PageProps) {
 
   const profile = await prisma.userProfile.findUnique({
     where: { clerkId },
-    include: { subscription: true },
+    select: { id: true },
   })
   if (!profile) return null
 
@@ -72,7 +73,7 @@ export default async function IntegrationsPage({ params }: PageProps) {
     )
   }
 
-  const planLabel = profile.subscription?.plan ?? 'Free'
+  const planLabel = await getWorkspacePlan(workspace.id)
   const proOrAbove = planLabel === 'Pro' || planLabel === 'Elite'
   const elite = planLabel === 'Elite'
   const role = workspace.members[0]?.role

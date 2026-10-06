@@ -320,4 +320,108 @@ describe('Estimate Follow-Up authority', () => {
       expect(upsert).not.toHaveBeenCalled()
     },
   )
+
+  it.each([
+    ['active immediately before expiration', -1, true],
+    ['expired exactly at expiration', 0, false],
+    ['expired immediately after expiration', 1, false],
+  ])(
+    '%s when revalidating paid authority before dispatch',
+    async (_label, nowOffsetMs, shouldDispatch) => {
+      const expiration = new Date('2026-10-06T12:00:00.000Z')
+      const executionNow = new Date(expiration.getTime() + nowOffsetMs)
+      const upsert = vi.fn().mockResolvedValue({ id: 'generated-delivery-a' })
+      const tx = {
+        $queryRaw: vi.fn().mockResolvedValue([{ id: 'schedule-a' }]),
+        estimateFollowUpSchedule: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: 'schedule-a',
+            workspaceId: 'workspace-a',
+            estimateId: 'estimate-a',
+            sourceDeliveryId: 'delivery-a',
+            configurationFingerprint: estimateFollowUpConfigurationFingerprint({
+              definitionVersion: 1,
+              config: { 'estimate-delay': '3-days' },
+            }),
+            sourceDelivery: {
+              id: 'delivery-a',
+              estimateShareId: 'share-a',
+              requestedAt: new Date('2026-10-04T11:59:00.000Z'),
+              recipientEmail: 'customer@example.test',
+              origin: 'MANUAL',
+              status: 'SENT',
+            },
+            estimate: {
+              archivedAt: null,
+              status: 'PRESENTED',
+              decisionEvidence: null,
+              expiresOn: '2026-10-31',
+              workspace: {
+                businessModel: 'SIMPLE_SERVICE_BUSINESS',
+                settings: { scheduling: { timezone: 'UTC' } },
+                subscription: null,
+                owner: {
+                  subscription: {
+                    plan: 'Basic',
+                    status: 'trialing',
+                    trialEndsAt: expiration,
+                    complimentaryEndsAt: expiration,
+                  },
+                },
+              },
+            },
+            installation: {
+              id: 'installation-a',
+              definitionKey: 'estimate-follow-up',
+              definitionVersion: 1,
+              removedAt: null,
+              config: { 'estimate-delay': '3-days' },
+              lastConfiguredByUserId: 'user-a',
+              automation: { id: 'automation-a', status: 'ACTIVE' },
+            },
+          }),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        },
+        estimateShare: {
+          findFirst: vi.fn().mockResolvedValue({ id: 'share-a' }),
+        },
+        estimateDelivery: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          upsert,
+        },
+        simpleAutomationDispatch: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'dispatch-a',
+            status: 'PROCESSING',
+            runId: 'run-a',
+          }),
+        },
+      }
+      mocks.transaction.mockImplementationOnce(async (callback) => callback(tx))
+
+      const operation = queueAutomatedEstimateFollowUpDelivery({
+        workspaceId: 'workspace-a',
+        automationId: 'automation-a',
+        runId: 'run-a',
+        triggerPayload: {
+          followUpScheduleId: 'schedule-a',
+          followUpClaimedBy: 'worker-a',
+          simpleEventKey: 'estimate-follow-up:schedule-a',
+        },
+        now: executionNow,
+      })
+
+      if (shouldDispatch) {
+        await expect(operation).resolves.toEqual({
+          deliveryId: 'generated-delivery-a',
+        })
+        expect(upsert).toHaveBeenCalledOnce()
+      } else {
+        await expect(operation).rejects.toThrow(
+          'Managed Estimate Follow-Up is no longer current.',
+        )
+        expect(upsert).not.toHaveBeenCalled()
+      }
+    },
+  )
 })

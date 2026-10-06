@@ -60,14 +60,13 @@ const getWorkspacePlanMock = vi.hoisted(() => vi.fn(async () => 'Elite'))
 vi.mock('@/lib/db', () => ({
   prisma: prismaMocks,
 }))
-vi.mock('@/lib/subscriptions/getWorkspacePlan', () => ({
-  getWorkspacePlan: getWorkspacePlanMock,
-  resolveWorkspacePlan: (input: {
-    workspaceSubscriptionPlan?: string | null
-    ownerSubscriptionPlan?: string | null
-  }) =>
-    input.workspaceSubscriptionPlan ?? input.ownerSubscriptionPlan ?? 'Free',
-}))
+vi.mock('@/lib/subscriptions/getWorkspacePlan', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('@/lib/subscriptions/getWorkspacePlan')
+    >()
+  return { ...actual, getWorkspacePlan: getWorkspacePlanMock }
+})
 vi.mock('@/lib/integrations/register-default', () => ({
   ensureIntegrationAdapters: vi.fn(),
 }))
@@ -619,7 +618,13 @@ describe('Simple Automation execution', () => {
         businessName: 'Garden Care',
         name: 'Garden Care',
         businessModel: 'SIMPLE_SERVICE_BUSINESS',
-        subscription: { id: 'subscription-1', plan: 'Basic' },
+        subscription: {
+          id: 'subscription-1',
+          plan: 'Basic',
+          status: 'active',
+          trialEndsAt: null,
+          complimentaryEndsAt: null,
+        },
         owner: { subscription: null },
         ...overrides,
       }
@@ -811,7 +816,9 @@ describe('Simple Automation execution', () => {
 
     it('suppresses stale intermediate work after a later change', async () => {
       prismaMocks.schedulingEvent.findFirst.mockResolvedValueOnce(
-        currentOccurrence({ startsAtUtc: new Date('2026-10-01T21:00:00.000Z') }),
+        currentOccurrence({
+          startsAtUtc: new Date('2026-10-01T21:00:00.000Z'),
+        }),
       )
 
       await expect(
@@ -940,7 +947,36 @@ describe('Simple Automation execution', () => {
         .mockResolvedValueOnce(eligibleWorkspace())
         .mockResolvedValueOnce(
           eligibleWorkspace({
-            subscription: { id: 'subscription-1', plan: 'Free' },
+            subscription: {
+              id: 'subscription-1',
+              plan: 'Free',
+              status: 'active',
+              trialEndsAt: null,
+              complimentaryEndsAt: null,
+            },
+          }),
+        )
+
+      await expect(
+        runAutomation('schedule-automation-1', options),
+      ).rejects.toThrow('Managed Simple Automation is no longer eligible.')
+      expect(prismaMocks.schedulingNotification.upsert).not.toHaveBeenCalled()
+    })
+
+    it('fails closed when finite authority expires before insertion', async () => {
+      getWorkspacePlanMock.mockResolvedValueOnce('Basic')
+      prismaMocks.workspace.findUnique
+        .mockResolvedValueOnce(eligibleWorkspace())
+        .mockResolvedValueOnce(eligibleWorkspace())
+        .mockResolvedValueOnce(
+          eligibleWorkspace({
+            subscription: {
+              id: 'subscription-1',
+              plan: 'Basic',
+              status: 'trialing',
+              trialEndsAt: new Date('2020-01-01T00:00:00.000Z'),
+              complimentaryEndsAt: new Date('2020-01-01T00:00:00.000Z'),
+            },
           }),
         )
 
@@ -1175,14 +1211,17 @@ describe('Simple Automation execution', () => {
     it.each([
       ['exactly at start', eventStartsAtUtc],
       ['after start', '2026-10-01T14:00:01.000Z'],
-    ])('does not insert an upcoming reminder %s', async (_label, currentTime) => {
-      vi.setSystemTime(new Date(currentTime))
+    ])(
+      'does not insert an upcoming reminder %s',
+      async (_label, currentTime) => {
+        vi.setSystemTime(new Date(currentTime))
 
-      await expect(
-        runAutomation('automation-1', appointmentOptions),
-      ).rejects.toThrow('Managed Appointment Reminder is no longer current.')
-      expect(prismaMocks.schedulingNotification.upsert).not.toHaveBeenCalled()
-    })
+        await expect(
+          runAutomation('automation-1', appointmentOptions),
+        ).rejects.toThrow('Managed Appointment Reminder is no longer current.')
+        expect(prismaMocks.schedulingNotification.upsert).not.toHaveBeenCalled()
+      },
+    )
 
     it('revalidates a racing plan downgrade before notification insertion', async () => {
       getWorkspacePlanMock
@@ -1323,14 +1362,17 @@ describe('Simple Automation execution', () => {
           completedAt: new Date('2026-09-23T19:00:00.000Z'),
         },
       ],
-    ])('fails closed when the Job was %s before delivery', async (_label, state) => {
-      prismaMocks.job.findFirst.mockResolvedValueOnce(eligibleJob(state))
+    ])(
+      'fails closed when the Job was %s before delivery',
+      async (_label, state) => {
+        prismaMocks.job.findFirst.mockResolvedValueOnce(eligibleJob(state))
 
-      await expect(
-        runAutomation('automation-1', completionOptions),
-      ).rejects.toThrow('Managed Job completion is no longer current.')
-      expect(prismaMocks.schedulingNotification.upsert).not.toHaveBeenCalled()
-    })
+        await expect(
+          runAutomation('automation-1', completionOptions),
+        ).rejects.toThrow('Managed Job completion is no longer current.')
+        expect(prismaMocks.schedulingNotification.upsert).not.toHaveBeenCalled()
+      },
+    )
 
     it('fences an in-flight occurrence superseded by recompletion', async () => {
       prismaMocks.domainOutboxEvent.findFirst.mockResolvedValueOnce(null)

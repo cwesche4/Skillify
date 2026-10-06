@@ -3,10 +3,16 @@
 Skillify deploys the application to Vercel. The repository-owned schedules in
 `vercel.json` invoke only authenticated internal routes:
 
-- native domain events and durable HubSpot ingress: every minute;
-- Scheduling outbox, reminders, and deliveries: every minute;
-- expired Scheduling lease recovery: every five minutes;
-- bounded recurrence-horizon extension: daily at 02:00 UTC.
+- `GET /api/internal/domain-events/process`: native domain events and durable
+  HubSpot ingress, every minute;
+- `GET /api/internal/scheduling/notifications`: Scheduling outbox, reminders,
+  and deliveries, every minute;
+- `GET /api/internal/scheduling/notifications/recovery`: expired Scheduling
+  lease recovery, every five minutes;
+- `GET /api/internal/scheduling/recurrence-horizon`: bounded
+  recurrence-horizon extension, daily at 02:00 UTC;
+- `GET /api/internal/estimates/deliveries/process`: Estimate delivery and
+  follow-up processing, every minute.
 
 Vercel Cron sends `Authorization: Bearer $CRON_SECRET` to `GET` routes. Manual
 or non-Vercel invocations retain their existing authenticated `POST` contracts.

@@ -401,8 +401,26 @@ export async function queueAutomatedEstimateFollowUpDelivery(input: {
               select: {
                 businessModel: true,
                 settings: { select: { scheduling: true } },
-                subscription: { select: { plan: true } },
-                owner: { select: { subscription: { select: { plan: true } } } },
+                subscription: {
+                  select: {
+                    plan: true,
+                    status: true,
+                    trialEndsAt: true,
+                    complimentaryEndsAt: true,
+                  },
+                },
+                owner: {
+                  select: {
+                    subscription: {
+                      select: {
+                        plan: true,
+                        status: true,
+                        trialEndsAt: true,
+                        complimentaryEndsAt: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -417,9 +435,9 @@ export async function queueAutomatedEstimateFollowUpDelivery(input: {
     }
     const installation = schedule.installation
     const plan = resolveWorkspacePlan({
-      workspaceSubscriptionPlan: schedule.estimate.workspace.subscription?.plan,
-      ownerSubscriptionPlan:
-        schedule.estimate.workspace.owner.subscription?.plan,
+      workspaceSubscription: schedule.estimate.workspace.subscription,
+      ownerSubscription: schedule.estimate.workspace.owner.subscription,
+      now,
     })
     const fingerprint = estimateFollowUpConfigurationFingerprint({
       definitionVersion: installation.definitionVersion,
