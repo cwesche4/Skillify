@@ -9,36 +9,15 @@ type Testimonial = {
   company: string
 }
 
-const testimonials: Testimonial[] = [
-  {
-    quote:
-      'Skillify gave us a unified view of demos, onboarding, and renewals — without forcing reps to change how they work.',
-    name: 'Danielle P.',
-    role: 'Head of Revenue Operations',
-    company: 'GrowthLoop',
-  },
-  {
-    quote:
-      'Our team stopped babysitting calendars. We just show up to calls and Skillify handles the rest.',
-    name: 'Mike L.',
-    role: 'Founder',
-    company: 'LaunchStreet',
-  },
-  {
-    quote:
-      'The AI scoring is scarily accurate. We prioritize the right accounts instead of arguing about them.',
-    name: 'Priya R.',
-    role: 'Director of Sales',
-    company: 'SignalWave',
-  },
-]
+// Verified customer quotes will be added after the controlled-launch cohort.
+const testimonials: Testimonial[] = []
 
 export function TestimonialsSection() {
   return (
     <section className="bg-zinc-50 py-20 dark:bg-zinc-900">
       <div className="mx-auto max-w-6xl px-6">
         <h2 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl">
-          Teams that automate with Skillify move faster.
+          Verified customer evidence is coming after the launch cohort.
         </h2>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {testimonials.map((t) => (
@@ -57,6 +36,11 @@ export function TestimonialsSection() {
               </figcaption>
             </figure>
           ))}
+          {testimonials.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              No verified customer testimonials are published yet.
+            </p>
+          ) : null}
         </div>
       </div>
     </section>

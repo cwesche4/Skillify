@@ -1,8 +1,8 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
 import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 
 //
 // TYPES
@@ -118,9 +118,6 @@ async function generateAiCoachAnswer(
 // MAIN HANDLER – POST /api/command-center/ai
 //
 export async function POST(req: NextRequest) {
-  const { userId } = auth()
-  if (!userId) return new NextResponse('Unauthorized', { status: 401 })
-
   let body: AiCoachRequestBody
   try {
     body = (await req.json()) as AiCoachRequestBody
@@ -132,6 +129,17 @@ export async function POST(req: NextRequest) {
     return new NextResponse('workspaceId and question are required', {
       status: 400,
     })
+  }
+
+  const access = await authorizeWorkspaceAccess({
+    workspaceId: body.workspaceId,
+    access: 'manage',
+  })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
   }
 
   const aiGuard = await assertAiActionsEnabled(body.workspaceId)
@@ -147,31 +155,6 @@ export async function POST(req: NextRequest) {
   )
 
   const mode: AiCoachMode = body.mode ?? inferMode(body.question)
-
-  //
-  // Verify user profile
-  //
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkId: userId },
-    select: { id: true },
-  })
-  if (!profile)
-    return new NextResponse('User profile not found', { status: 404 })
-
-  //
-  // Verify membership
-  //
-  const membership = await prisma.workspaceMember.findFirst({
-    where: {
-      workspaceId: body.workspaceId,
-      userId: profile.id,
-    },
-    select: { id: true },
-  })
-  if (!membership)
-    return new NextResponse('Forbidden: not a workspace member', {
-      status: 403,
-    })
 
   //
   // Load workspace + stats

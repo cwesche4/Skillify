@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 export async function GET(
   _: Request,
@@ -14,9 +15,21 @@ export async function GET(
   const run = await prisma.automationRun.findFirst({
     where: {
       id: params.runId,
-      workspace: { members: { some: { user: { clerkId: userId } } } },
+      workspace: {
+        members: {
+          some: {
+            user: { clerkId: userId },
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
+      },
     },
-    include: { automation: true },
+    select: {
+      status: true,
+      startedAt: true,
+      durationMs: true,
+      automation: { select: { name: true } },
+    },
   })
 
   if (!run) {

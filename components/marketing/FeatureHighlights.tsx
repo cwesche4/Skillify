@@ -11,19 +11,19 @@ type FeatureItem = {
 
 const features: FeatureItem[] = [
   {
-    label: 'AI qualification baked into booking',
+    label: 'Structured customer intake',
     description:
-      'Capture the right questions on your demo form, then auto-score leads with AI before they ever hit your calendar.',
+      'Capture the right questions and give management the context needed to review the request.',
   },
   {
     label: 'Multi-workspace, role-aware access',
     description:
-      'Segment workspaces by team, brand, or region. Give RevOps, Sales, and CS separate views with shared automation.',
+      'Separate workspaces where needed and use management roles or assignment-scoped Member views for supported operational work.',
   },
   {
-    label: 'HubSpot, Calendly, and Google Calendar',
+    label: 'Connected operational records',
     description:
-      'Keep your existing CRM and calendar stack. Skillify simply orchestrates the flow between them.',
+      'Keep customer, estimate, job, scheduling, and attention records connected inside Skillify.',
   },
 ]
 
@@ -37,9 +37,8 @@ export function FeatureHighlights() {
               Built for operators who own the funnel end-to-end.
             </h2>
             <p className="mt-3 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-              Skillify doesn’t replace your CRM — it sits between your forms,
-              calendars, and sales tools to make sure the right conversations
-              happen at the right time.
+              Skillify gives operators one place to coordinate customer,
+              estimate, job, scheduling, and attention records.
             </p>
           </div>
           <div className="space-y-4 text-sm">

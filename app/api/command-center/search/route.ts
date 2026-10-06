@@ -10,6 +10,7 @@ import type {
 
 import { AutomationStatus as A, RunStatus as R } from '@/lib/prisma/enums'
 import type { NextRequest } from 'next/server'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
@@ -43,7 +44,14 @@ export async function GET(req: NextRequest) {
   const automations = await prisma.automation.findMany({
     where: {
       name: { contains: q, mode: 'insensitive' },
-      workspace: { members: { some: { user: { clerkId: userId } } } },
+      workspace: {
+        members: {
+          some: {
+            user: { clerkId: userId },
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
+      },
     },
     include: {
       workspace: true,
@@ -59,7 +67,14 @@ export async function GET(req: NextRequest) {
   const runs = await prisma.automationRun.findMany({
     where: {
       log: query ? { contains: q, mode: 'insensitive' } : undefined,
-      workspace: { members: { some: { user: { clerkId: userId } } } },
+      workspace: {
+        members: {
+          some: {
+            user: { clerkId: userId },
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
+      },
     },
     include: {
       automation: {
@@ -74,7 +89,14 @@ export async function GET(req: NextRequest) {
 
   const members = await prisma.workspaceMember.findMany({
     where: {
-      workspace: { members: { some: { user: { clerkId: userId } } } },
+      workspace: {
+        members: {
+          some: {
+            user: { clerkId: userId },
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
+      },
       OR: [
         {
           workspace: {

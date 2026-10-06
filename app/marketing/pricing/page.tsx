@@ -16,7 +16,8 @@ export default function PricingPage() {
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
           Skillify brings customers, jobs, scheduling, workflows, reporting, and
-          workspace-aware AI into one service-business workspace.
+          explicitly enabled AI-assisted capabilities into one service-business
+          workspace.
         </p>
       </section>
 
@@ -105,7 +106,7 @@ export default function PricingPage() {
           />
           <FAQ
             q="Do you lock any core features?"
-            a="Core workspace tools are available across paid plans. Higher tiers expand capacity, AI, reporting, governance, and support."
+            a="Core workspace tools are available across paid plans. Higher tiers expand capacity, governance, support, and capabilities explicitly enabled for the controlled launch."
           />
           <FAQ
             q="Do you offer white-labeling?"

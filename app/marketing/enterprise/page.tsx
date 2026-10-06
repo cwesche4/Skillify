@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'
-import { caseStudies } from '@/lib/marketing/caseStudies'
 
 type DemoBookingFormState = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -90,8 +89,6 @@ export default function EnterprisePage() {
     }
   }
 
-  const primaryCaseStudy = caseStudies[0]
-
   return (
     <main className="min-h-screen bg-white text-zinc-900 dark:bg-black dark:text-zinc-50">
       {/* HERO */}
@@ -140,11 +137,11 @@ export default function EnterprisePage() {
               </div>
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" />
-                AI lead qualification & routing
+                Role-aware customer and work management
               </div>
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" />
-                HubSpot-native pipeline tracking
+                Operational dashboards and attention queues
               </div>
             </div>
           </div>
@@ -155,29 +152,29 @@ export default function EnterprisePage() {
             <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/90 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950/80">
               <div className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-3 text-xs dark:border-zinc-800/80">
                 <span className="font-medium text-zinc-700 dark:text-zinc-200">
-                  Enterprise pipeline snapshot
+                  Illustrative workspace preview
                 </span>
                 <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-500">
-                  Live sync with HubSpot
+                  Preview only
                 </span>
               </div>
               <div className="space-y-4 p-5 text-xs">
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     {
-                      label: 'Qualified demos',
-                      value: '38',
-                      note: 'last 30 days',
+                      label: 'Open jobs',
+                      value: '—',
+                      note: 'workspace view',
                     },
                     {
-                      label: 'Avg. lead score',
-                      value: '82',
-                      note: 'AI-qualified',
+                      label: 'Needs attention',
+                      value: '—',
+                      note: 'operator queue',
                     },
                     {
-                      label: 'Show-up rate',
-                      value: '2.1x',
-                      note: 'vs. previous',
+                      label: 'Upcoming visits',
+                      value: '—',
+                      note: 'schedule view',
                     },
                   ].map((item) => (
                     <div
@@ -197,10 +194,10 @@ export default function EnterprisePage() {
 
                 <div className="mt-2 space-y-2">
                   {[
-                    'Website demo ➝ AI qualify ➝ HubSpot deal',
-                    'Inbound form ➝ route to right AE',
-                    'Missed call ➝ SMS + email follow-up',
-                    'No-show ➝ auto-reschedule sequence',
+                    'Customer request ➝ management review',
+                    'Accepted estimate ➝ confirmed operational work',
+                    'Assigned job ➝ field execution',
+                    'Schedule change ➝ in-app team notification',
                   ].map((rule) => (
                     <div
                       key={rule}
@@ -219,102 +216,16 @@ export default function EnterprisePage() {
         </div>
       </section>
 
-      {/* SOCIAL PROOF / STATS */}
+      {/* CONTROLLED-LAUNCH EVIDENCE POLICY */}
       <section className="border-b border-zinc-200/70 bg-white py-14 dark:border-zinc-800/70 dark:bg-black">
         <div className="mx-auto max-w-6xl px-6">
-          <p className="mb-6 text-center text-xs uppercase tracking-[0.2em] text-zinc-500">
-            TRUSTED BY TEAMS WHO RUN ON PIPELINES, NOT SPREADSHEETS
+          <p className="text-center text-xs uppercase tracking-[0.2em] text-zinc-500">
+            CONTROLLED LAUNCH
           </p>
-          <div className="grid grid-cols-1 gap-8 text-center text-sm md:grid-cols-3">
-            {[
-              {
-                label: 'Faster GTM automation launches',
-                value: '3–5x',
-                note: 'vs. internal-only',
-              },
-              {
-                label: 'Manual ops work reduced',
-                value: '50–80%',
-                note: 'per pipeline',
-              },
-              {
-                label: 'Increase in qualified demos',
-                value: '30–70%',
-                note: 'for GTM teams',
-              },
-            ].map((stat) => (
-              <div key={stat.label} className="space-y-1">
-                <div className="text-3xl font-semibold">{stat.value}</div>
-                <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                  {stat.label}
-                </div>
-                <div className="text-xs text-zinc-400">{stat.note}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CASE STUDY BLOCK */}
-      <section className="bg-zinc-50 py-16 dark:bg-zinc-950">
-        <div className="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-[1.4fr,1fr]">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              CASE STUDY
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-              {primaryCaseStudy.title}
-            </h2>
-            <p className="mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-              {primaryCaseStudy.summary}
-            </p>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-1 text-[11px] text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900">
-              <span>{primaryCaseStudy.logoText}</span>
-              <span className="h-[3px] w-[3px] rounded-full bg-zinc-400" />
-              <span>{primaryCaseStudy.industry}</span>
-            </div>
-
-            <ul className="mt-6 space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
-              {primaryCaseStudy.challenges.slice(0, 2).map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span className="mt-[6px] h-[6px] w-[6px] rounded-full bg-zinc-400" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-
-            <a
-              href={`/marketing/case-studies/${primaryCaseStudy.slug}`}
-              className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              Read the full story
-              <ArrowRight className="h-4 w-4" />
-            </a>
-          </div>
-
-          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 text-sm shadow-sm dark:border-zinc-800 dark:bg-black">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              <Sparkles className="h-3 w-3" />
-              <span>Key outcomes</span>
-            </div>
-            <div className="space-y-3">
-              {primaryCaseStudy.results.map((r) => (
-                <div
-                  key={r.label}
-                  className="flex items-baseline justify-between"
-                >
-                  <span className="text-xs text-zinc-500">{r.label}</span>
-                  <span className="text-sm font-semibold">{r.value}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 rounded-xl bg-zinc-900 px-4 py-3 text-xs text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900">
-              &ldquo;{primaryCaseStudy.quote.text}&rdquo;
-              <div className="mt-2 text-[11px]">
-                {primaryCaseStudy.quote.name} · {primaryCaseStudy.quote.role}
-              </div>
-            </div>
-          </div>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-zinc-600 dark:text-zinc-400">
+            Product previews are illustrative. Verified customer outcomes and
+            approved case studies will be published after the launch cohort.
+          </p>
         </div>
       </section>
 
@@ -329,14 +240,14 @@ export default function EnterprisePage() {
               </h2>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 Instead of trying to bolt automations onto half a dozen tools,
-                Skillify becomes the single command center that talks to your
-                CRM, calendars, and channels.
+                Skillify keeps customer, scheduling, job, estimate, and
+                operational attention context in one workspace.
               </p>
               <div className="mt-6 space-y-3 text-xs">
                 <ComparisonRow
-                  label="HubSpot pipeline sync"
-                  skillify="Native lead + deal creation per flow"
-                  other="Manual exports / brittle third-party zaps"
+                  label="Customer context"
+                  skillify="Connected customer, estimate, job, and schedule records"
+                  other="Details spread across disconnected tools"
                 />
                 <ComparisonRow
                   label="Scheduling & reminders"
@@ -344,9 +255,9 @@ export default function EnterprisePage() {
                   other="Ad-hoc Calendly embeds, no global logic"
                 />
                 <ComparisonRow
-                  label="Missed call & no-show flows"
-                  skillify="Opinionated templates with AI copy on top"
-                  other="Custom scripts that break when team changes"
+                  label="Operational attention"
+                  skillify="Management dashboards and durable attention queues"
+                  other="Manual checks and scattered notes"
                 />
                 <ComparisonRow
                   label="Enterprise support"
@@ -361,8 +272,8 @@ export default function EnterprisePage() {
               {[
                 {
                   icon: PhoneCall,
-                  title: 'Demo booking that actually qualifies',
-                  body: 'AI scores leads, routes them to the right owner, and creates the deal in HubSpot in one pass.',
+                  title: 'Structured customer intake',
+                  body: 'Capture customer and work context for management review without claiming automated qualification or CRM delivery.',
                 },
                 {
                   icon: Calendar,
@@ -376,8 +287,8 @@ export default function EnterprisePage() {
                 },
                 {
                   icon: Sparkles,
-                  title: 'AI that explains what’s working',
-                  body: 'Identify which flows produce the best meetings, fastest time-to-close, and healthiest pipeline.',
+                  title: 'Operational visibility',
+                  body: 'Use dashboards and attention queues to identify work that needs management action.',
                 },
               ].map((f) => (
                 <div
@@ -398,30 +309,6 @@ export default function EnterprisePage() {
         </div>
       </section>
 
-      {/* WHITEPAPER / PDF CTA */}
-      <section className="bg-zinc-50 py-14 dark:bg-zinc-950">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-            WHITEPAPER
-          </p>
-          <h2 className="text-2xl font-semibold tracking-tight">
-            The GTM Automation Playbook for Teams Beyond 7 Figures
-          </h2>
-          <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-            A practical breakdown of how high-performing teams automate demo
-            booking, lead routing, and post-call workflows across the entire
-            funnel — without burning engineering cycles.
-          </p>
-          <a
-            href="/assets/skillify-enterprise-playbook.pdf"
-            className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-5 py-2.5 text-xs font-semibold text-zinc-50 hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-100"
-          >
-            Download the PDF
-            <ArrowRight className="h-4 w-4" />
-          </a>
-        </div>
-      </section>
-
       {/* BOOK DEMO FUNNEL */}
       <section
         id="book-demo"
@@ -435,8 +322,8 @@ export default function EnterprisePage() {
               </h2>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 We’ll walk through your current GTM flows, show how Skillify
-                plugs into HubSpot and your calendars, and sketch the first
-                version of your automation roadmap.
+                supports customer, estimate, job, scheduling, and operational
+                workflows, then sketch a realistic rollout plan.
               </p>
               <ul className="mt-5 space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
                 <li className="flex gap-2">
@@ -449,8 +336,8 @@ export default function EnterprisePage() {
                 <li className="flex gap-2">
                   <span className="mt-[7px] h-[6px] w-[6px] rounded-full bg-emerald-500" />
                   <span>
-                    Live view into flows, lead scoring, and dashboards that
-                    match your pipeline.
+                    Guided preview of supported operational workflows and
+                    dashboards.
                   </span>
                 </li>
                 <li className="flex gap-2">
@@ -511,7 +398,7 @@ export default function EnterprisePage() {
           <div className="grid gap-6 text-sm text-zinc-600 dark:text-zinc-400 md:grid-cols-2">
             <FAQ
               q="Do we have to migrate our CRM?"
-              a="No. Skillify plugs into your existing CRM (starting with HubSpot) and syncs leads, contacts, and deals as part of each flow. You keep your current pipeline while Skillify automates the work around it."
+              a="No migration is required for the walkthrough. External CRM synchronization is not part of the controlled-launch promise and must be scoped separately."
             />
             <FAQ
               q="Can your team build the flows for us?"
@@ -519,7 +406,7 @@ export default function EnterprisePage() {
             />
             <FAQ
               q="How long does an enterprise rollout typically take?"
-              a="Initial launch (core flows, demo booking, lead routing) commonly goes live in 2–6 weeks depending on scope. We scope it with you during the consult."
+              a="Initial launch scope and timing depend on the workflows selected for the controlled rollout. We define the supported scope and verification plan with you during the consult."
             />
             <FAQ
               q="What does pricing look like?"
@@ -595,10 +482,12 @@ function DemoBookingForm({
   if (state === 'success') {
     return (
       <div className="text-sm">
-        <p className="font-semibold text-emerald-500">Your demo is booked.</p>
+        <p className="font-semibold text-emerald-500">
+          Your demo request was recorded.
+        </p>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          We’ve emailed you the details and will send a reminder before the
-          call.
+          Your request was recorded. This confirmation does not claim that an
+          external email or calendar invitation was sent.
         </p>
       </div>
     )

@@ -13,7 +13,10 @@ import Link from 'next/link'
 import { CreateAutomationForm } from '@/components/automations/CreateAutomationForm'
 import { RenameAutomationButton } from '@/components/automations/RenameAutomationButton'
 import { selectActiveAutomations } from '@/lib/workspace-records/relationships'
-import { ADVANCED_AUTOMATIONS_LAUNCH_ENABLED } from '@/lib/automations/policy'
+import {
+  ADVANCED_AUTOMATIONS_LAUNCH_ENABLED,
+  AUTOMATION_MANAGEMENT_ROLES,
+} from '@/lib/automations/policy'
 
 type PageProps = {
   params: { workspaceSlug: string }
@@ -27,7 +30,12 @@ export default async function AdvancedAutomationsPage({ params }: PageProps) {
   const workspace = await prisma.workspace.findFirst({
     where: {
       slug: params.workspaceSlug,
-      members: { some: { user: { clerkId: userId } } },
+      members: {
+        some: {
+          user: { clerkId: userId },
+          role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+        },
+      },
     },
     include: {
       automations: {

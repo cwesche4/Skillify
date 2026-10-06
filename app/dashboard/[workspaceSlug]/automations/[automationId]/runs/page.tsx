@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 import { Table, TBody, THead, TR, TH, TD } from '@/components/ui/Table'
 import { prisma } from '@/lib/db'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 interface AutomationRunRecord {
   id: string
@@ -36,7 +37,12 @@ export default async function AutomationRunsPage({ params }: PageProps) {
         id: params.automationId,
         workspace: {
           slug: params.workspaceSlug,
-          members: { some: { user: { clerkId: userId } } },
+          members: {
+            some: {
+              user: { clerkId: userId },
+              role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+            },
+          },
         },
       },
       select: { id: true, name: true, workspaceId: true },

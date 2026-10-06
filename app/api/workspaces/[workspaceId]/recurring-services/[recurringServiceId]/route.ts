@@ -30,7 +30,7 @@ function actorFromAuthorization(authorization: {
 export async function GET(_request: Request, { params }: RouteContext) {
   const authorization = await authorizeRecurringServiceRequest(
     params.workspaceId,
-    'view',
+    'manage',
   )
   if (!authorization.allowed) {
     return recurringServiceAuthorizationError(authorization)

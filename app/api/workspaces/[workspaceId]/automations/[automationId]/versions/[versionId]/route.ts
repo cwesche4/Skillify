@@ -15,7 +15,7 @@ export async function GET(
   const access = await authorizeAutomationAccess({
     workspaceId: params.workspaceId,
     automationId: params.automationId,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) {
     return NextResponse.json(

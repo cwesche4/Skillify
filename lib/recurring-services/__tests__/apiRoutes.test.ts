@@ -49,12 +49,6 @@ const managerAuthorization = {
   workspaceMemberId: 'member-manager',
 }
 
-const memberAuthorization = {
-  ...managerAuthorization,
-  role: 'MEMBER',
-  workspaceMemberId: 'member-ordinary',
-}
-
 describe('Recurring Service API routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -62,7 +56,7 @@ describe('Recurring Service API routes', () => {
     mocks.sourceFindMany.mockResolvedValue([])
   })
 
-  it('uses view authorization for reads and management authorization for mutations', async () => {
+  it('uses management authorization for definitions and mutations', async () => {
     mocks.listRecurringServices.mockResolvedValue([])
     mocks.getRecurringService.mockResolvedValue({ id: 'service-1' })
     mocks.createRecurringService.mockResolvedValue({ id: 'service-1' })
@@ -126,7 +120,7 @@ describe('Recurring Service API routes', () => {
     expect(mocks.authorizeWorkspaceAccess).toHaveBeenCalledTimes(5)
     expect(mocks.authorizeWorkspaceAccess).toHaveBeenCalledWith({
       workspaceId: 'ws-a',
-      access: 'view',
+      access: 'manage',
     })
     expect(mocks.authorizeWorkspaceAccess).toHaveBeenCalledWith({
       workspaceId: 'ws-a',
@@ -143,19 +137,20 @@ describe('Recurring Service API routes', () => {
     })
   })
 
-  it('does not query or expose Estimate provenance to an ordinary Member', async () => {
-    mocks.authorizeWorkspaceAccess.mockResolvedValue(memberAuthorization)
-    mocks.listRecurringServices.mockResolvedValue([{ id: 'service-1' }])
+  it('does not expose Recurring Service definitions to an ordinary Member', async () => {
+    mocks.authorizeWorkspaceAccess.mockResolvedValue({
+      allowed: false,
+      status: 403,
+      message: 'Forbidden',
+    })
 
     const response = await listRecurringServicesRoute(
       new Request('http://localhost/api/workspaces/ws-a/recurring-services'),
       { params: { workspaceId: 'ws-a' } },
     )
 
-    expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({
-      recurringServices: [{ id: 'service-1', sourceEstimate: null }],
-    })
+    expect(response.status).toBe(403)
+    expect(mocks.listRecurringServices).not.toHaveBeenCalled()
     expect(mocks.sourceFindMany).not.toHaveBeenCalled()
   })
 

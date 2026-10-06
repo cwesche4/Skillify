@@ -23,9 +23,17 @@ export async function GET(_request: Request, { params }: RouteContext) {
   }
 
   try {
+    const canManage = canManageOperations(authorization.role)
+    if (!canManage && !authorization.workspaceMemberId) {
+      return NextResponse.json(
+        { ok: false, code: 'FORBIDDEN', message: 'Forbidden' },
+        { status: 403 },
+      )
+    }
     const workItem = await operationsService.getWorkItem(
       params.workspaceId,
       params.workItemId,
+      canManage ? undefined : (authorization.workspaceMemberId ?? undefined),
     )
     if (!workItem) {
       return NextResponse.json(

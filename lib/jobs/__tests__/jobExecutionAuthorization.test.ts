@@ -18,6 +18,7 @@ import {
   listWorkspaceMemberExecutableJobIds,
   lockAndValidateRecurringJobExecution,
   workspaceMemberExecutableJobsWhere,
+  workspaceMemberReadableWorkItemsWhere,
 } from '@/lib/jobs/jobExecutionAuthorization'
 
 describe('central Job execution authorization', () => {
@@ -161,6 +162,35 @@ describe('central Job execution authorization', () => {
     expect(JSON.stringify(where)).toContain('"isActive":true')
     expect(JSON.stringify(where)).toContain('"archivedAt":null')
     expect(JSON.stringify(where)).toContain('"workspaceMemberId":"member-a"')
+  })
+
+  it('scopes TODO reads to the assignee and Job Steps to an executable parent', () => {
+    const where = workspaceMemberReadableWorkItemsWhere({
+      workspaceId: 'workspace-a',
+      workspaceMemberId: 'member-a',
+    })
+
+    expect(where).toMatchObject({
+      workspaceId: 'workspace-a',
+      archivedAt: null,
+      OR: [
+        {
+          kind: 'TODO',
+          assigneeMemberId: 'member-a',
+        },
+        {
+          kind: 'JOB_STEP',
+          job: {
+            is: expect.objectContaining({
+              workspaceId: 'workspace-a',
+              archivedAt: null,
+            }),
+          },
+        },
+      ],
+    })
+    expect(JSON.stringify(where)).toContain('"isActive":true')
+    expect(JSON.stringify(where)).toContain('"archivedAt":null')
   })
 
   it('fails closed for a cross-workspace or unrelated member when no scoped Job matches', async () => {

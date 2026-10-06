@@ -7,7 +7,7 @@ export async function GET(_: Request, { params }: any) {
   const { workspaceId } = params
   const access = await authorizeWorkspaceAccess({
     workspaceId,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) return fail(access.message, access.status)
 

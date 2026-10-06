@@ -257,6 +257,20 @@ export const prismaRecurringJobMaterializationStore: RecurringJobMaterialization
             } as const
           }
 
+          if (
+            event.assignments.length === 0 ||
+            event.assignments.some(
+              (assignment) =>
+                assignment.assignmentType !== 'MEMBER' ||
+                !assignment.workspaceMemberId ||
+                assignment.teamId !== null,
+            )
+          ) {
+            throw new Error(
+              'RECURRING_SERVICE_MEMBER_ASSIGNMENT_REQUIRED: controlled-launch materialization blocks empty or TEAM assignments.',
+            )
+          }
+
           const memberIds = Array.from(
             new Set(
               event.assignments.flatMap((assignment) =>
@@ -268,53 +282,26 @@ export const prismaRecurringJobMaterializationStore: RecurringJobMaterialization
               ),
             ),
           )
-          const teamIds = Array.from(
-            new Set(
-              event.assignments.flatMap((assignment) =>
-                assignment.assignmentType === 'TEAM' &&
-                assignment.teamId &&
-                !assignment.workspaceMemberId
-                  ? [assignment.teamId]
-                  : [],
-              ),
-            ),
-          )
-          if (memberIds.length + teamIds.length !== event.assignments.length) {
+          if (memberIds.length !== event.assignments.length) {
             throw new Error(
               'Scheduling occurrence contains an invalid assignment target.',
             )
           }
-          const [members, teams] = await Promise.all([
-            tx.workspaceMember.findMany({
-              where: { workspaceId, id: { in: memberIds } },
-              select: { id: true },
-            }),
-            tx.workspaceTeam.findMany({
-              where: { workspaceId, id: { in: teamIds } },
-              select: { id: true, name: true },
-            }),
-          ])
-          if (
-            members.length !== memberIds.length ||
-            teams.length !== teamIds.length
-          ) {
+          const members = await tx.workspaceMember.findMany({
+            where: { workspaceId, id: { in: memberIds } },
+            select: { id: true },
+          })
+          if (members.length !== memberIds.length) {
             throw new Error(
               'Scheduling occurrence assignment is outside the active workspace.',
             )
           }
-          const teamNameById = new Map(
-            teams.map((team) => [team.id, team.name]),
-          )
           const jobAssignments = event.assignments.map((assignment) => ({
             assignmentType: assignment.assignmentType,
             workspaceMemberId: assignment.workspaceMemberId,
             teamId: assignment.teamId,
             roleLabel: assignment.roleLabel ?? null,
-            displaySnapshot:
-              assignment.displaySnapshot ??
-              (assignment.teamId
-                ? (teamNameById.get(assignment.teamId) ?? null)
-                : null),
+            displaySnapshot: assignment.displaySnapshot ?? null,
           }))
           const assigneeMemberId =
             jobAssignments.length === 1 &&

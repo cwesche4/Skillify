@@ -5,35 +5,48 @@ import { useState } from 'react'
 export default function DemoBookingForm() {
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: any) {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
     const form = new FormData(e.target)
     const data = Object.fromEntries(form)
 
-    await fetch('/api/scheduler/create-booking', {
-      method: 'POST',
-      body: JSON.stringify({
-        workspaceId: 'public',
-        bookingTypeId: 'demo-call',
-        ...data,
-        start: data.time,
-        end: data.time,
-        source: 'marketing-demo',
-      }),
-    })
+    try {
+      const response = await fetch('/api/scheduler/create-booking', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceId: 'public',
+          bookingTypeId: 'demo-call',
+          ...data,
+          start: data.time,
+          end: data.time,
+          source: 'marketing-demo',
+        }),
+      })
 
-    setSubmitted(true)
+      if (!response.ok) throw new Error('Unable to record the demo request.')
+      setSubmitted(true)
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to record the demo request.',
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (submitted) {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-semibold">You&apos;re booked! 🎉</h2>
+        <h2 className="text-2xl font-semibold">Demo request recorded</h2>
         <p className="mt-2 text-zinc-500">
-          Check your email for confirmation and reminders.
+          This preview does not send an external email or calendar invitation.
         </p>
       </div>
     )
@@ -86,6 +99,7 @@ export default function DemoBookingForm() {
       >
         {loading ? 'Booking…' : 'Book Demo'}
       </button>
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </form>
   )
 }

@@ -5,22 +5,22 @@
 const points = [
   {
     label: 'Fragmented tools',
-    skillify: 'One workspace for demos, follow-ups, and onboarding',
+    skillify: 'One workspace for customers, jobs, schedules, and follow-ups',
     legacy: 'Multiple point tools stitched together',
   },
   {
     label: 'Lead qualification',
-    skillify: 'AI scoring at the point of booking',
+    skillify: 'Structured intake for management review',
     legacy: 'Manual spreadsheet and gut feel',
   },
   {
     label: 'Calendar routing',
-    skillify: 'Routes to the right rep automatically',
+    skillify: 'Assignment-aware work and schedule views',
     legacy: 'Shared inbox chaos',
   },
   {
     label: 'Follow-ups',
-    skillify: 'Pre-built sequences with AI content',
+    skillify: 'Durable tasks and supported in-app notifications',
     legacy: 'Forgotten tasks and sticky notes',
   },
 ]
@@ -33,9 +33,8 @@ export function ComparisonSection() {
           Skillify vs fragmented tool stacks.
         </h2>
         <p className="mt-3 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-          Most teams duct-tape forms, calendars, CRMs, and messaging tools
-          together. Skillify gives you one orchestrator that actually
-          understands the funnel.
+          Most teams spread customer and field work across disconnected tools.
+          Skillify brings operational records and attention into one workspace.
         </p>
 
         <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-200 bg-white text-sm dark:border-zinc-800 dark:bg-zinc-950">

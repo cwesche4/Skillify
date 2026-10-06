@@ -166,13 +166,11 @@ function scheduleFromForm({
   timezone,
   customer,
   members,
-  teams,
 }: {
   form: ServiceFormState
   timezone: string
   customer: CustomerClientRecord
   members: MemberOption[]
-  teams: WorkspaceTeamSummary[]
 }): RecurringServiceScheduleMutation {
   const startsAt = combineDateAndTimeInTimezone({
     dateKey: form.startDate as SchedulingDateKey,
@@ -191,7 +189,6 @@ function scheduleFromForm({
   })
   if (!recurrenceRule) throw new Error('Choose a valid recurring schedule.')
   const memberNames = new Map(members.map((member) => [member.id, member.name]))
-  const teamNames = new Map(teams.map((team) => [team.id, team.name]))
   const customerAddress = [
     customer.serviceAddressLine1,
     customer.serviceAddressLine2,
@@ -219,11 +216,6 @@ function scheduleFromForm({
         assignmentType: 'MEMBER' as const,
         workspaceMemberId,
         displaySnapshot: memberNames.get(workspaceMemberId) ?? null,
-      })),
-      ...form.teamIds.map((teamId) => ({
-        assignmentType: 'TEAM' as const,
-        teamId,
-        displaySnapshot: teamNames.get(teamId) ?? null,
       })),
     ],
     locationType: customerAddress ? 'customerLocation' : 'toBeDetermined',
@@ -649,7 +641,6 @@ export function RecurringServicesClient({
           timezone={timezone}
           customers={customers}
           members={members}
-          teams={teams}
           onClose={() => setCreateOpen(false)}
           onSubmit={async ({ form, serviceInput, scheduleInput }) => {
             await createRecurringServiceWorkflow({
@@ -709,7 +700,6 @@ export function RecurringServicesClient({
           timezone={timezone}
           customers={customers}
           members={members}
-          teams={teams}
           onClose={() => setEditMode(null)}
           onSubmit={async (input) => {
             const masterEventId = selected.recurrenceSeries?.masterEvent.id
@@ -750,9 +740,9 @@ function ServiceFormDialog({
   timezone,
   customers,
   members,
-  teams,
   initialForm,
   scheduleOnly = false,
+  unsupportedTeamAssignment = false,
   onClose,
   onSubmit,
 }: {
@@ -760,9 +750,9 @@ function ServiceFormDialog({
   timezone: string
   customers: CustomerClientRecord[]
   members: MemberOption[]
-  teams: WorkspaceTeamSummary[]
   initialForm?: ServiceFormState
   scheduleOnly?: boolean
+  unsupportedTeamAssignment?: boolean
   onClose: () => void
   onSubmit: (input: {
     form: ServiceFormState
@@ -784,6 +774,8 @@ function ServiceFormDialog({
     if (!form.name.trim()) return setError('Enter a service name.')
     if (form.frequency === 'weekly' && !form.weekdays.length)
       return setError('Choose at least one service day.')
+    if (!form.memberIds.length)
+      return setError('Choose at least one workspace member.')
     if (form.steps.some((step) => !step.title.trim()))
       return setError('Every Job Step needs a title.')
     submitting.current = true
@@ -797,7 +789,6 @@ function ServiceFormDialog({
           timezone,
           customer,
           members,
-          teams,
         }),
       })
     } catch (submitError) {
@@ -822,6 +813,12 @@ function ServiceFormDialog({
         {error ? (
           <Alert variant="error" role="alert">
             {error}
+          </Alert>
+        ) : null}
+        {unsupportedTeamAssignment ? (
+          <Alert variant="warning">
+            This historical service uses a Team assignment. Choose at least one
+            member and save the future schedule before it can generate new Jobs.
           </Alert>
         ) : null}
         {!scheduleOnly ? (
@@ -1185,10 +1182,10 @@ function ServiceFormDialog({
 
         <FormSection title="Assignment">
           <p className="text-app-secondary text-sm">
-            Choose members, teams, or both. Scheduling remains the assignment
-            authority for future Jobs.
+            Choose the members responsible for future Jobs. Team assignments are
+            not available during the controlled launch.
           </p>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4">
             <div>
               <Label>Members</Label>
               <div className="mt-2 space-y-2">
@@ -1207,30 +1204,6 @@ function ServiceFormDialog({
                     }
                   />
                 ))}
-              </div>
-            </div>
-            <div>
-              <Label>Teams / crews</Label>
-              <div className="mt-2 space-y-2">
-                {teams.length ? (
-                  teams.map((team) => (
-                    <Checkbox
-                      key={team.id}
-                      label={team.name}
-                      checked={form.teamIds.includes(team.id)}
-                      onChange={(checked) =>
-                        setForm({
-                          ...form,
-                          teamIds: checked
-                            ? [...form.teamIds, team.id]
-                            : form.teamIds.filter((id) => id !== team.id),
-                        })
-                      }
-                    />
-                  ))
-                ) : (
-                  <p className="text-app-muted text-sm">No active teams.</p>
-                )}
               </div>
             </div>
           </div>
@@ -1682,7 +1655,6 @@ function ScheduleEditDialog({
   timezone,
   customers,
   members,
-  teams,
   onClose,
   onSubmit,
 }: {
@@ -1690,12 +1662,14 @@ function ScheduleEditDialog({
   timezone: string
   customers: CustomerClientRecord[]
   members: MemberOption[]
-  teams: WorkspaceTeamSummary[]
   onClose: () => void
   onSubmit: (input: RecurringServiceScheduleMutation) => Promise<void>
 }) {
   const rule = service.recurrenceSeries?.normalizedRule
   const assignments = service.recurrenceSeries?.masterEvent.assignments ?? []
+  const unsupportedTeamAssignment = assignments.some(
+    (assignment) => assignment.assignmentType === 'TEAM',
+  )
   const form: ServiceFormState = {
     ...emptyForm(timezone),
     customerId: service.customerId,
@@ -1719,11 +1693,7 @@ function ScheduleEditDialog({
         ? [assignment.workspaceMemberId]
         : [],
     ),
-    teamIds: assignments.flatMap((assignment) =>
-      assignment.assignmentType === 'TEAM' && assignment.teamId
-        ? [assignment.teamId]
-        : [],
-    ),
+    teamIds: [],
   }
   return (
     <ServiceFormDialog
@@ -1731,9 +1701,9 @@ function ScheduleEditDialog({
       timezone={timezone}
       customers={customers}
       members={members}
-      teams={teams}
       initialForm={form}
       scheduleOnly
+      unsupportedTeamAssignment={unsupportedTeamAssignment}
       onClose={onClose}
       onSubmit={async ({ scheduleInput }) => onSubmit(scheduleInput)}
     />

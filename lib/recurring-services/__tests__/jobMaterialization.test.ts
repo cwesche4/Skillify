@@ -240,52 +240,35 @@ describe('Recurring Service occurrence Job materialization', () => {
     expect(tx.domainOutboxEvent.create).not.toHaveBeenCalled()
   })
 
-  it('snapshots a Team principal without inventing a primary member', async () => {
-    const tx = transaction({
-      event: schedulingEvent({
-        assignments: [
-          {
-            assignmentType: 'TEAM',
-            workspaceMemberId: null,
-            teamId: 'team-1',
-          },
-        ],
-      }),
-      service: recurringService({ stepTemplates: [] }),
-    })
-    mocks.transaction.mockImplementation(async (callback) => callback(tx))
-
-    await prismaRecurringJobMaterializationStore.ensureJobForOccurrence({
-      workspaceId: 'workspace-1',
-      occurrenceId: 'occurrence-1',
-    })
-
-    expect(tx.workspaceMember.findMany).toHaveBeenCalledWith({
-      where: { workspaceId: 'workspace-1', id: { in: [] } },
-      select: { id: true },
-    })
-    expect(tx.job.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          assigneeMemberId: null,
-          assignments: {
-            create: [
-              {
-                assignmentType: 'TEAM',
-                workspaceMemberId: null,
-                teamId: 'team-1',
-                roleLabel: null,
-                displaySnapshot: 'Crew One',
-              },
-            ],
-          },
-          workItems: { create: [] },
+  it.each(['inactive', 'archived'])(
+    'blocks a historical %s Team principal before creating a Job',
+    async () => {
+      const tx = transaction({
+        event: schedulingEvent({
+          assignments: [
+            {
+              assignmentType: 'TEAM',
+              workspaceMemberId: null,
+              teamId: 'team-1',
+            },
+          ],
         }),
-      }),
-    )
-  })
+        service: recurringService({ stepTemplates: [] }),
+      })
+      mocks.transaction.mockImplementation(async (callback) => callback(tx))
 
-  it('preserves multiple mixed Scheduling principals and clears the compatibility mirror', async () => {
+      await expect(
+        prismaRecurringJobMaterializationStore.ensureJobForOccurrence({
+          workspaceId: 'workspace-1',
+          occurrenceId: 'occurrence-1',
+        }),
+      ).rejects.toThrow('RECURRING_SERVICE_MEMBER_ASSIGNMENT_REQUIRED')
+      expect(tx.workspaceMember.findMany).not.toHaveBeenCalled()
+      expect(tx.job.create).not.toHaveBeenCalled()
+    },
+  )
+
+  it('blocks mixed MEMBER and TEAM principals before creating a Job', async () => {
     const tx = transaction({
       event: schedulingEvent({
         assignments: [
@@ -316,36 +299,13 @@ describe('Recurring Service occurrence Job materialization', () => {
     })
     mocks.transaction.mockImplementation(async (callback) => callback(tx))
 
-    await prismaRecurringJobMaterializationStore.ensureJobForOccurrence({
-      workspaceId: 'workspace-1',
-      occurrenceId: 'occurrence-1',
-    })
-
-    expect(tx.job.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          assigneeMemberId: null,
-          assignments: {
-            create: expect.arrayContaining([
-              expect.objectContaining({
-                assignmentType: 'MEMBER',
-                workspaceMemberId: 'member-1',
-                roleLabel: 'Lead',
-              }),
-              expect.objectContaining({
-                assignmentType: 'MEMBER',
-                workspaceMemberId: 'member-2',
-              }),
-              expect.objectContaining({
-                assignmentType: 'TEAM',
-                teamId: 'team-1',
-                displaySnapshot: 'Crew One',
-              }),
-            ]),
-          },
-        }),
+    await expect(
+      prismaRecurringJobMaterializationStore.ensureJobForOccurrence({
+        workspaceId: 'workspace-1',
+        occurrenceId: 'occurrence-1',
       }),
-    )
+    ).rejects.toThrow('RECURRING_SERVICE_MEMBER_ASSIGNMENT_REQUIRED')
+    expect(tx.job.create).not.toHaveBeenCalled()
   })
 
   it('fails closed when a Scheduling principal is outside the workspace', async () => {
@@ -373,6 +333,7 @@ describe('Recurring Service occurrence Job materialization', () => {
           teamId: 'team-1',
         },
       ],
+      'RECURRING_SERVICE_MEMBER_ASSIGNMENT_REQUIRED',
     ],
     [
       'a duplicate principal',
@@ -388,8 +349,9 @@ describe('Recurring Service occurrence Job materialization', () => {
           teamId: null,
         },
       ],
+      'Scheduling occurrence contains an invalid assignment target.',
     ],
-  ])('rejects %s before Job creation', async (_label, assignments) => {
+  ])('rejects %s before Job creation', async (_label, assignments, error) => {
     const tx = transaction({ event: schedulingEvent({ assignments }) })
     mocks.transaction.mockImplementation(async (callback) => callback(tx))
 
@@ -398,9 +360,7 @@ describe('Recurring Service occurrence Job materialization', () => {
         workspaceId: 'workspace-1',
         occurrenceId: 'occurrence-1',
       }),
-    ).rejects.toThrow(
-      'Scheduling occurrence contains an invalid assignment target.',
-    )
+    ).rejects.toThrow(error)
     expect(tx.job.create).not.toHaveBeenCalled()
   })
 

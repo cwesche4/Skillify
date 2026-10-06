@@ -29,6 +29,7 @@ export async function getSchedulingActor(
       id: true,
       userId: true,
       role: true,
+      workspace: { select: { businessModel: true } },
     },
   })
   if (!membership) {
@@ -39,11 +40,24 @@ export async function getSchedulingActor(
     })
   }
 
+  const managesScheduling = canManageScheduling(membership.role)
+  if (
+    membership.workspace.businessModel === 'SIMPLE_SERVICE_BUSINESS' &&
+    !managesScheduling
+  ) {
+    return schedulingApiError({
+      status: 403,
+      code: 'FORBIDDEN',
+      message:
+        'Use assigned Jobs for field execution during the controlled launch.',
+    })
+  }
+
   return {
     workspaceId,
     actorUserId: membership.userId,
     workspaceMemberId: membership.id,
-    canManageScheduling: canManageScheduling(membership.role),
+    canManageScheduling: managesScheduling,
   }
 }
 

@@ -29,6 +29,13 @@ function createMemoryStore() {
         id: 'series-a',
         status: 'ACTIVE' as const,
         eventTypeKey: 'recurringServiceVisit',
+        assignments: [
+          {
+            assignmentType: 'MEMBER' as const,
+            workspaceMemberId: 'member-a',
+            teamId: null,
+          },
+        ],
       },
     ],
     [
@@ -37,6 +44,13 @@ function createMemoryStore() {
         id: 'series-paused',
         status: 'PAUSED' as const,
         eventTypeKey: 'recurringServiceVisit',
+        assignments: [
+          {
+            assignmentType: 'MEMBER' as const,
+            workspaceMemberId: 'member-a',
+            teamId: null,
+          },
+        ],
       },
     ],
     [
@@ -45,6 +59,28 @@ function createMemoryStore() {
         id: 'series-meeting',
         status: 'ACTIVE' as const,
         eventTypeKey: 'internalMeeting',
+        assignments: [
+          {
+            assignmentType: 'MEMBER' as const,
+            workspaceMemberId: 'member-a',
+            teamId: null,
+          },
+        ],
+      },
+    ],
+    [
+      'ws-a:series-team',
+      {
+        id: 'series-team',
+        status: 'ACTIVE' as const,
+        eventTypeKey: 'recurringServiceVisit',
+        assignments: [
+          {
+            assignmentType: 'TEAM' as const,
+            workspaceMemberId: null,
+            teamId: 'team-a',
+          },
+        ],
       },
     ],
     [
@@ -53,6 +89,13 @@ function createMemoryStore() {
         id: 'series-b',
         status: 'ACTIVE' as const,
         eventTypeKey: 'recurringServiceVisit',
+        assignments: [
+          {
+            assignmentType: 'MEMBER' as const,
+            workspaceMemberId: 'member-b',
+            teamId: null,
+          },
+        ],
       },
     ],
   ])
@@ -249,6 +292,18 @@ describe('Recurring Service foundation', () => {
     await expect(
       create({ recurrenceSeriesId: 'series-meeting' }),
     ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
+  })
+
+  it('rejects linking a TEAM-assigned series during controlled launch', async () => {
+    await expect(
+      create({ recurrenceSeriesId: 'series-team' }),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: 'VALIDATION_ERROR',
+      message:
+        'Recurring Services support member assignments only during controlled launch.',
+    })
+    expect(memory.services).toHaveLength(0)
   })
 
   it('enforces one Recurring Service per Scheduling recurrence series', async () => {

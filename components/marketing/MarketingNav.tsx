@@ -96,7 +96,7 @@ export default function MarketingNav() {
               href="/sign-up"
               className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white active:scale-[0.99] dark:ring-offset-black"
             >
-              Start 14-day free trial
+              Request controlled access
             </Link>
           </SignedOut>
 
@@ -199,7 +199,7 @@ export default function MarketingNav() {
                     onClick={() => setOpen(false)}
                     className="inline-flex w-full items-center justify-center rounded-full bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white active:scale-[0.99] dark:ring-offset-black"
                   >
-                    Start 14-day free trial
+                    Request controlled access
                   </Link>
                 </SignedOut>
 

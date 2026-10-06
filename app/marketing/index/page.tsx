@@ -39,7 +39,7 @@ export default function MarketingHomePage() {
                 href="/sign-up"
                 className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_32px_-12px_rgba(37,99,235,0.8)] transition hover:bg-blue-700 sm:text-base"
               >
-                Start 14-day free trial
+                Request controlled access
                 <ArrowRight className="h-4 w-4" />
               </Link>
 
@@ -54,7 +54,7 @@ export default function MarketingHomePage() {
             <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-zinc-300 sm:text-sm">
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" />
-                14-day free trial
+                Invitation-only onboarding
               </div>
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" />
@@ -62,7 +62,7 @@ export default function MarketingHomePage() {
               </div>
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" />
-                Cancel before trial ends
+                Manual subscription provisioning
               </div>
             </div>
           </div>
@@ -75,7 +75,7 @@ export default function MarketingHomePage() {
                 <span className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-zinc-300">
                   Operations overview
                 </span>
-                <span className="text-xs text-emerald-500">Live</span>
+                <span className="text-xs text-zinc-500">Illustrative</span>
               </div>
               <div className="space-y-4 p-5">
                 {/* Stat row */}
@@ -196,7 +196,7 @@ export default function MarketingHomePage() {
             <FeaturePillar
               icon={<BarChart3 className="h-5 w-5" />}
               title="Automations & AI"
-              body="Build repeatable workflows and use workspace-aware AI for recommendations and explanations."
+              body="Use supported guided automations, with AI-assisted recommendations only where explicitly enabled."
             />
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function MarketingHomePage() {
             <HowItWorksStep
               label="03"
               title="Automate and monitor operations"
-              body="Use workflow runs, dashboards, reports, and AI explanations to see what needs attention."
+              body="Use supported workflow history and operational dashboards to see what needs attention."
             />
           </div>
         </div>
@@ -242,7 +242,8 @@ export default function MarketingHomePage() {
           </h2>
           <p className="max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
             Basic helps you organize customers and core operations. Pro and
-            Elite expand scheduling, workflow, AI, reporting, and governance.
+            Elite expand scheduling, workflow, governance, and capabilities that
+            are explicitly enabled for the controlled launch.
           </p>
           <Link
             href="/marketing/pricing"
@@ -269,7 +270,7 @@ export default function MarketingHomePage() {
               href="/sign-up"
               className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700"
             >
-              Start 14-day free trial
+              Request controlled access
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link

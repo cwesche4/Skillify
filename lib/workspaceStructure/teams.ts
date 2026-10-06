@@ -19,7 +19,9 @@ export class WorkspaceTeamError extends Error {
 export type WorkspaceStructureActor = {
   workspaceId: string
   actorUserId: string
+  workspaceMemberId: string
   canManageWorkspace: boolean
+  canViewWorkspaceDirectory: boolean
 }
 
 export type WorkspaceTeamInput = {
@@ -161,10 +163,38 @@ async function assertUniqueActiveTeamName({
 export async function listWorkspaceTeams({
   workspaceId,
   includeArchived = false,
+  viewerMemberId,
 }: {
   workspaceId: string
   includeArchived?: boolean
+  viewerMemberId?: string
 }) {
+  if (viewerMemberId) {
+    const teams = await (prisma as any).workspaceTeam.findMany({
+      where: {
+        workspaceId,
+        archivedAt: null,
+        isActive: true,
+        members: { some: { workspaceId, workspaceMemberId: viewerMemberId } },
+      },
+      select: {
+        id: true,
+        workspaceId: true,
+        name: true,
+        isActive: true,
+        archivedAt: true,
+      },
+      orderBy: { name: 'asc' },
+    })
+    return teams.map((team: any) => ({
+      id: team.id,
+      workspaceId: team.workspaceId,
+      name: team.name,
+      isActive: true,
+      archivedAt: null,
+      members: [],
+    })) as WorkspaceTeamSummary[]
+  }
   const teams = await (prisma as any).workspaceTeam.findMany({
     where: {
       workspaceId,

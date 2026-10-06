@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { prisma } from '@/lib/db'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 interface CompareRunsPageProps {
   params: {
@@ -32,7 +33,12 @@ export default async function CompareRunsPage({
       id: automationId,
       workspace: {
         slug: params.workspaceSlug,
-        members: { some: { user: { clerkId: userId } } },
+        members: {
+          some: {
+            user: { clerkId: userId },
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
       },
     },
     select: { id: true, name: true, workspaceId: true },

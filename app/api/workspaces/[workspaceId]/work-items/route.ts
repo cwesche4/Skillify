@@ -8,6 +8,7 @@ import {
 } from '@/lib/jobs/api'
 import { operationsService } from '@/lib/jobs/defaultService'
 import { WorkItemKind } from '@/lib/prisma/enums'
+import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
 type RouteContext = { params: { workspaceId: string } }
 
@@ -21,6 +22,13 @@ export async function GET(request: Request, { params }: RouteContext) {
   }
 
   try {
+    const canManage = canManageOperations(authorization.role)
+    if (!canManage && !authorization.workspaceMemberId) {
+      return NextResponse.json(
+        { ok: false, code: 'FORBIDDEN', message: 'Forbidden' },
+        { status: 403 },
+      )
+    }
     const kind = new URL(request.url).searchParams.get('kind')
     if (kind && kind !== WorkItemKind.JOB_STEP && kind !== WorkItemKind.TODO) {
       return NextResponse.json(
@@ -38,6 +46,9 @@ export async function GET(request: Request, { params }: RouteContext) {
         kind === WorkItemKind.JOB_STEP || kind === WorkItemKind.TODO
           ? kind
           : undefined,
+      visibleToMemberId: canManage
+        ? undefined
+        : (authorization.workspaceMemberId ?? undefined),
     })
     return NextResponse.json({ ok: true, workItems })
   } catch (error) {

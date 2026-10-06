@@ -45,7 +45,7 @@ export async function GET(
   const access = await authorizeAutomationAccess({
     workspaceId,
     automationId,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) {
     return NextResponse.json(
@@ -83,7 +83,7 @@ export async function POST(
   const access = await authorizeAutomationAccess({
     workspaceId,
     automationId,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) {
     return NextResponse.json(

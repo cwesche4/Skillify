@@ -30,6 +30,7 @@ describe('Scheduling API management authorization', () => {
         id: 'member-a',
         userId: 'profile-a',
         role,
+        workspace: { businessModel: 'DIRECT_SALES' },
       })
       const actor = await getSchedulingActor('ws-a')
       expect(isResponse(actor)).toBe(false)
@@ -44,6 +45,7 @@ describe('Scheduling API management authorization', () => {
         id: 'member-a',
         userId: 'profile-a',
         role,
+        workspace: { businessModel: 'DIRECT_SALES' },
       })
       const actor = await getSchedulingActor('ws-a')
       expect(isResponse(actor)).toBe(false)
@@ -58,4 +60,39 @@ describe('Scheduling API management authorization', () => {
     mocks.findMembership.mockResolvedValueOnce(null)
     expect(isResponse(await getSchedulingActor('ws-a'))).toBe(true)
   })
+
+  it('denies a Simple Service Member at the shared Scheduling API boundary', async () => {
+    mocks.findMembership.mockResolvedValue({
+      id: 'member-a',
+      userId: 'profile-a',
+      role: 'MEMBER',
+      workspace: { businessModel: 'SIMPLE_SERVICE_BUSINESS' },
+    })
+
+    const result = await getSchedulingActor('ws-a')
+
+    expect(isResponse(result)).toBe(true)
+    if (!isResponse(result)) throw new Error('Expected access to be denied')
+    expect(result.status).toBe(403)
+    await expect(result.json()).resolves.toMatchObject({
+      code: 'FORBIDDEN',
+    })
+  })
+
+  it.each(['OWNER', 'ADMIN', 'MANAGER'])(
+    'preserves Simple Service Scheduling access for %s',
+    async (role) => {
+      mocks.findMembership.mockResolvedValue({
+        id: 'member-a',
+        userId: 'profile-a',
+        role,
+        workspace: { businessModel: 'SIMPLE_SERVICE_BUSINESS' },
+      })
+
+      const actor = await getSchedulingActor('ws-a')
+
+      expect(isResponse(actor)).toBe(false)
+      expect(actor).toMatchObject({ canManageScheduling: true })
+    },
+  )
 })

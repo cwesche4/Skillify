@@ -37,6 +37,19 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     const { workspace, capabilities } = await getWorkspaceContext(
       params.workspaceId,
     )
+    if (
+      workspace.businessModel === 'SIMPLE_SERVICE_BUSINESS' &&
+      !actor.canManageScheduling
+    ) {
+      return Response.json(
+        {
+          ok: false,
+          code: 'FORBIDDEN',
+          message: 'Assigned Scheduling details are available through Jobs.',
+        },
+        { status: 403 },
+      )
+    }
     const searchParams = request.nextUrl.searchParams
     const startsBefore = searchParams.get('startsBefore')
     const endsAfter = searchParams.get('endsAfter')

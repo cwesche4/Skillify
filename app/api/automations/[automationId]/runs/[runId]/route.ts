@@ -12,7 +12,7 @@ interface Params {
 export async function GET(_req: Request, { params }: Params) {
   const access = await authorizeAutomationAccess({
     automationId: params.automationId,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) {
     return new Response(JSON.stringify({ error: access.message }), {

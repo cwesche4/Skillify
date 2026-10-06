@@ -11,8 +11,8 @@ export default function CaseStudiesIndexPage() {
           Customer stories
         </h1>
         <p className="mt-3 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-          See how teams use Skillify to automate calendars, follow-ups, and
-          content — while keeping clients moving through their funnel.
+          Skillify is in a controlled launch. Verified customer stories will be
+          published here only after participants approve the results and copy.
         </p>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
@@ -49,6 +49,11 @@ export default function CaseStudiesIndexPage() {
             </Link>
           ))}
         </div>
+        {caseStudies.length === 0 ? (
+          <div className="mt-10 rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+            No verified customer stories are published yet.
+          </div>
+        ) : null}
       </section>
     </main>
   )

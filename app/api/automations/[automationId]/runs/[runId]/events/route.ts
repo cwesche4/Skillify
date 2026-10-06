@@ -11,7 +11,7 @@ export async function GET(
 ) {
   const access = await authorizeAutomationAccess({
     automationId: params.automationId,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) return fail(access.message, access.status)
 

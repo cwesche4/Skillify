@@ -5,7 +5,7 @@
 const faqs = [
   {
     q: 'Can we connect our existing HubSpot or Salesforce?',
-    a: 'Yes. Skillify is designed to sit on top of your CRM — not replace it. We can sync leads, contacts, deals, and demo outcomes back into your source of truth.',
+    a: 'External CRM synchronization is not part of the controlled-launch promise and must be scoped and verified separately.',
   },
   {
     q: 'How does pricing work for larger teams?',
@@ -13,11 +13,11 @@ const faqs = [
   },
   {
     q: 'What is the implementation timeline?',
-    a: 'Most teams go live with a production-ready funnel in 2–4 weeks, including mapping your existing forms, CRMs, and playbooks into Skillify.',
+    a: 'Implementation timing depends on the verified controlled-launch scope. The walkthrough identifies supported workflows before any timeline is proposed.',
   },
   {
     q: 'Do you offer done-for-you buildouts?',
-    a: 'Yes. Our team can design and implement your entire automation blueprint, including templates, scoring, and sequences.',
+    a: 'The controlled launch focuses on currently supported operational workflows. Any additional buildout is scoped separately and is not represented as available by default.',
   },
 ]
 

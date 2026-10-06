@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@clerk/nextjs/server'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 // Narrow type for the fields we actually use in this handler
 type RunSample = {
@@ -16,7 +17,14 @@ export async function GET() {
   // recent 100 runs across all workspaces the user belongs to
   const runs: RunSample[] = await prisma.automationRun.findMany({
     where: {
-      workspace: { members: { some: { user: { clerkId: userId } } } },
+      workspace: {
+        members: {
+          some: {
+            user: { clerkId: userId },
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
+      },
     },
     orderBy: { startedAt: 'desc' },
     take: 100,

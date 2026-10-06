@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
   const access = await authorizeWorkspaceAccess({
     workspaceId,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) {
     return NextResponse.json(

@@ -7,6 +7,7 @@ import { logAudit } from '@/lib/audit/log'
 import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 import { createAutomationSchema } from '@/lib/validations/automation'
 import { getAdvancedAutomationLaunchRestrictionError } from '@/lib/automations/policy'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 export async function GET() {
   const { userId } = await auth()
@@ -21,11 +22,17 @@ export async function GET() {
   const automations = await prisma.automation.findMany({
     where: {
       workspace: {
-        members: { some: { userId: user.id } },
+        members: {
+          some: {
+            userId: user.id,
+            role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+          },
+        },
       },
       simpleAutomationInstallation: null,
     },
     orderBy: { createdAt: 'desc' },
+    take: 100,
   })
 
   return ok(automations)

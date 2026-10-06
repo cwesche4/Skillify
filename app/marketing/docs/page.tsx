@@ -7,15 +7,15 @@ const steps = [
   },
   {
     title: '2. Set up your first workspace',
-    body: 'Name the workspace after your business or client. Connect your calendar and messaging channels if available.',
+    body: 'Name the workspace after your business. Configure supported workspace settings; external connections are used only when explicitly enabled.',
   },
   {
     title: '3. Turn your existing process into flows',
-    body: 'List how you currently handle leads, bookings, and follow-ups. Then recreate that as simple automation rules inside Skillify.',
+    body: 'List how you currently handle leads, bookings, and follow-ups. Then choose from the supported guided Simple Automation recipes.',
   },
   {
     title: '4. Invite your team (optional)',
-    body: 'Add teammates or clients with the right roles. Limit access to only the workspaces and data they need.',
+    body: 'Add teammates with the right roles. Limit access to only the workspaces and data they need.',
   },
 ]
 
@@ -32,7 +32,7 @@ export default function DocsPage() {
         <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">
           Skillify is designed to be powerful enough for agencies but simple
           enough for solo operators. This page walks you through the first setup
-          steps so you can ship value in under an hour.
+          steps for the controlled launch.
         </p>
 
         <div className="mt-10 space-y-8">
@@ -63,8 +63,9 @@ export default function DocsPage() {
             <li>Role-based access per workspace member</li>
           </ul>
           <p className="mt-3">
-            When you’re ready, you can add billing on top (Stripe or another
-            provider) to control which features are available per plan.
+            During the controlled launch, plan entitlements are managed through
+            the supported administrative process rather than self-service
+            billing changes.
           </p>
         </div>
 

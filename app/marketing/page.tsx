@@ -41,7 +41,7 @@ const quickFeatures = [
   },
   {
     title: 'Automations & AI',
-    body: 'Automate repetitive work and use workspace-aware AI to surface what needs attention.',
+    body: 'Use supported guided automations, with AI-assisted features only where they are explicitly enabled.',
   },
 ]
 
@@ -88,7 +88,7 @@ export default function MarketingHomePage() {
                 href="/sign-up"
                 className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_32px_-12px_rgba(37,99,235,0.8)] transition hover:bg-blue-700 sm:text-base"
               >
-                Start 14-day free trial
+                Request controlled access
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -102,11 +102,11 @@ export default function MarketingHomePage() {
             <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-zinc-300 sm:text-sm">
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" />
-                14-day free trial
+                Invitation-only onboarding
               </div>
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" />
-                Cancel before trial ends
+                Manual subscription provisioning
               </div>
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" />
@@ -124,7 +124,7 @@ export default function MarketingHomePage() {
                 <span className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-zinc-300">
                   Operations overview
                 </span>
-                <span className="text-xs text-emerald-500">Live</span>
+                <span className="text-xs text-zinc-500">Illustrative</span>
               </div>
 
               <div className="space-y-4 p-5">
@@ -255,8 +255,8 @@ export default function MarketingHomePage() {
             Turn more inquiries into customers — and keep the work moving.
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-300">
-            Capture inquiries, organize customer work, schedule jobs, and
-            automate follow-up from the same workspace.
+            Capture inquiries, organize customer work, schedule jobs, and use
+            supported follow-up workflows from the same workspace.
           </p>
 
           <div className="mt-8 flex flex-wrap justify-center gap-4">
@@ -264,7 +264,7 @@ export default function MarketingHomePage() {
               href="/sign-up"
               className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 transition hover:bg-blue-700"
             >
-              Start 14-day free trial
+              Request controlled access
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link

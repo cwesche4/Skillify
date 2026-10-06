@@ -20,9 +20,8 @@ export function HeroEnterprise() {
           </h1>
 
           <p className="mt-5 max-w-xl text-base text-zinc-600 dark:text-zinc-400 sm:text-lg">
-            Skillify orchestrates demos, onboarding, and lifecycle touchpoints
-            across teams — with AI qualification and calendar automation built
-            in.
+            Skillify connects customer intake, estimates, jobs, schedules, and
+            operational attention across role-aware workspaces.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -44,7 +43,7 @@ export function HeroEnterprise() {
           <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 sm:text-sm">
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-emerald-500" />
-              SOC2-ready architecture
+              Role-aware workspace controls
             </div>
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-emerald-500" />
@@ -52,7 +51,7 @@ export function HeroEnterprise() {
             </div>
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-emerald-500" />
-              HubSpot + Calendly sync
+              Connected operational records
             </div>
           </div>
         </div>
@@ -63,23 +62,27 @@ export function HeroEnterprise() {
           <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/90 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950/80">
             <div className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-3 dark:border-zinc-800/80">
               <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                Pipeline overview
+                Illustrative workspace preview
               </span>
-              <span className="text-xs text-emerald-500">Live</span>
+              <span className="text-xs text-zinc-500">Preview only</span>
             </div>
             <div className="space-y-4 p-5">
               <div className="grid grid-cols-3 gap-3 text-xs">
                 {[
                   {
-                    label: 'Qualified demos',
-                    value: '+38%',
-                    note: 'last 30 days',
+                    label: 'Open jobs',
+                    value: '—',
+                    note: 'workspace view',
                   },
-                  { label: 'Time-to-first-touch', value: '1.4m', note: 'avg' },
                   {
-                    label: 'No-show rate',
-                    value: '-24%',
-                    note: 'vs last quarter',
+                    label: 'Needs attention',
+                    value: '—',
+                    note: 'operator queue',
+                  },
+                  {
+                    label: 'Upcoming visits',
+                    value: '—',
+                    note: 'schedule view',
                   },
                 ].map((item) => (
                   <div
@@ -96,9 +99,9 @@ export function HeroEnterprise() {
               </div>
               <div className="mt-3 space-y-2">
                 {[
-                  'Inbound lead → AI score → AE calendar',
-                  'Missed demo → auto reschedule + SMS',
-                  'New customer → 30-day onboarding journey',
+                  'Customer request → management review',
+                  'Accepted estimate → confirmed operational work',
+                  'Assigned job → field execution',
                 ].map((rule) => (
                   <div
                     key={rule}

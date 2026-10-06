@@ -18,8 +18,8 @@ export default function EnterpriseDemoPage() {
       <div className="mx-auto max-w-2xl">
         <h1 className="mb-6 text-4xl font-semibold">Book a Strategy Demo</h1>
         <p className="mb-10 text-zinc-600 dark:text-zinc-400">
-          Tell us a bit about your team and choose a time. AI will pre-qualify
-          your request instantly.
+          Tell us a bit about your team and choose a preferred time. A person
+          will review the request before any appointment is confirmed.
         </p>
 
         {step === 1 && (
@@ -101,7 +101,7 @@ export default function EnterpriseDemoPage() {
             </div>
 
             <button className="mt-8 w-full rounded-full bg-emerald-600 py-3 font-semibold text-white">
-              Confirm Booking
+              Submit preferred time
             </button>
           </div>
         )}

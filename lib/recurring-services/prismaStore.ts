@@ -204,7 +204,18 @@ export const prismaRecurringServiceStore: RecurringServiceStore = {
       select: {
         id: true,
         status: true,
-        masterEvent: { select: { eventTypeKey: true } },
+        masterEvent: {
+          select: {
+            eventTypeKey: true,
+            assignments: {
+              select: {
+                assignmentType: true,
+                workspaceMemberId: true,
+                teamId: true,
+              },
+            },
+          },
+        },
       },
     })
     return series
@@ -212,6 +223,7 @@ export const prismaRecurringServiceStore: RecurringServiceStore = {
           id: series.id,
           status: series.status,
           eventTypeKey: series.masterEvent.eventTypeKey,
+          assignments: series.masterEvent.assignments,
         }
       : null
   },

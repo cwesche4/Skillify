@@ -59,7 +59,7 @@ describe('public marketing repositioning', () => {
 
     expect(home).toContain('href="/sign-up"')
     expect(home).toContain('href="/marketing/demo"')
-    expect(home).toContain('Start 14-day free trial')
+    expect(home).toContain('Request controlled access')
     expect(home).toContain('Book a walkthrough')
     expect(home).not.toContain('Start free')
     expect(home).not.toContain('Start your trial')
@@ -109,7 +109,7 @@ describe('public marketing repositioning', () => {
     expect(nav).toContain('href="/sign-in"')
     expect(nav).toContain('Log in')
     expect(nav).toContain('href="/sign-up"')
-    expect(nav).toContain('Start 14-day free trial')
+    expect(nav).toContain('Request controlled access')
     expect(nav).toContain('href="/dashboard"')
     expect(nav).toContain('Dashboard')
     expect(nav).toContain('<SkillifyUserMenu compact />')
@@ -174,9 +174,10 @@ describe('public marketing repositioning', () => {
     expect(features).not.toContain('Recurring-work compatible operations')
     expect(features).not.toContain('Operational intelligence foundation')
     expect(features).toContain('Support recurring service work')
-    expect(features).toContain(
-      'AI insights that help surface what needs attention',
-    )
+    expect(features).toContain('Guided Simple Automation setup')
+    expect(features).toContain('Management-controlled AI actions')
+    expect(features).not.toContain('Visual Workflow Builder')
+    expect(features).not.toContain('AI-assisted workflow nodes where supported')
   })
 
   it('focuses Solutions on service-business segments', () => {
@@ -232,6 +233,57 @@ describe('public marketing repositioning', () => {
     expect(demo).toContain('placeholder="Company name"')
     expect(demo).toContain('See what needs attention across the business')
     expect(demo).not.toContain('Dashboards and operational visibility')
+  })
+
+  it('keeps controlled-launch previews and evidence claims truthful', () => {
+    const publicCopy = [
+      source('app/marketing/enterprise/page.tsx'),
+      source('app/marketing/features/page.tsx'),
+      source('app/marketing/resources/page.tsx'),
+      source('app/marketing/docs/page.tsx'),
+      source('app/marketing/pricing/page.tsx'),
+      source('components/marketing/ComparisonSection.tsx'),
+      source('components/marketing/FeatureHighlights.tsx'),
+      source('app/marketing/demo/page.tsx'),
+      source('app/marketing/demo/components/DemoBookingForm.tsx'),
+      source('app/marketing/testimonials/page.tsx'),
+      source('app/marketing/case-studies/page.tsx'),
+      source('lib/caseStudies.ts'),
+      source('lib/marketing/caseStudies.ts'),
+    ].join('\n')
+
+    expect(publicCopy).not.toMatch(
+      /Live sync with HubSpot|AI scores leads|auto-reschedule|SMS \+ email|We’ve sent a calendar invite|Check your email for confirmation|moves revenue/i,
+    )
+    expect(publicCopy).not.toContain('/assets/skillify-enterprise-playbook.pdf')
+    expect(publicCopy).not.toContain(
+      'automate demo booking, lead routing, and post-call workflows',
+    )
+    expect(publicCopy).not.toContain(
+      'How Agencies Use Automation to 3x Client Capacity Without Hiring',
+    )
+    expect(publicCopy).not.toContain('Visual Workflow Builder')
+    expect(publicCopy).not.toContain(
+      'AI-assisted workflow nodes where supported',
+    )
+    expect(publicCopy).not.toContain(
+      'Connect your calendar and messaging channels',
+    )
+    expect(publicCopy).not.toContain(
+      'Give RevOps, Sales, and CS separate views with shared automation.',
+    )
+    expect(publicCopy).toContain('No verified guides are published yet.')
+    expect(publicCopy).toContain(
+      'No verified product videos are published yet.',
+    )
+    expect(publicCopy).toContain('Illustrative workspace preview')
+    expect(publicCopy).toContain(
+      'This preview does not send an external email or calendar invitation.',
+    )
+    expect(publicCopy).toContain(
+      'No verified customer testimonials are published yet.',
+    )
+    expect(publicCopy).toContain('export const caseStudies: CaseStudy[] = []')
   })
 
   it('uses higher-contrast cool industry chips and cooler marketing surfaces', () => {

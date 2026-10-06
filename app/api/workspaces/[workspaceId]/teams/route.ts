@@ -18,10 +18,14 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     if (isWorkspaceStructureResponse(actor)) return actor
 
     const includeArchived =
+      actor.canViewWorkspaceDirectory &&
       request.nextUrl.searchParams.get('includeArchived') === 'true'
     const teams = await listWorkspaceTeams({
       workspaceId: params.workspaceId,
       includeArchived,
+      viewerMemberId: actor.canViewWorkspaceDirectory
+        ? undefined
+        : actor.workspaceMemberId,
     })
     return NextResponse.json({ ok: true, teams })
   } catch (error) {

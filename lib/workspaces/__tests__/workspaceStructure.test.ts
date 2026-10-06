@@ -43,7 +43,9 @@ import { listWorkspaceLocations } from '@/lib/workspaceStructure/locations'
 const actor = {
   workspaceId: 'workspace-alpha',
   actorUserId: 'user-owner',
+  workspaceMemberId: 'member-owner',
   canManageWorkspace: true,
+  canViewWorkspaceDirectory: true,
 }
 
 const createdAt = new Date('2026-07-25T12:00:00.000Z')
@@ -104,6 +106,56 @@ describe('workspace structure services', () => {
     await expect(
       listWorkspaceLocations({ workspaceId: actor.workspaceId }),
     ).resolves.toEqual([])
+  })
+
+  it('returns only a Member current active Teams with a minimized projection', async () => {
+    mocks.prisma.workspaceTeam.findMany.mockResolvedValue([
+      {
+        id: 'team-field',
+        workspaceId: actor.workspaceId,
+        name: 'Field Crew',
+        isActive: true,
+        archivedAt: null,
+      },
+    ])
+
+    await expect(
+      listWorkspaceTeams({
+        workspaceId: actor.workspaceId,
+        viewerMemberId: 'member-tech',
+        includeArchived: true,
+      }),
+    ).resolves.toEqual([
+      {
+        id: 'team-field',
+        workspaceId: actor.workspaceId,
+        name: 'Field Crew',
+        isActive: true,
+        archivedAt: null,
+        members: [],
+      },
+    ])
+    expect(mocks.prisma.workspaceTeam.findMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: actor.workspaceId,
+        archivedAt: null,
+        isActive: true,
+        members: {
+          some: {
+            workspaceId: actor.workspaceId,
+            workspaceMemberId: 'member-tech',
+          },
+        },
+      },
+      select: {
+        id: true,
+        workspaceId: true,
+        name: true,
+        isActive: true,
+        archivedAt: true,
+      },
+      orderBy: { name: 'asc' },
+    })
   })
 
   it('creates workspace teams with validated workspace members and a stable team type', async () => {

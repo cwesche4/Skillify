@@ -325,6 +325,30 @@ function normalizeSchedulingEventInput(
   }
 }
 
+function assertControlledLaunchRecurringAssignments(input: {
+  eventType?: SchedulingEvent['type']
+  assignments?: SchedulingAssignmentTarget[]
+}) {
+  if (input.eventType !== 'recurringServiceVisit') return
+  const assignments = input.assignments ?? []
+  if (
+    assignments.length === 0 ||
+    assignments.some(
+      (assignment) =>
+        assignment.assignmentType !== 'MEMBER' || !assignment.workspaceMemberId,
+    )
+  ) {
+    throw new SchedulingServiceError(
+      'Recurring Services support member assignments only during controlled launch.',
+      400,
+      {
+        assignments:
+          'Choose at least one workspace member. Team assignments are not supported for Recurring Services during controlled launch.',
+      },
+    )
+  }
+}
+
 function getExternalAvailabilityOverrideReason(value: unknown) {
   if (!isPlainRecord(value)) return ''
   const reason = value.externalAvailabilityOverrideReason
@@ -672,6 +696,10 @@ export async function prepareSchedulingEventForTransactionalCreate({
 }): Promise<SchedulingEventWriteInput> {
   assertCanManage(actor)
   const normalizedInput = normalizeSchedulingEventInput(input)
+  assertControlledLaunchRecurringAssignments({
+    eventType: normalizedInput.type,
+    assignments: normalizedInput.assignments,
+  })
   await validateSchedulingEventLinkedRecordInput({
     workspaceId: actor.workspaceId,
     input: normalizedInput,
@@ -826,6 +854,10 @@ export async function createSchedulingEvent({
   const acknowledgedSignalIds =
     getAcknowledgedExternalAvailabilitySignalIds(input)
   const normalizedInput = normalizeSchedulingEventInput(input)
+  assertControlledLaunchRecurringAssignments({
+    eventType: normalizedInput.type,
+    assignments: normalizedInput.assignments,
+  })
   await validateSchedulingEventLinkedRecordInput({
     workspaceId: actor.workspaceId,
     input: normalizedInput,
@@ -912,6 +944,10 @@ export async function updateSchedulingEvent({
       404,
     )
   }
+  assertControlledLaunchRecurringAssignments({
+    eventType: input.type ?? existingEvent.type,
+    assignments: input.assignments ?? existingEvent.assignments,
+  })
   await validateSchedulingEventLinkedRecordInput({
     workspaceId: actor.workspaceId,
     input,

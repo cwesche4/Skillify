@@ -74,10 +74,12 @@ export type JobsStore = {
   findJob(input: {
     workspaceId: string
     jobId: string
+    visibleToMemberId?: string
   }): Promise<JobRecord | null>
   listJobs(input: {
     workspaceId: string
     customerId?: string
+    visibleToMemberId?: string
   }): Promise<JobRecord[]>
   updateJob(input: {
     workspaceId: string
@@ -97,11 +99,13 @@ export type JobsStore = {
   findWorkItem(input: {
     workspaceId: string
     workItemId: string
+    visibleToMemberId?: string
   }): Promise<WorkItemRecord | null>
   listWorkItems(input: {
     workspaceId: string
     jobId?: string
     kind?: WorkItemKind
+    visibleToMemberId?: string
   }): Promise<WorkItemRecord[]>
   updateWorkItem(input: {
     workspaceId: string
@@ -446,15 +450,20 @@ export function createOperationsService(
       )
     },
 
-    getJob(workspaceId: string, jobId: string) {
-      return store.findJob({ workspaceId, jobId })
+    getJob(workspaceId: string, jobId: string, visibleToMemberId?: string) {
+      return store.findJob({ workspaceId, jobId, visibleToMemberId })
     },
 
-    listJobs(workspaceId: string, rawQuery: unknown = {}) {
+    listJobs(
+      workspaceId: string,
+      rawQuery: unknown = {},
+      visibleToMemberId?: string,
+    ) {
       const query = parse(jobListQuerySchema, rawQuery)
       return store.listJobs({
         workspaceId,
         customerId: query.customerId ?? undefined,
+        visibleToMemberId,
       })
     },
 
@@ -767,14 +776,23 @@ export function createOperationsService(
       })
     },
 
-    getWorkItem(workspaceId: string, workItemId: string) {
-      return store.findWorkItem({ workspaceId, workItemId })
+    getWorkItem(
+      workspaceId: string,
+      workItemId: string,
+      visibleToMemberId?: string,
+    ) {
+      return store.findWorkItem({
+        workspaceId,
+        workItemId,
+        visibleToMemberId,
+      })
     },
 
     listWorkItems(input: {
       workspaceId: string
       jobId?: string
       kind?: WorkItemKind
+      visibleToMemberId?: string
     }) {
       return store.listWorkItems(input)
     },

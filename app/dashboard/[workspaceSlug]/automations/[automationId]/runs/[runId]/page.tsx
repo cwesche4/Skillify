@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 
 import { Badge } from '@/components/ui/Badge'
 import { prisma } from '@/lib/db'
+import { canManageAutomations } from '@/lib/automations/policy'
 
 interface PageProps {
   params: { workspaceSlug: string; automationId: string; runId: string }
@@ -144,6 +145,7 @@ export default async function RunDetailsPage({ params }: PageProps) {
         },
         select: {
           id: true,
+          role: true,
         },
       },
     },
@@ -151,7 +153,10 @@ export default async function RunDetailsPage({ params }: PageProps) {
   if (!profile) redirect('/sign-in')
 
   const isGlobalAdmin = profile?.role === 'admin'
-  const hasWorkspaceAccess = profile.memberships.length > 0 || isGlobalAdmin
+  const hasWorkspaceAccess =
+    profile.memberships.some((membership) =>
+      canManageAutomations(membership.role),
+    ) || isGlobalAdmin
 
   if (!hasWorkspaceAccess) {
     redirect('/dashboard')

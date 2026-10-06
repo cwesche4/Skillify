@@ -12,7 +12,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 })
   }
 
-  const access = await authorizeWorkspaceAccess({ workspaceId, access: 'view' })
+  const access = await authorizeWorkspaceAccess({
+    workspaceId,
+    access: 'manage',
+  })
   if (!access.allowed) {
     return NextResponse.json(
       { error: access.message },

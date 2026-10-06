@@ -233,7 +233,7 @@ describe('Recurring Services UX', () => {
     await user.click(within(dialog).getByText('Wed'))
     await user.click(within(dialog).getByText('Fri'))
     await user.click(within(dialog).getByText('Alex'))
-    await user.click(within(dialog).getByText('Crew One'))
+    expect(within(dialog).queryByText('Crew One')).toBeNull()
     await user.click(within(dialog).getByRole('button', { name: 'Add Step' }))
     await user.type(within(dialog).getByLabelText('Job Step 1 title'), 'Mow')
     await user.click(within(dialog).getByRole('button', { name: 'Add Step' }))
@@ -257,16 +257,12 @@ describe('Recurring Services UX', () => {
         scheduleInput: expect.objectContaining({
           locationType: 'customerLocation',
           recurrenceRule: expect.objectContaining({ daysOfWeek: [1, 3, 5] }),
-          assignments: expect.arrayContaining([
+          assignments: [
             expect.objectContaining({
               assignmentType: 'MEMBER',
               workspaceMemberId: 'member-1',
             }),
-            expect.objectContaining({
-              assignmentType: 'TEAM',
-              teamId: 'team-1',
-            }),
-          ]),
+          ],
         }),
       }),
     )

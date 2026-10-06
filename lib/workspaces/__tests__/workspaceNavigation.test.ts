@@ -81,6 +81,9 @@ describe('workspace navigation', () => {
     )
     expect(labels).not.toContain('Opportunities')
     expect(labels).not.toContain('Sales')
+    expect(
+      groups.find((group) => group.section === 'ANALYTICS'),
+    ).toBeUndefined()
   })
 
   it('limits durable Simple Service Customers navigation to management roles', () => {
@@ -139,7 +142,6 @@ describe('workspace navigation', () => {
         'OPERATIONS',
         'SCHEDULING',
         'WORKFLOWS',
-        'ANALYTICS',
         'TEAM',
         'AI',
         'SETTINGS',

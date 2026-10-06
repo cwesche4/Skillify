@@ -13,6 +13,7 @@ import { WorkspaceBusinessModel } from '@/lib/prisma/enums'
 import { getPersistedSchedulingSettings } from '@/lib/scheduling/services/schedulingService'
 import { getWorkspaceCapabilities } from '@/lib/workspaces/getWorkspaceCapabilities'
 import { canManageWorkspace } from '@/lib/workspaces/workspaceRoles'
+import { canManageAutomations } from '@/lib/automations/policy'
 
 type WorkspacePageProps = {
   params: { workspaceSlug: string }
@@ -65,16 +66,18 @@ export default async function WorkspaceHomePage({
     })
     dashboard = <OperationalDashboard data={data} />
   } else {
-    const automations = await prisma.automation.findMany({
-      where: { workspaceId: workspace.id },
-      include: {
-        simpleAutomationInstallation: { select: { id: true } },
-        runs: {
-          orderBy: { startedAt: 'desc' },
-          take: 100,
-        },
-      },
-    })
+    const automations = canManageAutomations(membership.role)
+      ? await prisma.automation.findMany({
+          where: { workspaceId: workspace.id },
+          include: {
+            simpleAutomationInstallation: { select: { id: true } },
+            runs: {
+              orderBy: { startedAt: 'desc' },
+              take: 100,
+            },
+          },
+        })
+      : []
     const runs = automations
       .flatMap((automation) =>
         automation.runs.map((run) => ({

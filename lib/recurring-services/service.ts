@@ -53,6 +53,11 @@ export type RecurringServiceStore = {
     id: string
     status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELED'
     eventTypeKey: string
+    assignments: Array<{
+      assignmentType: 'MEMBER' | 'TEAM'
+      workspaceMemberId: string | null
+      teamId: string | null
+    }>
   } | null>
   findByRecurrenceSeries(input: {
     workspaceId: string
@@ -218,6 +223,26 @@ export function createRecurringServiceService(
           {
             recurrenceSeriesId: [
               'Choose a recurring service schedule from this workspace.',
+            ],
+          },
+        )
+      }
+      if (
+        series.assignments.length === 0 ||
+        series.assignments.some(
+          (assignment) =>
+            assignment.assignmentType !== 'MEMBER' ||
+            !assignment.workspaceMemberId ||
+            assignment.teamId !== null,
+        )
+      ) {
+        throw new RecurringServiceServiceError(
+          'Recurring Services support member assignments only during controlled launch.',
+          400,
+          'VALIDATION_ERROR',
+          {
+            recurrenceSeriesId: [
+              'Choose a recurring schedule assigned to at least one workspace member and no teams.',
             ],
           },
         )

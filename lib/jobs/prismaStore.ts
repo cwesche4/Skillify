@@ -23,6 +23,8 @@ import {
   canWorkspaceMemberExecuteJob,
   jobExecutionEligibilityWhere,
   lockAndValidateRecurringJobExecution,
+  workspaceMemberExecutableJobsWhere,
+  workspaceMemberReadableWorkItemsWhere,
 } from '@/lib/jobs/jobExecutionAuthorization'
 
 const customerOperationalContextSelect = {
@@ -277,16 +279,32 @@ export const prismaJobsStore: JobsStore = {
     return job
   },
 
-  findJob({ workspaceId, jobId }) {
+  findJob({ workspaceId, jobId, visibleToMemberId }) {
     return prisma.job.findFirst({
-      where: { id: jobId, workspaceId, archivedAt: null },
+      where: visibleToMemberId
+        ? {
+            id: jobId,
+            ...workspaceMemberExecutableJobsWhere({
+              workspaceId,
+              workspaceMemberId: visibleToMemberId,
+            }),
+          }
+        : { id: jobId, workspaceId, archivedAt: null },
       include: { assignments: { orderBy: { createdAt: 'asc' } } },
     })
   },
 
-  listJobs({ workspaceId, customerId }) {
+  listJobs({ workspaceId, customerId, visibleToMemberId }) {
     return prisma.job.findMany({
-      where: { workspaceId, customerId, archivedAt: null },
+      where: visibleToMemberId
+        ? {
+            customerId,
+            ...workspaceMemberExecutableJobsWhere({
+              workspaceId,
+              workspaceMemberId: visibleToMemberId,
+            }),
+          }
+        : { workspaceId, customerId, archivedAt: null },
       include: { assignments: { orderBy: { createdAt: 'asc' } } },
       orderBy: [{ scheduledStartAt: 'asc' }, { createdAt: 'desc' }],
     })
@@ -579,32 +597,49 @@ export const prismaJobsStore: JobsStore = {
     })
   },
 
-  findWorkItem({ workspaceId, workItemId }) {
+  findWorkItem({ workspaceId, workItemId, visibleToMemberId }) {
     return prisma.workItem.findFirst({
-      where: {
-        id: workItemId,
-        workspaceId,
-        archivedAt: null,
-        OR: [
-          { kind: 'TODO' },
-          { kind: 'JOB_STEP', job: { is: { archivedAt: null } } },
-        ],
-      },
+      where: visibleToMemberId
+        ? {
+            id: workItemId,
+            ...workspaceMemberReadableWorkItemsWhere({
+              workspaceId,
+              workspaceMemberId: visibleToMemberId,
+            }),
+          }
+        : {
+            id: workItemId,
+            workspaceId,
+            archivedAt: null,
+            OR: [
+              { kind: 'TODO' },
+              { kind: 'JOB_STEP', job: { is: { archivedAt: null } } },
+            ],
+          },
     })
   },
 
-  listWorkItems({ workspaceId, jobId, kind }) {
+  listWorkItems({ workspaceId, jobId, kind, visibleToMemberId }) {
     return prisma.workItem.findMany({
-      where: {
-        workspaceId,
-        jobId,
-        kind,
-        archivedAt: null,
-        OR: [
-          { kind: 'TODO' },
-          { kind: 'JOB_STEP', job: { is: { archivedAt: null } } },
-        ],
-      },
+      where: visibleToMemberId
+        ? {
+            jobId,
+            kind,
+            ...workspaceMemberReadableWorkItemsWhere({
+              workspaceId,
+              workspaceMemberId: visibleToMemberId,
+            }),
+          }
+        : {
+            workspaceId,
+            jobId,
+            kind,
+            archivedAt: null,
+            OR: [
+              { kind: 'TODO' },
+              { kind: 'JOB_STEP', job: { is: { archivedAt: null } } },
+            ],
+          },
       orderBy: [{ sortOrder: 'asc' }, { dueAt: 'asc' }, { createdAt: 'desc' }],
     })
   },

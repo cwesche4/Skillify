@@ -11,6 +11,14 @@ const prismaMocks = vi.hoisted(() => ({
     groupBy: vi.fn(),
   },
   automation: { findMany: vi.fn() },
+  estimateDelivery: {
+    count: vi.fn(),
+    findFirst: vi.fn(),
+  },
+  estimateFollowUpSchedule: {
+    count: vi.fn(),
+    findFirst: vi.fn(),
+  },
   integration: { findFirst: vi.fn() },
   lead: { findFirst: vi.fn() },
   auditEvent: { create: vi.fn() },
@@ -75,6 +83,10 @@ describe('Simple Automation operations', () => {
         simpleAutomationInstallation: { definitionKey: 'lead-follow-up' },
       },
     ])
+    prismaMocks.estimateDelivery.count.mockResolvedValue(0)
+    prismaMocks.estimateDelivery.findFirst.mockResolvedValue(null)
+    prismaMocks.estimateFollowUpSchedule.count.mockResolvedValue(0)
+    prismaMocks.estimateFollowUpSchedule.findFirst.mockResolvedValue(null)
     schedulingDiagnostics.mockResolvedValue({
       outboxPending: 3,
       outboxProcessing: 1,
@@ -94,13 +106,15 @@ describe('Simple Automation operations', () => {
   })
 
   it('separates retryable and terminal backlog without exposing payloads', async () => {
-    prismaMocks.domainOutboxEvent.count.mockImplementation(async ({ where }) => {
-      if (where.status === DomainOutboxStatus.PENDING) return 7
-      if (where.status === DomainOutboxStatus.PROCESSING) return 1
-      if (where.status === DomainOutboxStatus.FAILED) return 2
-      if (where.status === DomainOutboxStatus.DEAD) return 3
-      return 0
-    })
+    prismaMocks.domainOutboxEvent.count.mockImplementation(
+      async ({ where }) => {
+        if (where.status === DomainOutboxStatus.PENDING) return 7
+        if (where.status === DomainOutboxStatus.PROCESSING) return 1
+        if (where.status === DomainOutboxStatus.FAILED) return 2
+        if (where.status === DomainOutboxStatus.DEAD) return 3
+        return 0
+      },
+    )
     prismaMocks.domainOutboxEvent.findFirst
       .mockResolvedValueOnce({
         createdAt: new Date('2026-09-24T15:59:40.000Z'),
@@ -110,6 +124,30 @@ describe('Simple Automation operations', () => {
       })
       .mockResolvedValueOnce({
         processedAt: new Date('2026-09-24T15:58:00.000Z'),
+      })
+    prismaMocks.estimateDelivery.count
+      .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(5)
+    prismaMocks.estimateDelivery.findFirst
+      .mockResolvedValueOnce({
+        requestedAt: new Date('2026-09-24T15:54:00.000Z'),
+      })
+      .mockResolvedValueOnce({
+        sentAt: new Date('2026-09-24T15:59:30.000Z'),
+      })
+    prismaMocks.estimateFollowUpSchedule.count
+      .mockResolvedValueOnce(6)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(4)
+    prismaMocks.estimateFollowUpSchedule.findFirst
+      .mockResolvedValueOnce({ dueAt: new Date('2026-09-24T15:53:00.000Z') })
+      .mockResolvedValueOnce({
+        dispatchedAt: new Date('2026-09-24T15:59:45.000Z'),
       })
 
     const health = await getSimpleAutomationOperationsHealth({ now: NOW })
@@ -128,10 +166,57 @@ describe('Simple Automation operations', () => {
       overdue: 4,
       oldestOverdueAgeMs: 30_000,
     })
+    expect(health.estimates).toEqual({
+      deliveries: {
+        pending: 4,
+        processing: 2,
+        staleProcessing: 1,
+        retryableFailed: 3,
+        permanentlyFailed: 5,
+        oldestEligibleAgeMs: 360_000,
+        lastSentAt: '2026-09-24T15:59:30.000Z',
+      },
+      followUps: {
+        overdue: 6,
+        processing: 2,
+        staleProcessing: 1,
+        retryableFailed: 3,
+        permanentlyFailed: 4,
+        oldestOverdueAgeMs: 420_000,
+        lastDispatchedAt: '2026-09-24T15:59:45.000Z',
+      },
+    })
     expect(health.simpleAutomations.failedRunsByRecipe).toEqual([
-      expect.objectContaining({ definitionKey: 'lead-follow-up', failedRuns: 2 }),
+      expect.objectContaining({
+        definitionKey: 'lead-follow-up',
+        failedRuns: 2,
+      }),
     ])
-    expect(JSON.stringify(health)).not.toMatch(/payload|customer|secret/i)
+    expect(prismaMocks.estimateDelivery.count).toHaveBeenCalledTimes(5)
+    expect(prismaMocks.estimateDelivery.findFirst).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ select: { requestedAt: true } }),
+    )
+    expect(prismaMocks.estimateDelivery.findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ select: { sentAt: true } }),
+    )
+    expect(prismaMocks.estimateFollowUpSchedule.count).toHaveBeenCalledTimes(5)
+    expect(
+      prismaMocks.estimateFollowUpSchedule.findFirst,
+    ).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ select: { dueAt: true } }),
+    )
+    expect(
+      prismaMocks.estimateFollowUpSchedule.findFirst,
+    ).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ select: { dispatchedAt: true } }),
+    )
+    expect(JSON.stringify(health)).not.toMatch(
+      /payload|customer|email|token|credential|secret/i,
+    )
   })
 
   it('recovers one DEAD event transactionally and records an audit event', async () => {

@@ -6,6 +6,7 @@ import {
 import { NextResponse } from 'next/server'
 import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
 import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 
 export async function GET(
   _req: Request,
@@ -13,6 +14,16 @@ export async function GET(
 ) {
   try {
     const workspaceId = context.params.workspaceId
+    const access = await authorizeWorkspaceAccess({
+      workspaceId,
+      access: 'manage',
+    })
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.message },
+        { status: access.status },
+      )
+    }
     const aiGuard = await assertAiActionsEnabled(workspaceId)
     if (aiGuard) return aiGuard
     emitAiMetric(

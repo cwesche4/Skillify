@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
   const access = await authorizeWorkspaceAccess({
     workspaceId: workspace,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) {
     return NextResponse.json(
@@ -48,6 +48,7 @@ export async function GET(req: Request) {
     const lastRun = await prisma.automationRun.findFirst({
       where: { workspaceId: workspace },
       orderBy: { startedAt: 'desc' },
+      select: { startedAt: true },
     })
 
     return NextResponse.json({

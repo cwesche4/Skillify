@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { prisma } from '@/lib/db'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 import { WorkspaceAiCoachChat } from '@/components/dashboard/ai-coach/WorkspaceAiCoachChat'
 import { WorkspaceAIStatus } from '@/lib/prisma/enums'
 
@@ -133,8 +134,16 @@ export default async function WorkspaceAiCoachPage({
   })
   if (!profile) redirect('/onboarding/create-workspace')
 
-  const workspace = await prisma.workspace.findUnique({
-    where: { slug: params.workspaceSlug },
+  const workspace = await prisma.workspace.findFirst({
+    where: {
+      slug: params.workspaceSlug,
+      members: {
+        some: {
+          userId: profile.id,
+          role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+        },
+      },
+    },
     include: {
       members: true,
       automations: {

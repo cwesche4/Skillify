@@ -17,7 +17,7 @@ interface Params {
 export async function GET(_: Request, { params }: Params) {
   const access = await authorizeAutomationAccess({
     automationId: params.automationId,
-    access: 'view',
+    access: 'manage',
   })
   if (!access.allowed) return fail(access.message, access.status)
 
@@ -27,7 +27,11 @@ export async function GET(_: Request, { params }: Params) {
       workspaceId: access.automation.workspaceId,
     },
     include: {
-      runs: { where: { workspaceId: access.automation.workspaceId } },
+      runs: {
+        where: { workspaceId: access.automation.workspaceId },
+        orderBy: { startedAt: 'desc' },
+        take: 100,
+      },
     },
   })
 

@@ -5,12 +5,25 @@ import {
 } from '@/lib/analytics/liveCoach'
 import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
 import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
+import { NextResponse } from 'next/server'
 
 export async function GET(
   _req: Request,
   context: { params: { workspaceId: string } },
 ) {
   const { workspaceId } = context.params
+
+  const access = await authorizeWorkspaceAccess({
+    workspaceId,
+    access: 'manage',
+  })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
+  }
 
   const aiGuard = await assertAiActionsEnabled(workspaceId)
   if (aiGuard) return aiGuard

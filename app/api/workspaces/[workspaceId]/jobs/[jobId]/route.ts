@@ -7,7 +7,6 @@ import {
   readOperationsJson,
 } from '@/lib/jobs/api'
 import { operationsService } from '@/lib/jobs/defaultService'
-import { canWorkspaceMemberExecuteJob } from '@/lib/jobs/jobExecutionAuthorization'
 import { presentJobOperationalContext } from '@/lib/jobs/operationalContext'
 import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
@@ -25,35 +24,35 @@ export async function GET(_request: Request, { params }: RouteContext) {
   }
 
   try {
-    const job = await operationsService.getJob(params.workspaceId, params.jobId)
+    const canManage = canManageOperations(authorization.role)
+    if (!canManage && !authorization.workspaceMemberId) {
+      return NextResponse.json(
+        { ok: false, code: 'NOT_FOUND', message: 'Job not found.' },
+        { status: 404 },
+      )
+    }
+    const job = await operationsService.getJob(
+      params.workspaceId,
+      params.jobId,
+      canManage ? undefined : (authorization.workspaceMemberId ?? undefined),
+    )
     if (!job) {
       return NextResponse.json(
         { ok: false, code: 'NOT_FOUND', message: 'Job not found.' },
         { status: 404 },
       )
     }
-    const canManage = canManageOperations(authorization.role)
-    const canExecute =
-      canManage ||
-      Boolean(
-        authorization.workspaceMemberId &&
-        (await canWorkspaceMemberExecuteJob({
-          workspaceId: params.workspaceId,
-          jobId: params.jobId,
-          workspaceMemberId: authorization.workspaceMemberId,
-        })),
-      )
     return NextResponse.json({
       ok: true,
       job: {
         ...presentJobOperationalContext(
           job,
-          canExecute,
+          true,
           canManage ||
             job.unableToCompleteReportedByMemberId ===
               authorization.workspaceMemberId,
         ),
-        canCurrentMemberExecute: canExecute,
+        canCurrentMemberExecute: true,
       },
     })
   } catch (error) {

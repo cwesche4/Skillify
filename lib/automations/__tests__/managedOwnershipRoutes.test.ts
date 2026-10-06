@@ -7,6 +7,7 @@ const executeAutomationLiveMock = vi.hoisted(() => vi.fn())
 const authMock = vi.hoisted(() => vi.fn())
 const userProfileFindUniqueMock = vi.hoisted(() => vi.fn())
 const automationCreateMock = vi.hoisted(() => vi.fn())
+const automationFindFirstMock = vi.hoisted(() => vi.fn())
 const workspaceFindUniqueMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@clerk/nextjs/server', () => ({ auth: authMock }))
@@ -22,17 +23,24 @@ vi.mock('@/lib/automations/executor', () => ({
 vi.mock('@/lib/db', () => ({
   prisma: {
     userProfile: { findUnique: userProfileFindUniqueMock },
-    automation: { create: automationCreateMock },
+    automation: {
+      create: automationCreateMock,
+      findFirst: automationFindFirstMock,
+    },
     workspace: { findUnique: workspaceFindUniqueMock },
   },
 }))
 
 import { POST as createAutomationRoute } from '@/app/api/automations/route'
 import {
+  GET as getAutomationRoute,
   DELETE as deleteAutomationRoute,
   PATCH as updateAutomationRoute,
 } from '@/app/api/automations/[automationId]/route'
-import { PUT as updateAutomationFlowRoute } from '@/app/api/automations/[automationId]/flow/route'
+import {
+  GET as getAutomationFlowRoute,
+  PUT as updateAutomationFlowRoute,
+} from '@/app/api/automations/[automationId]/flow/route'
 import { POST as runAutomationRoute } from '@/app/api/automations/[automationId]/run/route'
 import { GET as runAutomationLiveRoute } from '@/app/api/automations/[automationId]/run/live/route'
 import { GET as listTemplatesRoute } from '@/app/api/automations/templates/route'
@@ -77,6 +85,33 @@ describe('managed Simple Automation route ownership', () => {
 
     expect(response.status).toBe(409)
     expect(runAutomationMock).not.toHaveBeenCalled()
+  })
+
+  it('denies ordinary Members before generic configuration or history is loaded', async () => {
+    authorizeAutomationAccessMock.mockResolvedValue({
+      allowed: false,
+      status: 403,
+      message: 'Forbidden',
+    })
+    const context = { params: { automationId: 'automation-1' } }
+
+    const [details, flow] = await Promise.all([
+      getAutomationRoute(
+        new Request('https://skillify.test/api/automations/automation-1'),
+        context,
+      ),
+      getAutomationFlowRoute(
+        new Request('https://skillify.test/api/automations/automation-1/flow'),
+        context,
+      ),
+    ])
+
+    expect([details.status, flow.status]).toEqual([403, 403])
+    expect(authorizeAutomationAccessMock).toHaveBeenCalledWith({
+      automationId: 'automation-1',
+      access: 'manage',
+    })
+    expect(automationFindFirstMock).not.toHaveBeenCalled()
   })
 
   it('blocks the Advanced live-run API before creating run history', async () => {

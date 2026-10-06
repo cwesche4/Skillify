@@ -41,7 +41,7 @@ export default function MarketingNav() {
               href="/sign-up"
               className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
             >
-              Start 14-day free trial
+              Request controlled access
             </Link>
           </SignedOut>
 
@@ -81,7 +81,7 @@ export default function MarketingNav() {
                 href="/sign-up"
                 className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
               >
-                Start 14-day free trial
+                Request controlled access
               </Link>
             </SignedOut>
 

@@ -42,6 +42,8 @@ export async function getLiveCoachSnapshot(
       startedAt: true,
       finishedAt: true,
     },
+    orderBy: { startedAt: 'desc' },
+    take: 1000,
   })
 
   if (!runsLast30.length) {

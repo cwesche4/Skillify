@@ -7,6 +7,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { ExecutionsClient } from '@/components/dashboard/executions/ExecutionsClient'
 import { prisma } from '@/lib/db'
 import type { ExecutionStatus, WorkflowExecution } from '@/lib/executions/types'
+import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 
 type PageProps = {
   params: { workspaceSlug: string }
@@ -148,7 +149,12 @@ export default async function AdvancedExecutionsPage({ params }: PageProps) {
   const workspace = await prisma.workspace.findFirst({
     where: {
       slug: params.workspaceSlug,
-      members: { some: { userId: profile.id } },
+      members: {
+        some: {
+          userId: profile.id,
+          role: { in: [...AUTOMATION_MANAGEMENT_ROLES] },
+        },
+      },
     },
     include: {
       automations: {

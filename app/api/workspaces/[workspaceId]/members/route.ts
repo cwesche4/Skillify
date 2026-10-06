@@ -6,6 +6,7 @@ import { WorkspaceMemberRole } from '@/lib/prisma/enums'
 import { logAudit } from '@/lib/audit/log'
 import { handleWorkspaceMemberCalendarConnectionLifecycle } from '@/lib/scheduling/providers/calendarGovernance'
 import {
+  canManageOperations,
   canManageWorkspaceMembers,
   normalizeWorkspaceRole,
 } from '@/lib/workspaces/workspaceRoles'
@@ -36,6 +37,18 @@ export async function GET(
   })
   if (!membership)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  if (!canManageOperations(membership.role)) {
+    const member = await prisma.workspaceMember.findUnique({
+      where: { id: membership.id },
+      select: { id: true, user: { select: { fullName: true } } },
+    })
+    return NextResponse.json({
+      members: member
+        ? [{ id: member.id, fullName: member.user.fullName }]
+        : [],
+    })
+  }
 
   const members = await prisma.workspaceMember.findMany({
     where: { workspaceId: params.workspaceId },

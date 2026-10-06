@@ -14,8 +14,6 @@ const mocks = vi.hoisted(() => ({
   updateWorkItem: vi.fn(),
   executeAssignedWorkItem: vi.fn(),
   archiveWorkItem: vi.fn(),
-  listWorkspaceMemberExecutableJobIds: vi.fn(),
-  canWorkspaceMemberExecuteJob: vi.fn(),
   sourceFindMany: vi.fn(),
 }))
 
@@ -40,12 +38,6 @@ vi.mock('@/lib/jobs/defaultService', () => ({
   },
 }))
 
-vi.mock('@/lib/jobs/jobExecutionAuthorization', () => ({
-  listWorkspaceMemberExecutableJobIds:
-    mocks.listWorkspaceMemberExecutableJobIds,
-  canWorkspaceMemberExecuteJob: mocks.canWorkspaceMemberExecuteJob,
-}))
-
 vi.mock('@/lib/db', () => ({
   prisma: {
     estimateOperationalizationItem: { findMany: mocks.sourceFindMany },
@@ -65,7 +57,10 @@ import {
   GET as listJobStepsRoute,
   POST as createJobStepRoute,
 } from '@/app/api/workspaces/[workspaceId]/jobs/[jobId]/work-items/route'
-import { POST as createTodoRoute } from '@/app/api/workspaces/[workspaceId]/work-items/route'
+import {
+  GET as listWorkItemsRoute,
+  POST as createTodoRoute,
+} from '@/app/api/workspaces/[workspaceId]/work-items/route'
 import {
   DELETE as deleteWorkItemRoute,
   GET as getWorkItemRoute,
@@ -95,8 +90,6 @@ describe('Jobs and Work Items API routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.authorizeWorkspaceAccess.mockResolvedValue(managerAuthorization)
-    mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(new Set())
-    mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(false)
     mocks.sourceFindMany.mockResolvedValue([])
   })
 
@@ -131,10 +124,35 @@ describe('Jobs and Work Items API routes', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(mocks.listJobs).toHaveBeenCalledWith('ws-a', {
-      customerId: 'customer-a',
-    })
+    expect(mocks.listJobs).toHaveBeenCalledWith(
+      'ws-a',
+      { customerId: 'customer-a' },
+      undefined,
+    )
   })
+
+  it.each(['OWNER', 'ADMIN', 'MANAGER'])(
+    'keeps %s workspace-wide Job reads unchanged',
+    async (role) => {
+      mocks.authorizeWorkspaceAccess.mockResolvedValue({
+        ...managerAuthorization,
+        role,
+      })
+      mocks.listJobs.mockResolvedValue([{ id: 'job-workspace' }])
+
+      const response = await listJobsRoute(
+        new Request('http://localhost/api/workspaces/ws-a/jobs'),
+        { params: { workspaceId: 'ws-a' } },
+      )
+
+      expect(response.status).toBe(200)
+      expect(mocks.listJobs).toHaveBeenCalledWith(
+        'ws-a',
+        { customerId: undefined },
+        undefined,
+      )
+    },
+  )
 
   it('returns Job-scoped field context only for a server-authorized Member', async () => {
     mocks.authorizeWorkspaceAccess.mockResolvedValue(memberAuthorization)
@@ -146,23 +164,7 @@ describe('Jobs and Work Items API routes', () => {
         customerPhoneSnapshot: '555-0110',
         customerEmailSnapshot: 'alex@example.com',
       },
-      {
-        id: 'job-unrelated',
-        customerId: 'customer-private',
-        customerDisplayName: 'Private Customer',
-        serviceLocationSnapshot: '99 Private Lane',
-        customerContactNameSnapshot: 'Private Customer',
-        customerPhoneSnapshot: '555-0199',
-        customerEmailSnapshot: 'private@example.com',
-        unableToCompleteReason: 'ACCESS_ISSUE',
-        unableToCompleteNote: 'Private gate details',
-        unableToCompleteAt: new Date('2026-09-28T12:00:00.000Z'),
-        unableToCompleteReportedByMemberId: 'member-other',
-      },
     ])
-    mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(
-      new Set(['job-assigned']),
-    )
 
     const response = await listJobsRoute(
       new Request('http://localhost/api/workspaces/ws-a/jobs'),
@@ -177,57 +179,25 @@ describe('Jobs and Work Items API routes', () => {
       canCurrentMemberExecute: true,
       sourceEstimate: null,
     })
-    expect(body.jobs[1]).toMatchObject({
-      id: 'job-unrelated',
-      customerId: null,
-      customerDisplayName: null,
-      serviceLocationSnapshot: null,
-      customerContactNameSnapshot: null,
-      customerPhoneSnapshot: null,
-      customerEmailSnapshot: null,
-      unableToCompleteReason: null,
-      unableToCompleteNote: null,
-      unableToCompleteAt: null,
-      unableToCompleteReportedByMemberId: null,
-      canCurrentMemberExecute: false,
-      sourceEstimate: null,
-    })
+    expect(body.jobs).toHaveLength(1)
+    expect(mocks.listJobs).toHaveBeenCalledWith(
+      'ws-a',
+      { customerId: undefined },
+      'member-a',
+    )
     expect(mocks.sourceFindMany).not.toHaveBeenCalled()
 
-    mocks.getJob.mockResolvedValue({
-      id: 'job-unrelated',
-      customerId: 'customer-private',
-      customerDisplayName: 'Private Customer',
-      serviceLocationSnapshot: '99 Private Lane',
-      customerContactNameSnapshot: 'Private Customer',
-      customerPhoneSnapshot: '555-0199',
-      customerEmailSnapshot: 'private@example.com',
-      unableToCompleteReason: 'ACCESS_ISSUE',
-      unableToCompleteNote: 'Private gate details',
-      unableToCompleteAt: new Date('2026-09-28T12:00:00.000Z'),
-      unableToCompleteReportedByMemberId: 'member-other',
-    })
-    mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(false)
+    mocks.getJob.mockResolvedValue(null)
     const unrelatedResponse = await getJobRoute(
       new Request('http://localhost/api/workspaces/ws-a/jobs/job-unrelated'),
       { params: { workspaceId: 'ws-a', jobId: 'job-unrelated' } },
     )
-    expect(await unrelatedResponse.json()).toMatchObject({
-      job: {
-        id: 'job-unrelated',
-        customerId: null,
-        customerDisplayName: null,
-        serviceLocationSnapshot: null,
-        customerContactNameSnapshot: null,
-        customerPhoneSnapshot: null,
-        customerEmailSnapshot: null,
-        unableToCompleteReason: null,
-        unableToCompleteNote: null,
-        unableToCompleteAt: null,
-        unableToCompleteReportedByMemberId: null,
-        canCurrentMemberExecute: false,
-      },
-    })
+    expect(unrelatedResponse.status).toBe(404)
+    expect(mocks.getJob).toHaveBeenCalledWith(
+      'ws-a',
+      'job-unrelated',
+      'member-a',
+    )
 
     mocks.getJob.mockResolvedValue({
       id: 'job-assigned',
@@ -238,7 +208,6 @@ describe('Jobs and Work Items API routes', () => {
       customerPhoneSnapshot: '555-0110',
       customerEmailSnapshot: 'alex@example.com',
     })
-    mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(true)
     const assignedResponse = await getJobRoute(
       new Request('http://localhost/api/workspaces/ws-a/jobs/job-assigned'),
       { params: { workspaceId: 'ws-a', jobId: 'job-assigned' } },
@@ -252,9 +221,14 @@ describe('Jobs and Work Items API routes', () => {
         canCurrentMemberExecute: true,
       },
     })
+    expect(mocks.getJob).toHaveBeenLastCalledWith(
+      'ws-a',
+      'job-assigned',
+      'member-a',
+    )
   })
 
-  it('retains reporter exception context without retaining Customer context after Team access is removed', async () => {
+  it('removes reporter-only visibility after Team access is removed', async () => {
     mocks.authorizeWorkspaceAccess.mockResolvedValue(memberAuthorization)
     const unableJob = {
       id: 'job-unable-reported-by-member',
@@ -269,33 +243,15 @@ describe('Jobs and Work Items API routes', () => {
       unableToCompleteAt: new Date('2026-09-28T12:00:00.000Z'),
       unableToCompleteReportedByMemberId: 'member-a',
     }
-    mocks.listJobs.mockResolvedValue([unableJob])
-    mocks.listWorkspaceMemberExecutableJobIds.mockResolvedValue(new Set())
+    mocks.listJobs.mockResolvedValue([])
 
     const listResponse = await listJobsRoute(
       new Request('http://localhost/api/workspaces/ws-a/jobs'),
       { params: { workspaceId: 'ws-a' } },
     )
-    expect(await listResponse.json()).toMatchObject({
-      jobs: [
-        {
-          id: 'job-unable-reported-by-member',
-          customerId: null,
-          customerDisplayName: null,
-          serviceLocationSnapshot: null,
-          customerContactNameSnapshot: null,
-          customerPhoneSnapshot: null,
-          customerEmailSnapshot: null,
-          unableToCompleteReason: 'ACCESS_ISSUE',
-          unableToCompleteNote: 'Gate code no longer works',
-          unableToCompleteReportedByMemberId: 'member-a',
-          canCurrentMemberExecute: false,
-        },
-      ],
-    })
+    expect(await listResponse.json()).toMatchObject({ jobs: [] })
 
-    mocks.getJob.mockResolvedValue(unableJob)
-    mocks.canWorkspaceMemberExecuteJob.mockResolvedValue(false)
+    mocks.getJob.mockResolvedValue(null)
     const detailResponse = await getJobRoute(
       new Request(
         'http://localhost/api/workspaces/ws-a/jobs/job-unable-reported-by-member',
@@ -307,21 +263,8 @@ describe('Jobs and Work Items API routes', () => {
         },
       },
     )
-    expect(await detailResponse.json()).toMatchObject({
-      job: {
-        id: 'job-unable-reported-by-member',
-        customerId: null,
-        customerDisplayName: null,
-        serviceLocationSnapshot: null,
-        customerContactNameSnapshot: null,
-        customerPhoneSnapshot: null,
-        customerEmailSnapshot: null,
-        unableToCompleteReason: 'ACCESS_ISSUE',
-        unableToCompleteNote: 'Gate code no longer works',
-        unableToCompleteReportedByMemberId: 'member-a',
-        canCurrentMemberExecute: false,
-      },
-    })
+    expect(detailResponse.status).toBe(404)
+    expect(mocks.getJob).toHaveBeenCalledWith('ws-a', unableJob.id, 'member-a')
   })
 
   it('keeps ordinary Members read-only at the API boundary', async () => {
@@ -340,6 +283,41 @@ describe('Jobs and Work Items API routes', () => {
 
     expect(response.status).toBe(403)
     expect(mocks.createJob).not.toHaveBeenCalled()
+  })
+
+  it('passes server-resolved Member identity into Work Item list and detail reads', async () => {
+    mocks.authorizeWorkspaceAccess.mockResolvedValue(memberAuthorization)
+    mocks.listWorkItems.mockResolvedValue([
+      { id: 'todo-assigned', kind: 'TODO', assigneeMemberId: 'member-a' },
+    ])
+    mocks.getWorkItem.mockResolvedValue(null)
+
+    const listResponse = await listWorkItemsRoute(
+      new Request('http://localhost/api/workspaces/ws-a/work-items?kind=TODO'),
+      { params: { workspaceId: 'ws-a' } },
+    )
+    const detailResponse = await getWorkItemRoute(
+      new Request(
+        'http://localhost/api/workspaces/ws-a/work-items/todo-unrelated',
+      ),
+      { params: { workspaceId: 'ws-a', workItemId: 'todo-unrelated' } },
+    )
+
+    expect(listResponse.status).toBe(200)
+    expect(await listResponse.json()).toMatchObject({
+      workItems: [{ id: 'todo-assigned' }],
+    })
+    expect(mocks.listWorkItems).toHaveBeenCalledWith({
+      workspaceId: 'ws-a',
+      kind: 'TODO',
+      visibleToMemberId: 'member-a',
+    })
+    expect(detailResponse.status).toBe(404)
+    expect(mocks.getWorkItem).toHaveBeenCalledWith(
+      'ws-a',
+      'todo-unrelated',
+      'member-a',
+    )
   })
 
   it('returns a validation response for malformed JSON', async () => {
@@ -367,7 +345,7 @@ describe('Jobs and Work Items API routes', () => {
     )
 
     expect(response.status).toBe(404)
-    expect(mocks.getJob).toHaveBeenCalledWith('ws-a', 'job-from-b')
+    expect(mocks.getJob).toHaveBeenCalledWith('ws-a', 'job-from-b', undefined)
   })
 
   it('does not disclose foreign Work Items or nested Job Steps through route mismatches', async () => {
@@ -389,8 +367,12 @@ describe('Jobs and Work Items API routes', () => {
 
     expect(workItemResponse.status).toBe(404)
     expect(nestedResponse.status).toBe(404)
-    expect(mocks.getWorkItem).toHaveBeenCalledWith('ws-a', 'item-from-b')
-    expect(mocks.getJob).toHaveBeenCalledWith('ws-a', 'job-from-b')
+    expect(mocks.getWorkItem).toHaveBeenCalledWith(
+      'ws-a',
+      'item-from-b',
+      undefined,
+    )
+    expect(mocks.getJob).toHaveBeenCalledWith('ws-a', 'job-from-b', undefined)
     expect(mocks.listWorkItems).not.toHaveBeenCalled()
   })
 

@@ -29,6 +29,19 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 
   try {
     const workspace = await getWorkspace(params.workspaceId)
+    if (
+      workspace.businessModel === 'SIMPLE_SERVICE_BUSINESS' &&
+      !actor.canManageScheduling
+    ) {
+      return Response.json(
+        {
+          ok: false,
+          code: 'FORBIDDEN',
+          message: 'Workspace Scheduling settings are limited to management.',
+        },
+        { status: 403 },
+      )
+    }
     const settings = await getPersistedSchedulingSettings({
       workspaceId: params.workspaceId,
       businessModel: (workspace as any).businessModel,

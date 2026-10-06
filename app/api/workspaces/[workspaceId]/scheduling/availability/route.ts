@@ -26,6 +26,19 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     })
     if (!workspace)
       throw new SchedulingServiceError('Workspace not found.', 404)
+    if (
+      workspace.businessModel === 'SIMPLE_SERVICE_BUSINESS' &&
+      !actor.canManageScheduling
+    ) {
+      return Response.json(
+        {
+          ok: false,
+          code: 'FORBIDDEN',
+          message: 'Workspace availability is limited to management.',
+        },
+        { status: 403 },
+      )
+    }
     const searchParams = request.nextUrl.searchParams
     const data = await listSchedulingWorkspaceData({
       workspaceId: params.workspaceId,

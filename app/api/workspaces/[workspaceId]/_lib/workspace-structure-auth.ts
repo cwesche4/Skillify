@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { classifyWorkspaceStructureError } from '@/lib/workspaceStructure/apiErrors'
 import type { WorkspaceStructureActor } from '@/lib/workspaceStructure/teams'
+import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
 export async function getWorkspaceStructureActor(
   workspaceId: string,
@@ -39,7 +40,7 @@ export async function getWorkspaceStructureActor(
         workspaceId,
       },
     },
-    select: { role: true },
+    select: { id: true, role: true },
   })
   if (!membership) {
     return NextResponse.json(
@@ -56,8 +57,10 @@ export async function getWorkspaceStructureActor(
   return {
     workspaceId,
     actorUserId: profile.id,
+    workspaceMemberId: membership.id,
     canManageWorkspace:
       membership.role === 'OWNER' || membership.role === 'ADMIN',
+    canViewWorkspaceDirectory: canManageOperations(membership.role),
   }
 }
 

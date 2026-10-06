@@ -166,6 +166,9 @@ export default async function ReportsPage({ params }: PageProps) {
     (member) => member.userId === profile.id,
   )
   if (!isMember) redirect('/dashboard')
+  if (workspace.businessModel === 'SIMPLE_SERVICE_BUSINESS') {
+    redirect(`/dashboard/${workspace.slug}`)
+  }
 
   const reports: WorkspaceReport[] = []
   const scheduledReports: ScheduledReport[] = []

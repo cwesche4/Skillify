@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { getWorkspaceCapabilities } from '@/lib/workspaces/getWorkspaceCapabilities'
 import { canRouteToSchedulingSection } from '@/lib/scheduling/getWorkspaceSchedulingCapabilities'
 import type { SchedulingSectionKey } from '@/lib/scheduling/types'
+import { canManageScheduling } from '@/lib/workspaces/workspaceRoles'
 
 export async function requireSchedulingAccess({
   workspaceSlug,
@@ -33,6 +34,12 @@ export async function requireSchedulingAccess({
 
   const membership = workspace.members[0]
   if (!membership) redirect('/dashboard')
+  if (
+    workspace.businessModel === 'SIMPLE_SERVICE_BUSINESS' &&
+    !canManageScheduling(membership.role)
+  ) {
+    redirect(`/dashboard/${workspace.slug}/jobs`)
+  }
 
   const capabilities = getWorkspaceCapabilities(workspace as any)
   if (!capabilities.scheduling.enabled) redirect(`/dashboard/${workspace.slug}`)

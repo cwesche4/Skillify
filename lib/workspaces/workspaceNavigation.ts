@@ -178,7 +178,6 @@ export function buildWorkspaceNavigation({
             },
             schedulingGroup(workspaceSlug, capabilities, schedulingSettings),
             workflowGroup(workspaceSlug),
-            analyticsGroup(workspaceSlug),
             teamGroup(workspaceSlug),
             aiGroup(workspaceSlug),
             settingsGroup(workspaceSlug),

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requirePlan } from '@/lib/auth/route-guard'
+import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -12,6 +13,17 @@ export async function GET(req: Request) {
   }
   if (!workspaceId.trim()) {
     return NextResponse.json({ error: 'Invalid workspaceId' })
+  }
+
+  const access = await authorizeWorkspaceAccess({
+    workspaceId,
+    access: 'manage',
+  })
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.message },
+      { status: access.status },
+    )
   }
 
   // 🔒 Protect analytics SSE – Pro+ only

@@ -7,6 +7,7 @@ import {
   readOperationsJson,
 } from '@/lib/jobs/api'
 import { operationsService } from '@/lib/jobs/defaultService'
+import { canManageOperations } from '@/lib/workspaces/workspaceRoles'
 
 type RouteContext = {
   params: { workspaceId: string; jobId: string }
@@ -22,7 +23,18 @@ export async function GET(_request: Request, { params }: RouteContext) {
   }
 
   try {
-    const job = await operationsService.getJob(params.workspaceId, params.jobId)
+    const canManage = canManageOperations(authorization.role)
+    if (!canManage && !authorization.workspaceMemberId) {
+      return NextResponse.json(
+        { ok: false, code: 'NOT_FOUND', message: 'Job not found.' },
+        { status: 404 },
+      )
+    }
+    const job = await operationsService.getJob(
+      params.workspaceId,
+      params.jobId,
+      canManage ? undefined : (authorization.workspaceMemberId ?? undefined),
+    )
     if (!job) {
       return NextResponse.json(
         { ok: false, code: 'NOT_FOUND', message: 'Job not found.' },
@@ -33,6 +45,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
       workspaceId: params.workspaceId,
       jobId: params.jobId,
       kind: 'JOB_STEP',
+      visibleToMemberId: canManage
+        ? undefined
+        : (authorization.workspaceMemberId ?? undefined),
     })
     return NextResponse.json({ ok: true, workItems })
   } catch (error) {

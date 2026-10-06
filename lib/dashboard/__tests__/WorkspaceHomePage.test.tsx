@@ -129,8 +129,8 @@ describe('workspace home dashboard authorization and model routing', () => {
     },
   )
 
-  it('retains the existing command center for other workspace models', async () => {
-    mocks.findWorkspace.mockResolvedValue(workspace('DIRECT_SALES'))
+  it('retains the existing command center for management in other workspace models', async () => {
+    mocks.findWorkspace.mockResolvedValue(workspace('DIRECT_SALES', 'MANAGER'))
     mocks.findAutomations.mockResolvedValue([])
 
     render(await WorkspaceHomePage({ params: { workspaceSlug: 'acme' } }))
@@ -139,6 +139,21 @@ describe('workspace home dashboard authorization and model routing', () => {
     expect(mocks.loadOperationalDashboard).not.toHaveBeenCalled()
     expect(mocks.findAutomations).toHaveBeenCalledWith(
       expect.objectContaining({ where: { workspaceId: 'workspace-a' } }),
+    )
+  })
+
+  it('does not load generic Automation history for a Member command center', async () => {
+    mocks.findWorkspace.mockResolvedValue(workspace('DIRECT_SALES', 'MEMBER'))
+
+    render(await WorkspaceHomePage({ params: { workspaceSlug: 'acme' } }))
+
+    expect(screen.getByText('Legacy command center')).toBeTruthy()
+    expect(mocks.findAutomations).not.toHaveBeenCalled()
+    expect(mocks.buildCommandCenter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspace: expect.objectContaining({ automations: [] }),
+        runs: [],
+      }),
     )
   })
 })

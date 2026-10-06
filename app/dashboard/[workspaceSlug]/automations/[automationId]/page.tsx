@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
 import { classifyCRMError } from '@/lib/integrations/failureCategory'
+import { canManageAutomations } from '@/lib/automations/policy'
 
 type AutomationDetailPageProps = {
   params: {
@@ -27,7 +28,12 @@ export default async function AutomationDetailPage({
 
   const workspace = await prisma.workspace.findUnique({
     where: { slug: params.workspaceSlug },
-    include: { members: true },
+    include: {
+      members: {
+        where: { userId: profile.id },
+        select: { role: true },
+      },
+    },
   })
 
   if (!workspace) {
@@ -38,13 +44,13 @@ export default async function AutomationDetailPage({
     )
   }
 
-  const isMember = workspace.members.some((m: any) => m.userId === profile.id)
-  if (!isMember) {
+  if (!canManageAutomations(workspace.members[0]?.role)) {
     return (
       <DashboardShell>
         <h1 className="h2">Access denied</h1>
         <p className="text-neutral-text-secondary text-sm">
-          You are not a member of this workspace.
+          You do not have permission to review Automation configuration or
+          history.
         </p>
       </DashboardShell>
     )

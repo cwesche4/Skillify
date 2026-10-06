@@ -121,7 +121,7 @@ export default function EnterpriseDemoPage() {
               <span className="font-medium uppercase tracking-wide text-slate-600 dark:text-zinc-300">
                 Operations overview
               </span>
-              <span className="text-emerald-500">Live</span>
+              <span className="text-zinc-500">Illustrative</span>
             </div>
             <div className="space-y-2">
               {[
@@ -308,11 +308,11 @@ export default function EnterpriseDemoPage() {
           {/* Step 4 – Confirmation */}
           {step === 4 && status === 'success' && (
             <div className="rounded-2xl border border-emerald-500/40 bg-emerald-50 px-5 py-6 text-sm text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-50">
-              <p className="font-semibold">You’re booked in 🎯</p>
+              <p className="font-semibold">Walkthrough request recorded</p>
               <p className="mt-2 text-xs text-emerald-900/80 dark:text-emerald-100/80">
-                We’ve sent a calendar invite and confirmation to{' '}
-                <strong>{form.email}</strong>. Our team will review your answers
-                so we can jump straight into a useful walkthrough.
+                This preview does not send an external email or calendar
+                invitation. Our team will review the request for{' '}
+                <strong>{form.email}</strong> before confirming next steps.
               </p>
               <a
                 href="/marketing/pricing"

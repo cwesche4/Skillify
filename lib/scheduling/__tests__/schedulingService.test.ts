@@ -220,7 +220,7 @@ describe('scheduling availability service', () => {
     expect(result.title).toBe('Emergency Service persisted')
   })
 
-  it('preserves normalized MEMBER and TEAM assignment targets in the Scheduling write contract', async () => {
+  it('preserves normalized MEMBER assignment targets in the recurring Scheduling write contract', async () => {
     mocks.prisma.workspace.findUnique.mockResolvedValue({
       id: actor.workspaceId,
       businessModel: 'SIMPLE_SERVICE_BUSINESS',
@@ -259,11 +259,6 @@ describe('scheduling availability service', () => {
             workspaceMemberId: 'workspace-member-owner',
             displaySnapshot: 'Owner',
           },
-          {
-            assignmentType: 'TEAM',
-            teamId: 'team-1',
-            displaySnapshot: 'Crew One',
-          },
         ],
         linkedRecord: {
           recordType: 'customer',
@@ -288,10 +283,6 @@ describe('scheduling availability service', () => {
               assignmentType: 'MEMBER',
               workspaceMemberId: 'workspace-member-owner',
             }),
-            expect.objectContaining({
-              assignmentType: 'TEAM',
-              teamId: 'team-1',
-            }),
           ],
           recurrenceRule: expect.objectContaining({
             daysOfWeek: [1, 3, 5],
@@ -299,6 +290,40 @@ describe('scheduling availability service', () => {
         }),
       }),
     )
+  })
+
+  it('rejects a direct API attempt to create a TEAM-assigned recurring service visit', async () => {
+    await expect(
+      createSchedulingEvent({
+        actor,
+        input: {
+          title: 'Recurring lawn service',
+          type: 'recurringServiceVisit',
+          startsAt: '2026-07-31T13:00:00.000Z',
+          endsAt: '2026-07-31T14:00:00.000Z',
+          timezone: 'America/New_York',
+          locationType: 'toBeDetermined',
+          assignments: [
+            {
+              assignmentType: 'TEAM',
+              teamId: 'team-1',
+              displaySnapshot: 'Crew One',
+            },
+          ],
+          recurrenceRule: {
+            frequency: 'weekly',
+            interval: 1,
+            daysOfWeek: [1, 3, 5],
+            endType: 'never',
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message:
+        'Recurring Services support member assignments only during controlled launch.',
+    })
+    expect(mocks.schedulingRepository.createEvent).not.toHaveBeenCalled()
   })
 
   it('does not report scheduling success when read-after-write fails', async () => {

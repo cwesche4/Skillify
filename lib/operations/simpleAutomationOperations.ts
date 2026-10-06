@@ -29,6 +29,121 @@ function ageMs(now: Date, date?: Date | null) {
   return date ? Math.max(0, now.getTime() - date.getTime()) : null
 }
 
+export async function getEstimateOperationsDiagnostics({
+  now = new Date(),
+}: {
+  now?: Date
+} = {}) {
+  const [
+    deliveryPending,
+    deliveryProcessing,
+    deliveryStaleProcessing,
+    deliveryRetryableFailed,
+    deliveryPermanentlyFailed,
+    oldestDelivery,
+    lastDeliverySuccess,
+    followUpOverdue,
+    followUpProcessing,
+    followUpStaleProcessing,
+    followUpRetryableFailed,
+    followUpPermanentlyFailed,
+    oldestFollowUp,
+    lastFollowUpSuccess,
+  ] = await Promise.all([
+    prisma.estimateDelivery.count({ where: { status: 'PENDING' } }),
+    prisma.estimateDelivery.count({ where: { status: 'PROCESSING' } }),
+    prisma.estimateDelivery.count({
+      where: {
+        status: 'PROCESSING',
+        leaseExpiresAt: { not: null, lte: now },
+      },
+    }),
+    prisma.estimateDelivery.count({ where: { status: 'FAILED' } }),
+    prisma.estimateDelivery.count({
+      where: { status: 'PERMANENTLY_FAILED' },
+    }),
+    prisma.estimateDelivery.findFirst({
+      where: {
+        OR: [
+          {
+            status: 'PENDING',
+            OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
+          },
+          {
+            status: 'FAILED',
+            OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
+          },
+          { status: 'PROCESSING', leaseExpiresAt: { lte: now } },
+        ],
+      },
+      orderBy: { requestedAt: 'asc' },
+      select: { requestedAt: true },
+    }),
+    prisma.estimateDelivery.findFirst({
+      where: { status: 'SENT', sentAt: { not: null } },
+      orderBy: { sentAt: 'desc' },
+      select: { sentAt: true },
+    }),
+    prisma.estimateFollowUpSchedule.count({
+      where: { status: 'SCHEDULED', dueAt: { lte: now } },
+    }),
+    prisma.estimateFollowUpSchedule.count({
+      where: { status: 'PROCESSING' },
+    }),
+    prisma.estimateFollowUpSchedule.count({
+      where: {
+        status: 'PROCESSING',
+        leaseExpiresAt: { not: null, lte: now },
+      },
+    }),
+    prisma.estimateFollowUpSchedule.count({ where: { status: 'FAILED' } }),
+    prisma.estimateFollowUpSchedule.count({
+      where: { status: 'PERMANENTLY_FAILED' },
+    }),
+    prisma.estimateFollowUpSchedule.findFirst({
+      where: {
+        OR: [
+          { status: 'SCHEDULED', dueAt: { lte: now } },
+          {
+            status: 'FAILED',
+            nextAttemptAt: { not: null, lte: now },
+          },
+          { status: 'PROCESSING', leaseExpiresAt: { lte: now } },
+        ],
+      },
+      orderBy: { dueAt: 'asc' },
+      select: { dueAt: true },
+    }),
+    prisma.estimateFollowUpSchedule.findFirst({
+      where: { status: 'DISPATCHED', dispatchedAt: { not: null } },
+      orderBy: { dispatchedAt: 'desc' },
+      select: { dispatchedAt: true },
+    }),
+  ])
+
+  return {
+    deliveries: {
+      pending: deliveryPending,
+      processing: deliveryProcessing,
+      staleProcessing: deliveryStaleProcessing,
+      retryableFailed: deliveryRetryableFailed,
+      permanentlyFailed: deliveryPermanentlyFailed,
+      oldestEligibleAgeMs: ageMs(now, oldestDelivery?.requestedAt),
+      lastSentAt: lastDeliverySuccess?.sentAt?.toISOString() ?? null,
+    },
+    followUps: {
+      overdue: followUpOverdue,
+      processing: followUpProcessing,
+      staleProcessing: followUpStaleProcessing,
+      retryableFailed: followUpRetryableFailed,
+      permanentlyFailed: followUpPermanentlyFailed,
+      oldestOverdueAgeMs: ageMs(now, oldestFollowUp?.dueAt),
+      lastDispatchedAt:
+        lastFollowUpSuccess?.dispatchedAt?.toISOString() ?? null,
+    },
+  }
+}
+
 export async function getSimpleAutomationOperationsHealth({
   now = new Date(),
 }: {
@@ -45,6 +160,7 @@ export async function getSimpleAutomationOperationsHealth({
     failedSimpleRuns,
     failedRunsByAutomation,
     scheduling,
+    estimates,
     lastRecurrenceMaterialization,
   ] = await Promise.all([
     prisma.domainOutboxEvent.count({
@@ -67,10 +183,7 @@ export async function getSimpleAutomationOperationsHealth({
           { status: DomainOutboxStatus.PENDING },
           {
             status: DomainOutboxStatus.FAILED,
-            OR: [
-              { nextAttemptAt: null },
-              { nextAttemptAt: { lte: now } },
-            ],
+            OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
           },
         ],
       },
@@ -101,6 +214,7 @@ export async function getSimpleAutomationOperationsHealth({
       _count: { _all: true },
     }),
     getSchedulingNotificationWorkerDiagnostics({ nowUtc: now }),
+    getEstimateOperationsDiagnostics({ now }),
     prisma.domainOutboxEvent.findFirst({
       where: {
         topic: 'scheduling.recurrence.materialized',
@@ -139,18 +253,14 @@ export async function getSimpleAutomationOperationsHealth({
       processing: nativeProcessing,
       retryableFailed: nativeRetryableFailed,
       dead: nativeDead,
-      oldestEligiblePendingAgeMs: ageMs(
-        now,
-        oldestNativeEligible?.createdAt,
-      ),
+      oldestEligiblePendingAgeMs: ageMs(now, oldestNativeEligible?.createdAt),
     },
     schedulingOutbox: {
       pending: scheduling.outboxPending,
       processing: scheduling.outboxProcessing,
       retryableFailed: scheduling.outboxRetryableFailed,
       dead: scheduling.outboxDead,
-      oldestEligiblePendingAgeMs:
-        scheduling.oldestEligiblePendingAgeMs,
+      oldestEligiblePendingAgeMs: scheduling.oldestEligiblePendingAgeMs,
     },
     reminders: {
       pending: scheduling.reminderPending,
@@ -160,6 +270,7 @@ export async function getSimpleAutomationOperationsHealth({
       overdue: scheduling.reminderOverdue,
       oldestOverdueAgeMs: scheduling.oldestOverdueAgeMs,
     },
+    estimates,
     simpleAutomations: {
       failedRuns: failedSimpleRuns,
       failedRunsByRecipe: failedRunsByAutomation.flatMap((row) => {
@@ -184,8 +295,7 @@ export async function getSimpleAutomationOperationsHealth({
       },
       nativeDomainLastSuccessfulWorkAt:
         lastNativeSuccess?.processedAt?.toISOString() ?? null,
-      schedulingLastSuccessfulWorkAt:
-        scheduling.lastSuccessfulExecution,
+      schedulingLastSuccessfulWorkAt: scheduling.lastSuccessfulExecution,
       recurrenceLastSuccessfulMaterializationAt:
         lastRecurrenceMaterialization?.processedAt?.toISOString() ?? null,
       heartbeatSource: 'vercel-cron-invocation-logs',

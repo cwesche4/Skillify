@@ -22,6 +22,7 @@ import {
 import { loadSchedulingPageProps } from '@/lib/scheduling/loadSchedulingPageProps'
 import type { SchedulingKnowledgeInput } from '@/lib/scheduling/schedulingKnowledge'
 import { getWorkspaceCapabilities } from '@/lib/workspaces/getWorkspaceCapabilities'
+import { canManageScheduling } from '@/lib/workspaces/workspaceRoles'
 
 type RouteContext = { params: { workspaceId: string } }
 
@@ -76,6 +77,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       status: 403,
       code: 'FORBIDDEN',
       message: 'You do not have access to Scheduling AI in this workspace.',
+    })
+  }
+  if (
+    workspace.businessModel === 'SIMPLE_SERVICE_BUSINESS' &&
+    !canManageScheduling(membership.role)
+  ) {
+    return schedulingApiError({
+      status: 403,
+      code: 'FORBIDDEN',
+      message:
+        'Use assigned Jobs for field execution during the controlled launch.',
     })
   }
 

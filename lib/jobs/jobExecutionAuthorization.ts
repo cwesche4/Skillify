@@ -245,6 +245,26 @@ export function workspaceMemberExecutableJobsWhere(input: {
   }
 }
 
+export function workspaceMemberReadableWorkItemsWhere(input: {
+  workspaceId: string
+  workspaceMemberId: string
+}): Prisma.WorkItemWhereInput {
+  return {
+    workspaceId: input.workspaceId,
+    archivedAt: null,
+    OR: [
+      {
+        kind: 'TODO',
+        assigneeMemberId: input.workspaceMemberId,
+      },
+      {
+        kind: 'JOB_STEP',
+        job: { is: workspaceMemberExecutableJobsWhere(input) },
+      },
+    ],
+  }
+}
+
 export async function canWorkspaceMemberExecuteJob(
   input: {
     workspaceId: string
