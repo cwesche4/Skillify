@@ -60,7 +60,7 @@ export async function GET(
       },
     },
   })
-  if (!membership)
+  if (!membership || !isManager(membership.role))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const invites = await prisma.workspaceInvite.findMany({
@@ -152,14 +152,25 @@ export async function POST(
   })
 
   if (existingInvite) {
-    const updated = await prisma.workspaceInvite.update({
-      where: { id: existingInvite.id },
+    const resend = await prisma.workspaceInvite.updateMany({
+      where: {
+        id: existingInvite.id,
+        workspaceId: params.workspaceId,
+        acceptedAt: null,
+      },
       data: {
         role,
         token: makeToken(),
         expiresAt,
       },
     })
+    if (resend.count !== 1) {
+      return NextResponse.json(
+        { error: 'Invitation is no longer pending.' },
+        { status: 409 },
+      )
+    }
+    const updated = { ...existingInvite, role, expiresAt }
 
     await logAudit({
       workspaceId: params.workspaceId,
@@ -257,10 +268,21 @@ export async function PATCH(
     )
   }
 
-  const updated = await prisma.workspaceInvite.update({
-    where: { id: invite.id },
+  const update = await prisma.workspaceInvite.updateMany({
+    where: {
+      id: invite.id,
+      workspaceId: params.workspaceId,
+      acceptedAt: null,
+    },
     data: { role },
   })
+  if (update.count !== 1) {
+    return NextResponse.json(
+      { error: 'Invitation is no longer pending.' },
+      { status: 409 },
+    )
+  }
+  const updated = { ...invite, role }
 
   await logAudit({
     workspaceId: params.workspaceId,
@@ -317,6 +339,26 @@ export async function DELETE(
     )
   }
 
-  await prisma.workspaceInvite.delete({ where: { id: inviteId } })
+  const canceled = await prisma.workspaceInvite.deleteMany({
+    where: {
+      id: inviteId,
+      workspaceId: params.workspaceId,
+      acceptedAt: null,
+    },
+  })
+  if (canceled.count !== 1) {
+    return NextResponse.json(
+      { error: 'Invitation is no longer pending.' },
+      { status: 409 },
+    )
+  }
+  await logAudit({
+    workspaceId: params.workspaceId,
+    actorId: profile.id,
+    action: 'INVITE_CANCELED',
+    targetType: 'WorkspaceInvite',
+    targetId: inviteId,
+    meta: { email: invite.email, role: invite.role },
+  })
   return NextResponse.json({ ok: true })
 }

@@ -898,6 +898,7 @@ export async function writeCalendarGovernanceOutboxEvent({
   topic,
   aggregateId,
   payload,
+  db,
 }: {
   workspaceId: string
   topic:
@@ -925,8 +926,9 @@ export async function writeCalendarGovernanceOutboxEvent({
     | 'scheduling.external_availability.conflict_overridden'
   aggregateId: string
   payload: Record<string, unknown>
+  db?: Prisma.TransactionClient
 }) {
-  const prisma = await getPrisma()
+  const prisma = db ?? (await getPrisma())
   await prisma.domainOutboxEvent.create({
     data: {
       workspaceId,
@@ -1630,13 +1632,15 @@ export async function handleWorkspaceMemberCalendarConnectionLifecycle({
   workspaceMemberId,
   transition,
   actor,
+  db,
 }: {
   workspaceId: string
   workspaceMemberId: string
   transition: 'removed' | 'deactivated' | 'reactivated'
   actor?: { workspaceMemberId?: string; userId?: string } | null
+  db?: Prisma.TransactionClient
 }) {
-  const prisma = await getPrisma()
+  const prisma = db ?? (await getPrisma())
   const now = new Date()
   if (transition === 'reactivated') {
     const result = await prisma.calendarConnection.updateMany({
@@ -1665,7 +1669,7 @@ export async function handleWorkspaceMemberCalendarConnectionLifecycle({
     select: { id: true },
   })
   if (!connections.length) return { affected: 0 }
-  await prisma.$transaction([
+  const stopWatchChannels = () =>
     prisma.calendarWatchChannel.updateMany({
       where: {
         workspaceId,
@@ -1673,7 +1677,8 @@ export async function handleWorkspaceMemberCalendarConnectionLifecycle({
         status: CalendarWatchChannelStatus.ACTIVE,
       },
       data: { status: CalendarWatchChannelStatus.STOPPED, stoppedAt: now },
-    }),
+    })
+  const disableConnections = () =>
     prisma.calendarConnection.updateMany({
       where: {
         workspaceId,
@@ -1687,22 +1692,36 @@ export async function handleWorkspaceMemberCalendarConnectionLifecycle({
         syncStatus: CalendarConnectionStatus.NEEDS_ATTENTION,
         nextSyncAt: null,
       },
-    }),
-  ])
-  await Promise.all(
-    connections.map((connection) =>
-      writeCalendarGovernanceOutboxEvent({
-        workspaceId,
-        topic: 'scheduling.calendar_connection.owner_inactive',
-        aggregateId: connection.id,
-        payload: {
-          transition,
-          disabledReason,
-          workspaceMemberId,
-          actor,
-        },
-      }),
-    ),
-  )
+    })
+
+  if (db) {
+    await stopWatchChannels()
+    await disableConnections()
+  } else {
+    const rootPrisma = prisma as Awaited<ReturnType<typeof getPrisma>>
+    await rootPrisma.$transaction([stopWatchChannels(), disableConnections()])
+  }
+  const writeOwnerInactiveEvent = (connectionId: string) =>
+    writeCalendarGovernanceOutboxEvent({
+      workspaceId,
+      topic: 'scheduling.calendar_connection.owner_inactive',
+      aggregateId: connectionId,
+      payload: {
+        transition,
+        disabledReason,
+        workspaceMemberId,
+        actor,
+      },
+      db,
+    })
+  if (db) {
+    for (const connection of connections) {
+      await writeOwnerInactiveEvent(connection.id)
+    }
+  } else {
+    await Promise.all(
+      connections.map((connection) => writeOwnerInactiveEvent(connection.id)),
+    )
+  }
   return { affected: connections.length }
 }

@@ -58,6 +58,11 @@ vi.mock('@/lib/builder/ai/server/auditQuery', () => ({
   queryAiActionAudits: mockQueryAudits,
 }))
 
+const mockGetWorkspacePlan = vi.fn()
+vi.mock('@/lib/subscriptions/getWorkspacePlan', () => ({
+  getWorkspacePlan: mockGetWorkspacePlan,
+}))
+
 process.env.AI_ACTIONS_GLOBALLY_DISABLED =
   process.env.AI_ACTIONS_GLOBALLY_DISABLED ?? 'false'
 
@@ -69,12 +74,14 @@ import { undoAiAction } from '@/lib/builder/ai/server/undo'
 import { requireWorkspaceRole } from '@/lib/auth/requireWorkspaceRole'
 
 import { POST as nodeImprovePost } from '@/app/api/ai/node-improve/route'
+import { POST as aiCoachPost } from '@/app/api/command-center/ai/route'
 import { POST as undoPost } from '@/app/api/workspaces/[workspaceId]/ai-actions/undo/route'
 import { GET as auditGet } from '@/app/api/workspaces/[workspaceId]/ai-actions/audit/route'
 
 describe('AI action routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetWorkspacePlan.mockResolvedValue('Pro')
   })
 
   it('denies when workspace kill switch is disabled', async () => {
@@ -174,7 +181,10 @@ describe('AI action routes', () => {
     vi.mocked(prisma.userProfile.findUnique).mockResolvedValue({
       id: 'user1',
     } as any)
-    vi.mocked(requireWorkspaceRole).mockRejectedValue(new Error('Forbidden'))
+    vi.mocked(requireWorkspaceRole).mockResolvedValue({
+      allowed: false,
+      status: 403,
+    } as any)
 
     const req = new Request(
       'http://localhost/api/workspaces/ws1/ai-actions/audit',
@@ -183,8 +193,41 @@ describe('AI action routes', () => {
       },
     )
 
-    await expect(
-      auditGet(req as any, { params: { workspaceId: 'ws1' } } as any),
-    ).rejects.toThrow('Forbidden')
+    const response = await auditGet(
+      req as any,
+      { params: { workspaceId: 'ws1' } } as any,
+    )
+    expect(response.status).toBe(403)
+    expect(mockQueryAudits).not.toHaveBeenCalled()
+  })
+
+  it('requires a Pro workspace for AI Coach API access', async () => {
+    vi.mocked(auth).mockReturnValue({ userId: 'clerk_1' } as any)
+    vi.mocked(prisma.userProfile.findUnique).mockResolvedValue({
+      id: 'user1',
+    } as any)
+    vi.mocked(prisma.workspaceMember.findFirst).mockResolvedValue({
+      id: 'wm1',
+      userId: 'user1',
+      role: 'OWNER',
+    } as any)
+    mockGetWorkspacePlan.mockResolvedValue('Basic')
+
+    const response = await aiCoachPost(
+      new Request('http://localhost/api/command-center/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId: 'ws1',
+          question: 'What should I improve?',
+        }),
+      }) as any,
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({
+      error: 'AI Coach requires a Pro or Elite workspace plan.',
+    })
+    expect(mockAssertAiActionsEnabled).not.toHaveBeenCalled()
   })
 })

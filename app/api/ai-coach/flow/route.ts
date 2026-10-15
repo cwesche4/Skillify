@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
 import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
 import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
+import { requireWorkspaceFeature } from '@/lib/subscriptions/requireWorkspaceFeature'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -26,6 +27,9 @@ export async function GET(req: Request) {
       { status: access.status },
     )
   }
+
+  const planGuard = await requireWorkspaceFeature(workspaceId, 'coach.optimize')
+  if (planGuard) return planGuard
 
   const aiGuard = await assertAiActionsEnabled(workspaceId)
   if (aiGuard) return aiGuard

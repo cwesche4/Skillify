@@ -16,7 +16,7 @@ export const FeatureMatrix = {
   // ===========================
   // DASHBOARD / CORE
   // ===========================
-  'dashboard.activity': ['Free', 'Basic', 'Pro,', 'Elite'],
+  'dashboard.activity': ['Free', 'Basic', 'Pro', 'Elite'],
   'dashboard.widgets': ['Free', 'Basic', 'Pro', 'Elite'],
 
   // ===========================

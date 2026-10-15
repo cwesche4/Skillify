@@ -2,33 +2,36 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { WorkspaceMemberRole } from '@prisma/client'
 
 import { requireWorkspaceRole } from '@/lib/auth/requireRole'
+import { logAudit } from '@/lib/audit/log'
+import { prisma } from '@/lib/db'
 import {
   getWorkspaceSettings,
   setWorkspaceAiActionsEnabled,
 } from '@/lib/workspaces/settings'
 
 async function ensureWorkspaceAdmin(workspaceId: string) {
-  try {
-    await requireWorkspaceRole(workspaceId, [
-      WorkspaceMemberRole.OWNER,
-      WorkspaceMemberRole.ADMIN,
-    ])
-    return null
-  } catch (err: any) {
-    const message = err?.message ?? ''
-    if (message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const guard = await requireWorkspaceRole(workspaceId, [
+    WorkspaceMemberRole.OWNER,
+    WorkspaceMemberRole.ADMIN,
+  ])
+  if (!guard.allowed) {
+    return {
+      response: NextResponse.json(
+        { error: guard.status === 401 ? 'Unauthorized' : 'Forbidden' },
+        { status: guard.status },
+      ),
+      guard: null,
     }
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+  return { response: null, guard }
 }
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { workspaceId: string } },
 ) {
-  const adminGuard = await ensureWorkspaceAdmin(params.workspaceId)
-  if (adminGuard) return adminGuard
+  const { response } = await ensureWorkspaceAdmin(params.workspaceId)
+  if (response) return response
 
   const settings = await getWorkspaceSettings(params.workspaceId)
 
@@ -39,8 +42,8 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { workspaceId: string } },
 ) {
-  const adminGuard = await ensureWorkspaceAdmin(params.workspaceId)
-  if (adminGuard) return adminGuard
+  const { response, guard } = await ensureWorkspaceAdmin(params.workspaceId)
+  if (response || !guard) return response
 
   let body: any = {}
   try {
@@ -60,6 +63,19 @@ export async function PUT(
     params.workspaceId,
     body.aiActionsEnabled,
   )
+
+  const actor = await prisma.userProfile.findUnique({
+    where: { clerkId: guard.userId },
+    select: { id: true },
+  })
+  await logAudit({
+    workspaceId: params.workspaceId,
+    actorId: actor?.id ?? null,
+    action: 'AI_ACTIONS_SETTING_CHANGED',
+    targetType: 'WorkspaceSettings',
+    targetId: params.workspaceId,
+    meta: { aiActionsEnabled: settings.aiActionsEnabled },
+  })
 
   return NextResponse.json({ aiActionsEnabled: settings.aiActionsEnabled })
 }

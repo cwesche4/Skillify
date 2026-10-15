@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
 import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
 import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
+import { hasFeature } from '@/lib/subscriptions/hasFeature'
 
 //
 // TYPES
@@ -139,6 +141,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: access.message },
       { status: access.status },
+    )
+  }
+
+  const workspacePlan = await getWorkspacePlan(body.workspaceId)
+  if (!hasFeature(workspacePlan, 'coach.explain')) {
+    return NextResponse.json(
+      { error: 'AI Coach requires a Pro or Elite workspace plan.' },
+      { status: 403 },
     )
   }
 

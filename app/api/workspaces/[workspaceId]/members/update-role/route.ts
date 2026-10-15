@@ -1,43 +1,16 @@
-import { auth } from '@clerk/nextjs/server'
-
-import { fail, ok } from '@/lib/api/responses'
-import { prisma } from '@/lib/db'
-import { canManageWorkspace } from '@/lib/permissions/workspace'
-import { logAudit } from '@/lib/audit/log'
+import { PATCH as updateWorkspaceMemberRole } from '../route'
 
 export async function POST(req: Request, { params }: any) {
-  const { userId } = await auth()
-  if (!userId) return fail('Unauthorized', 401)
-
-  const { workspaceId } = params
-  const { memberId, role } = await req.json()
-
-  // Permission check
-  const requester = await prisma.workspaceMember.findFirst({
-    where: {
-      workspaceId,
-      user: { clerkId: userId },
-    },
-  })
-
-  if (!requester || !canManageWorkspace(requester.role)) {
-    return fail('Not allowed', 403)
-  }
-
-  // Update role
-  const updated = await prisma.workspaceMember.update({
-    where: { id: memberId },
-    data: { role },
-  })
-
-  await logAudit({
-    workspaceId,
-    actorId: requester.userId,
-    action: 'MEMBER_ROLE_CHANGED',
-    targetType: 'WorkspaceMember',
-    targetId: memberId,
-    meta: { role },
-  })
-
-  return ok(updated)
+  const body = await req.json().catch(() => ({}))
+  const response = await updateWorkspaceMemberRole(
+    new Request(req.url, {
+      method: 'PATCH',
+      headers: req.headers,
+      body: JSON.stringify(body),
+    }),
+    { params: { workspaceId: params.workspaceId } },
+  )
+  if (!response.ok) return response
+  const payload = (await response.json()) as { member?: unknown }
+  return Response.json({ success: true, data: payload.member ?? null })
 }

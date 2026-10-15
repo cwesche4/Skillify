@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+import { WorkspaceMemberRole } from '@prisma/client'
 import JSZip from 'jszip'
-import { prisma } from '@/lib/db'
 import { queryAiActionAudits } from '@/lib/builder/ai/server/auditQuery'
 import { toCsv, appendCsvFooter } from '@/lib/export/csv'
 import { CONTROL_REGISTRY } from '@/lib/compliance/controlRegistry'
+import { requireWorkspaceRole } from '@/lib/auth/requireRole'
 
 const HEADERS = [
   'timestamp',
@@ -20,6 +22,21 @@ export async function GET(
   req: Request,
   { params }: { params: { workspaceId: string } },
 ) {
+  const { userId } = auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const guard = await requireWorkspaceRole(params.workspaceId, [
+    WorkspaceMemberRole.OWNER,
+    WorkspaceMemberRole.ADMIN,
+  ])
+  if (!guard.allowed) {
+    return NextResponse.json(
+      { error: guard.status === 401 ? 'Unauthorized' : 'Forbidden' },
+      { status: guard.status },
+    )
+  }
+
   const url = new URL(req.url)
   const from = url.searchParams.get('from')
   const to = url.searchParams.get('to')

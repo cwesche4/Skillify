@@ -9,6 +9,7 @@ import type {
 } from '@/app/dashboard/[workspaceSlug]/members/MemberList'
 import {
   getWorkspaceRoleLabel,
+  inviteRoleOptions,
   workspaceRoleOptions,
 } from '@/lib/workspaces/workspaceRoles'
 
@@ -77,6 +78,9 @@ export default function MemberList({
         <div className="divide-y divide-slate-800">
           {members.map((m) => {
             const isOwner = m.role === 'OWNER'
+            const allowedRoleOptions = isOwner
+              ? workspaceRoleOptions
+              : inviteRoleOptions
             const controlsDisabled =
               busyId === m.id || (isOwner && currentRole !== 'OWNER')
 
@@ -107,7 +111,7 @@ export default function MemberList({
                         className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-neutral-100 disabled:opacity-60"
                         aria-label={`Change role for ${m.fullName ?? m.email ?? 'member'}`}
                       >
-                        {workspaceRoleOptions.map((option) => (
+                        {allowedRoleOptions.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>

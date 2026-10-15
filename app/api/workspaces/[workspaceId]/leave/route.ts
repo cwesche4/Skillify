@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
-import { WorkspaceMemberRole } from '@/lib/prisma/enums'
-import { handleWorkspaceMemberCalendarConnectionLifecycle } from '@/lib/scheduling/providers/calendarGovernance'
+import {
+  leaveWorkspaceSafely,
+  WorkspaceMemberMutationError,
+} from '@/lib/workspaces/memberMutations'
 
 export async function POST(
   _req: Request,
@@ -18,44 +20,20 @@ export async function POST(
   if (!profile)
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
-  const membership = await prisma.workspaceMember.findUnique({
-    where: {
-      userId_workspaceId: {
-        userId: profile.id,
-        workspaceId: params.workspaceId,
-      },
-    },
-  })
-
-  if (!membership) {
-    return NextResponse.json({ error: 'Not a member' }, { status: 400 })
-  }
-
-  if (membership.role === WorkspaceMemberRole.OWNER) {
-    const owners = await prisma.workspaceMember.count({
-      where: {
-        workspaceId: params.workspaceId,
-        role: WorkspaceMemberRole.OWNER,
-      },
+  try {
+    await leaveWorkspaceSafely({
+      workspaceId: params.workspaceId,
+      userId: profile.id,
     })
-
-    if (owners <= 1) {
+  } catch (error) {
+    if (error instanceof WorkspaceMemberMutationError) {
       return NextResponse.json(
-        { error: 'Owner must transfer ownership before leaving' },
-        { status: 400 },
+        { error: error.message },
+        { status: error.status },
       )
     }
+    throw error
   }
-
-  await handleWorkspaceMemberCalendarConnectionLifecycle({
-    workspaceId: params.workspaceId,
-    workspaceMemberId: membership.id,
-    transition: 'removed',
-    actor: { workspaceMemberId: membership.id, userId: profile.id },
-  })
-  await prisma.workspaceMember.delete({
-    where: { id: membership.id },
-  })
 
   return NextResponse.json({ ok: true })
 }

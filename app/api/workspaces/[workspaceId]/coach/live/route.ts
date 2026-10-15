@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server'
 import { assertAiActionsEnabled } from '@/lib/builder/ai/server/assertAiActionsEnabled'
 import { buildAiMetric, emitAiMetric } from '@/lib/observability/aiMetrics'
 import { authorizeWorkspaceAccess } from '@/lib/automations/authorization'
+import { requireWorkspaceFeature } from '@/lib/subscriptions/requireWorkspaceFeature'
 
 export async function GET(
   _req: Request,
@@ -24,6 +25,8 @@ export async function GET(
         { status: access.status },
       )
     }
+    const planGuard = await requireWorkspaceFeature(workspaceId, 'coach.live')
+    if (planGuard) return planGuard
     const aiGuard = await assertAiActionsEnabled(workspaceId)
     if (aiGuard) return aiGuard
     emitAiMetric(

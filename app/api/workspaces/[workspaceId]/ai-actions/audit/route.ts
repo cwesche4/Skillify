@@ -4,7 +4,7 @@ import { WorkspaceMemberRole } from '@prisma/client'
 
 import { prisma } from '@/lib/db'
 import { queryAiActionAudits } from '@/lib/builder/ai/server/auditQuery'
-import { requireWorkspaceRole } from '@/lib/auth/requireWorkspaceRole'
+import { requireWorkspaceRole } from '@/lib/auth/requireRole'
 
 function parseDate(value: string | null) {
   if (!value) return undefined
@@ -37,10 +37,16 @@ export async function GET(
       { status: 404 },
     )
 
-  await requireWorkspaceRole(profile.id, params.workspaceId, [
+  const guard = await requireWorkspaceRole(params.workspaceId, [
     WorkspaceMemberRole.OWNER,
     WorkspaceMemberRole.ADMIN,
   ])
+  if (!guard.allowed) {
+    return NextResponse.json(
+      { error: guard.status === 401 ? 'Unauthorized' : 'Forbidden' },
+      { status: guard.status },
+    )
+  }
 
   const url = new URL(req.url)
   const from = parseDate(url.searchParams.get('from'))

@@ -11,6 +11,8 @@ import { prisma } from '@/lib/db'
 import { AUTOMATION_MANAGEMENT_ROLES } from '@/lib/automations/policy'
 import { WorkspaceAiCoachChat } from '@/components/dashboard/ai-coach/WorkspaceAiCoachChat'
 import { WorkspaceAIStatus } from '@/lib/prisma/enums'
+import { getWorkspacePlan } from '@/lib/subscriptions/getWorkspacePlan'
+import { hasFeature } from '@/lib/subscriptions/hasFeature'
 
 type WorkspaceAiProfile = {
   businessName: string
@@ -165,6 +167,13 @@ export default async function WorkspaceAiCoachPage({
   })
 
   if (!workspace) return null
+
+  const workspacePlan = await getWorkspacePlan(workspace.id)
+  if (!hasFeature(workspacePlan, 'coach.explain')) {
+    redirect(
+      `/dashboard/${params.workspaceSlug}/upsell?need=Pro&feature=AI%20Coach`,
+    )
+  }
 
   const membership = workspace.members.find((m) => m.userId === profile.id)
   if (!membership) redirect('/dashboard')

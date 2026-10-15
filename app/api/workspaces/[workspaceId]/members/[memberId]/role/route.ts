@@ -1,27 +1,21 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { requireWorkspaceRole } from '@/lib/auth/requireRole'
-import { WorkspaceMemberRole } from '@prisma/client'
+import { PATCH as updateWorkspaceMemberRole } from '../../route'
 
 export async function PATCH(
   req: Request,
   { params }: { params: { workspaceId: string; memberId: string } },
 ) {
-  const { role } = await req.json()
-
-  await requireWorkspaceRole(params.workspaceId, [
-    WorkspaceMemberRole.OWNER,
-    WorkspaceMemberRole.ADMIN,
-  ])
-
-  if (role === WorkspaceMemberRole.OWNER) {
-    throw new Error('Cannot promote to OWNER')
-  }
-
-  await prisma.workspaceMember.update({
-    where: { id: params.memberId },
-    data: { role },
-  })
-
-  return NextResponse.json({ success: true })
+  const body = await req.json().catch(() => ({}))
+  const response = await updateWorkspaceMemberRole(
+    new Request(req.url, {
+      method: 'PATCH',
+      headers: req.headers,
+      body: JSON.stringify({
+        memberId: params.memberId,
+        role: (body as { role?: unknown }).role,
+      }),
+    }),
+    { params: { workspaceId: params.workspaceId } },
+  )
+  if (!response.ok) return response
+  return Response.json({ success: true })
 }

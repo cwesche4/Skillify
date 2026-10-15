@@ -69,7 +69,11 @@ describe('members and pending invitations organization', () => {
 
     expect(within(active as HTMLElement).getByText(/2 active/i)).toBeTruthy()
     expect(screen.getByText('Morgan Manager')).toBeTruthy()
-    expect(screen.getByDisplayValue('Manager')).toBeTruthy()
+    const memberRoleSelect = screen.getByDisplayValue('Manager')
+    expect(memberRoleSelect).toBeTruthy()
+    expect(
+      within(memberRoleSelect).queryByRole('option', { name: 'Owner' }),
+    ).toBeNull()
     expect(within(pending as HTMLElement).getByText(/1 pending/i)).toBeTruthy()
     expect(screen.getByText('admin@example.com')).toBeTruthy()
     expect(screen.queryByText(/token/i)).toBeNull()
