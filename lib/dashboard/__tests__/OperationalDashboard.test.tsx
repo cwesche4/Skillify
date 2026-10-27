@@ -1,3 +1,5 @@
+/// <reference types="@testing-library/jest-dom/vitest" />
+
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
@@ -76,6 +78,8 @@ describe('OperationalDashboard', () => {
         failedAutomations: [],
         failedAutomationsHref: '/dashboard/acme/automations',
         failureWindowDays: 7,
+        estimatesCount: 0,
+        estimates: [],
       },
       waitingOnClientCount: 0,
       today: {
@@ -151,6 +155,8 @@ describe('OperationalDashboard', () => {
         ],
         failedAutomationsHref: '/dashboard/acme/automations',
         failureWindowDays: 7,
+        estimatesCount: 0,
+        estimates: [],
       },
       waitingOnClientCount: 1,
       today: {
@@ -221,6 +227,8 @@ describe('OperationalDashboard', () => {
         failedAutomations: [],
         failedAutomationsHref: '/dashboard/acme/automations',
         failureWindowDays: 7,
+        estimatesCount: 0,
+        estimates: [],
       },
       waitingOnClientCount: 0,
       today: {
