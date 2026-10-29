@@ -1,10 +1,1 @@
-#!/usr/bin/env sh
-. "$(dirname "$0")/_/husky.sh"
-
-echo "🔍 Running ESLint..."
-npm run lint:fix || exit 1
-
-echo "🎨 Running Prettier..."
-npm run format || exit 1
-
-echo "✨ Pre-commit checks passed!"
+./node_modules/.bin/lint-staged
