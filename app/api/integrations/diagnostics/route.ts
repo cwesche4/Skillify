@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+
+const integrationInclude = { credentials: true } satisfies Prisma.IntegrationInclude
+
+type DiagnosticIntegration = Prisma.IntegrationGetPayload<{
+  include: typeof integrationInclude
+}>
 
 export async function GET(req: Request) {
   const { userId: clerkId } = auth()
@@ -25,7 +32,7 @@ export async function GET(req: Request) {
 
   const integrations = await prisma.integration.findMany({
     where: { workspaceId },
-    include: { credentials: true },
+    include: integrationInclude,
   })
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -44,8 +51,13 @@ export async function GET(req: Request) {
       CRM_DISABLE_INBOUND: process.env.CRM_DISABLE_INBOUND === 'true',
       CRM_DISABLE_ACTIONS: process.env.CRM_DISABLE_ACTIONS === 'true',
     },
-    integrations: integrations.map((i) => {
-      const meta = (i.metadata as any) || {}
+    integrations: integrations.map((i: DiagnosticIntegration) => {
+      const meta: Prisma.JsonObject =
+        i.metadata &&
+        typeof i.metadata === 'object' &&
+        !Array.isArray(i.metadata)
+          ? i.metadata
+          : {}
       return {
         id: i.id,
         provider: i.provider,
